@@ -1,0 +1,391 @@
+<section class="welcome" aria-labelledby="welcome-heading">
+  <div>
+    <h1 id="welcome-heading">Account</h1>
+    <p>Manage your profile, account information, and preferences.</p>
+  </div>
+</section>
+
+@if (editProfileStep() === 'view') {
+  <section class="panel profile-panel" aria-labelledby="profile-title">
+    <div class="panel-heading">
+      <h2 id="profile-title">Profile Information</h2>
+    </div>
+
+    <div class="profile-content">
+      <div class="profile-header">
+        <div class="profile-avatar">
+          <span>{{ profileData().firstName.charAt(0) }}{{ profileData().lastName.charAt(0) }}</span>
+        </div>
+        <div class="profile-info">
+          <h3>{{ profileData().firstName }} {{ profileData().lastName }}</h3>
+          <p class="profile-email">{{ profileData().email }}</p>
+          <p class="profile-phone">{{ profileData().phone }}</p>
+        </div>
+        <button type="button" class="button secondary" (click)="openEditProfile()">
+          Edit Profile
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path [attr.d]="icons['edit']"/>
+          </svg>
+        </button>
+      </div>
+
+      <div class="profile-details">
+        <div class="detail-row">
+          <span class="detail-label">First Name</span>
+          <strong>{{ profileData().firstName }}</strong>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Last Name</span>
+          <strong>{{ profileData().lastName }}</strong>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Email</span>
+          <strong>{{ profileData().email }}</strong>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Phone</span>
+          <strong>{{ formatPhoneDisplay(profileData().phone) }}</strong>
+        </div>
+      </div>
+    </div>
+  </section>
+} @else if (editProfileStep() === 'edit') {
+  <section class="panel edit-profile-panel" aria-labelledby="edit-profile-title">
+    <div class="panel-heading">
+      <h2 id="edit-profile-title">Edit Profile</h2>
+    </div>
+
+    <div class="form-content">
+      @if (editFormError) {
+        <div class="form-error" role="alert">
+          {{ editFormError }}
+        </div>
+      }
+
+      <form (ngSubmit)="saveProfileChanges()" class="profile-form">
+        <div class="form-field">
+          <label for="edit-first-name">First Name *</label>
+          <input
+            id="edit-first-name"
+            type="text"
+            placeholder="Enter first name"
+            [(ngModel)]="editFirstName"
+            name="firstName"
+            class="form-input"
+          />
+        </div>
+
+        <div class="form-field">
+          <label for="edit-last-name">Last Name *</label>
+          <input
+            id="edit-last-name"
+            type="text"
+            placeholder="Enter last name"
+            [(ngModel)]="editLastName"
+            name="lastName"
+            class="form-input"
+          />
+        </div>
+
+        <div class="form-field">
+          <label for="edit-email">Email *</label>
+          <input
+            id="edit-email"
+            type="email"
+            placeholder="Enter email address"
+            [(ngModel)]="editEmail"
+            name="email"
+            class="form-input"
+          />
+        </div>
+
+        <div class="form-field">
+          <label for="edit-phone">Phone Number *</label>
+          <input
+            id="edit-phone"
+            type="tel"
+            placeholder="(555) 123-4567"
+            [(ngModel)]="editPhone"
+            name="phone"
+            class="form-input"
+          />
+          <small class="form-hint">Format: (555) 123-4567</small>
+        </div>
+
+        <div class="form-actions">
+          <button type="button" class="button secondary" (click)="closeEditProfile()">
+            Cancel
+          </button>
+          <button type="submit" class="button primary">
+            Save Changes
+          </button>
+        </div>
+      </form>
+    </div>
+  </section>
+} @else if (editProfileStep() === 'success') {
+  <section class="panel success-panel" aria-labelledby="success-title">
+    <div class="success-content">
+      <div class="success-icon">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path [attr.d]="icons['check']"/>
+        </svg>
+      </div>
+      <h2 id="success-title">Profile Updated</h2>
+      <p>Your profile information has been updated successfully.</p>
+      <button type="button" class="button primary" (click)="finishProfileEdit()">
+        Done
+      </button>
+    </div>
+  </section>
+}
+
+<section class="panel account-info-panel" aria-labelledby="account-info-title">
+  <div class="panel-heading">
+    <h2 id="account-info-title">Account Information</h2>
+  </div>
+
+  <div class="account-info-content">
+    <div class="info-grid">
+      <div class="info-item">
+        <span class="info-label">Account ID</span>
+        <strong class="account-id">{{ mockAccountInfo.accountId }}</strong>
+      </div>
+      <div class="info-item">
+        <span class="info-label">Account Type</span>
+        <strong>{{ mockAccountInfo.accountType }}</strong>
+      </div>
+      <div class="info-item">
+        <span class="info-label">Account Status</span>
+        <strong class="status-active">{{ mockAccountInfo.accountStatus }}</strong>
+      </div>
+      <div class="info-item">
+        <span class="info-label">Account Created</span>
+        <strong>{{ mockAccountInfo.accountCreated }}</strong>
+      </div>
+      <div class="info-item">
+        <span class="info-label">Portfolio Profile</span>
+        <strong>{{ mockAccountInfo.portfolioProfile }}</strong>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="panel security-panel" aria-labelledby="security-title">
+  <div class="panel-heading">
+    <h2 id="security-title">Security</h2>
+  </div>
+
+  <div class="security-content">
+    <div class="security-item">
+      <div class="security-info">
+        <h3>Password</h3>
+        <p class="security-description">Update your account password regularly to keep your account secure.</p>
+        <p class="security-detail">Last changed: {{ lastPasswordChange }}</p>
+      </div>
+      <button type="button" class="button secondary" (click)="openChangePasswordModal()">
+        Change Password
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path [attr.d]="icons['key']"/>
+        </svg>
+      </button>
+    </div>
+
+    <hr class="security-divider" />
+
+    <div class="security-item">
+      <div class="security-info">
+        <h3>Login Security</h3>
+        <p class="security-description">Your account is protected with encryption and multi-layer security.</p>
+        <p class="security-detail status-secure">● Secure</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="panel preferences-panel" aria-labelledby="preferences-title">
+  <div class="panel-heading">
+    <h2 id="preferences-title">Notification Preferences</h2>
+  </div>
+
+  <div class="preferences-content">
+    <div class="preference-item">
+      <div class="preference-info">
+        <h3>Email Notifications</h3>
+        <p>Receive general account updates and notifications.</p>
+      </div>
+      <div class="toggle-switch" [class.active]="preferences().emailNotifications">
+        <input
+          type="checkbox"
+          id="email-notifications"
+          [checked]="preferences().emailNotifications"
+          (change)="togglePreference('emailNotifications')"
+          class="toggle-input"
+        />
+        <label for="email-notifications" class="toggle-label"></label>
+      </div>
+    </div>
+
+    <hr class="preference-divider" />
+
+    <div class="preference-item">
+      <div class="preference-info">
+        <h3>Order Confirmations</h3>
+        <p>Receive notifications when your orders are placed, filled, or cancelled.</p>
+      </div>
+      <div class="toggle-switch" [class.active]="preferences().orderConfirmations">
+        <input
+          type="checkbox"
+          id="order-confirmations"
+          [checked]="preferences().orderConfirmations"
+          (change)="togglePreference('orderConfirmations')"
+          class="toggle-input"
+        />
+        <label for="order-confirmations" class="toggle-label"></label>
+      </div>
+    </div>
+
+    <hr class="preference-divider" />
+
+    <div class="preference-item">
+      <div class="preference-info">
+        <h3>Trade Alerts</h3>
+        <p>Receive alerts for significant price movements in your portfolio.</p>
+      </div>
+      <div class="toggle-switch" [class.active]="preferences().tradeAlerts">
+        <input
+          type="checkbox"
+          id="trade-alerts"
+          [checked]="preferences().tradeAlerts"
+          (change)="togglePreference('tradeAlerts')"
+          class="toggle-input"
+        />
+        <label for="trade-alerts" class="toggle-label"></label>
+      </div>
+    </div>
+
+    <hr class="preference-divider" />
+
+    <div class="preference-item">
+      <div class="preference-info">
+        <h3>Account Notifications</h3>
+        <p>Receive security alerts and important account notifications.</p>
+      </div>
+      <div class="toggle-switch" [class.active]="preferences().accountNotifications">
+        <input
+          type="checkbox"
+          id="account-notifications"
+          [checked]="preferences().accountNotifications"
+          (change)="togglePreference('accountNotifications')"
+          class="toggle-input"
+        />
+        <label for="account-notifications" class="toggle-label"></label>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="panel actions-panel" aria-labelledby="actions-title">
+  <div class="panel-heading">
+    <h2 id="actions-title">Account Actions</h2>
+  </div>
+
+  <div class="actions-content">
+    <button type="button" class="button logout-button" (click)="navigate('logout')">
+      Log Out
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path [attr.d]="icons['logout']"/>
+      </svg>
+    </button>
+    <p class="actions-hint">You will be signed out of your account across all devices.</p>
+  </div>
+</section>
+
+@if (showChangePasswordModal()) {
+  <div class="modal-backdrop" (click)="closeChangePasswordModal()"></div>
+  <div class="modal" role="dialog" aria-labelledby="password-modal-title">
+    <div class="modal-header">
+      <h2 id="password-modal-title">Change Password</h2>
+      <button type="button" class="modal-close" (click)="closeChangePasswordModal()" aria-label="Close">×</button>
+    </div>
+
+    @if (changePasswordStep() === 'form') {
+      <div class="modal-body">
+        @if (passwordFormError) {
+          <div class="form-error" role="alert">
+            {{ passwordFormError }}
+          </div>
+        }
+
+        <form (ngSubmit)="submitPasswordChange()" class="password-form">
+          <div class="form-field">
+            <label for="current-password">Current Password *</label>
+            <input
+              id="current-password"
+              type="password"
+              placeholder="Enter your current password"
+              [(ngModel)]="currentPassword"
+              name="currentPassword"
+              class="form-input"
+            />
+          </div>
+
+          <div class="form-field">
+            <label for="new-password">New Password *</label>
+            <input
+              id="new-password"
+              type="password"
+              placeholder="Enter new password"
+              [(ngModel)]="newPassword"
+              name="newPassword"
+              class="form-input"
+            />
+            <small class="password-requirements">
+              • At least 8 characters<br/>
+              • 1 uppercase letter<br/>
+              • 1 lowercase letter<br/>
+              • 1 number<br/>
+              • 1 special character (!@#$%^&*)
+            </small>
+          </div>
+
+          <div class="form-field">
+            <label for="confirm-password">Confirm New Password *</label>
+            <input
+              id="confirm-password"
+              type="password"
+              placeholder="Confirm your new password"
+              [(ngModel)]="confirmPassword"
+              name="confirmPassword"
+              class="form-input"
+            />
+          </div>
+
+          <div class="modal-footer">
+            <button type="button" class="button secondary" (click)="closeChangePasswordModal()">
+              Cancel
+            </button>
+            <button type="submit" class="button primary">
+              Update Password
+            </button>
+          </div>
+        </form>
+      </div>
+    } @else if (changePasswordStep() === 'success') {
+      <div class="modal-body">
+        <div class="success-content password-success">
+          <div class="success-icon">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path [attr.d]="icons['check']"/>
+            </svg>
+          </div>
+          <h3>Password Updated</h3>
+          <p>Your password has been changed successfully.</p>
+          <button type="button" class="button primary" (click)="finishPasswordChange()">
+            Done
+          </button>
+        </div>
+      </div>
+    }
+  </div>
+}

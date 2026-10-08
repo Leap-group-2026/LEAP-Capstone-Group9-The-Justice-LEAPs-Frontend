@@ -1,0 +1,270 @@
+<section class="welcome" aria-labelledby="welcome-heading">
+  <div>
+    <h1 id="welcome-heading">Your next move, {{ user.firstName }}.</h1>
+    <p>
+      <span class="live-dot"></span>
+      Your portfolio at a glance · {{ snapshotLabel }}
+    </p>
+  </div>
+
+  <div class="welcome-actions">
+    <button
+      class="button secondary"
+      type="button"
+      (click)="addFunds()"
+    >
+      Add funds
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path [attr.d]="icons['plus']"/>
+      </svg>
+    </button>
+
+    <button class="button primary" type="button" (click)="navigate('trade')">
+      <span class="button-text">Trade</span>
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path [attr.d]="icons['external']"/>
+      </svg>
+    </button>
+  </div>
+</section>
+
+    <section class="summary-grid" aria-label="Portfolio summary">
+      <article class="summary-card portfolio-card">
+        <h2>Total Portfolio Value</h2>
+        <strong>{{ portfolioValue | currency:'USD':'symbol':'1.2-2' }}</strong>
+        <p>Holdings + available cash</p>
+      </article>
+
+      <article class="summary-card">
+        <h2>Available Cash</h2>
+        <strong>{{ availableCash | currency:'USD':'symbol':'1.2-2' }}</strong>
+        <p>Ready to invest</p>
+      </article>
+
+      <article class="summary-card">
+        <h2>Today's Gain/Loss</h2>
+        <strong [class.positive]="todayGain >= 0" [class.negative]="todayGain < 0">
+          {{ sign(todayGain) }}{{ absolute(todayGain) | currency:'USD':'symbol':'1.2-2' }}
+        </strong>
+        <p [class.positive]="todayGain >= 0" [class.negative]="todayGain < 0">
+          {{ sign(todayGain) }}{{ absolute(todayGainPercent) | percent:'1.2-2' }}
+          vs. previous close
+        </p>
+      </article>
+
+      <article class="summary-card">
+        <h2>Total Gain/Loss</h2>
+        <strong [class.positive]="totalGain >= 0" [class.negative]="totalGain < 0">
+          {{ sign(totalGain) }}{{ absolute(totalGain) | currency:'USD':'symbol':'1.2-2' }}
+        </strong>
+        <p [class.positive]="totalGain >= 0" [class.negative]="totalGain < 0">
+          {{ sign(totalGain) }}{{ absolute(totalGainPercent) | percent:'1.2-2' }}
+          since first investment
+        </p>
+      </article>
+    </section>
+
+    <section class="panel performance-panel" aria-labelledby="performance-title">
+      <div class="panel-heading performance-heading">
+        <div>
+          <h2 id="performance-title">Portfolio performance</h2>
+          <p class="performance-caption">
+            <span [class.positive]="periodGain >= 0" [class.negative]="periodGain < 0">
+              {{ sign(periodGain) }}{{ absolute(periodGain) | currency:'USD':'symbol':'1.2-2' }}
+              ({{ absolute(periodGainPercent) | percent:'1.2-2' }})
+            </span>
+            {{ periodDescriptions[selectedPeriod] }}
+          </p>
+        </div>
+
+        <div class="period-selector" role="group" aria-label="Performance period">
+          @for (period of periods; track period) {
+            <button
+              type="button"
+              [class.selected]="period === selectedPeriod"
+              [attr.aria-pressed]="period === selectedPeriod"
+              (click)="selectPeriod(period)"
+            >
+              {{ period }}
+            </button>
+          }
+        </div>
+      </div>
+
+      <svg
+        class="performance-chart"
+        viewBox="0 0 1000 240"
+        role="img"
+        aria-labelledby="chart-title chart-description"
+      >
+        <title id="chart-title">
+          Portfolio value — {{ periodDescriptions[selectedPeriod] }}
+        </title>
+        <desc id="chart-description">
+          Illustrative portfolio performance, starting at
+          {{ series[0].value | currency }}
+          and ending at {{ portfolioValue | currency }}.
+        </desc>
+
+        <defs>
+          <linearGradient id="ribbit-performance-fill" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#c1ff39" stop-opacity=".13"/>
+            <stop offset="100%" stop-color="#c1ff39" stop-opacity="0"/>
+          </linearGradient>
+        </defs>
+
+        @for (tick of chartTicks; track tick.y) {
+          <line class="chart-grid" x1="16" x2="900" [attr.y1]="tick.y" [attr.y2]="tick.y"/>
+          <text class="chart-label" x="990" [attr.y]="tick.y + 4" text-anchor="end">
+            {{ tick.value | currency:'USD':'symbol':'1.0-0' }}
+          </text>
+        }
+
+        <path [attr.d]="areaPath" fill="url(#ribbit-performance-fill)"/>
+        <path class="chart-line" [attr.d]="linePath"/>
+        <circle [attr.cx]="lastPoint.x" [attr.cy]="lastPoint.y" r="8" class="chart-halo"/>
+        <circle [attr.cx]="lastPoint.x" [attr.cy]="lastPoint.y" r="3" class="chart-end"/>
+
+        @for (label of dateLabels; track label.fraction) {
+          <text
+            class="chart-label"
+            [attr.x]="16 + label.fraction * 884"
+            y="236"
+            [attr.text-anchor]="
+              label.fraction === 0 ? 'start' :
+              label.fraction === 1 ? 'end' : 'middle'
+            "
+          >
+            {{
+              label.date | date:
+                (selectedPeriod === '1D' ? 'HH:mm' : 'MMM d'):
+                (selectedPeriod === '1D' ? '-0400' : 'UTC')
+            }}
+          </text>
+        }
+        <text class="chart-label" x="990" y="236" text-anchor="end">USD</text>
+      </svg>
+    </section>
+
+    <section class="panel" aria-labelledby="holdings-title">
+      <div class="panel-heading">
+        <div class="section-title">
+          <h2 id="holdings-title">My Holdings</h2>
+          <span>{{ holdings.length }} POSITIONS</span>
+        </div>
+        <button class="text-button" type="button" (click)="navigate('portfolio')">
+          View portfolio <span aria-hidden="true">↗</span>
+        </button>
+      </div>
+
+      <div class="table-scroll" tabindex="0" role="region" aria-label="My holdings table">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">Symbol</th>
+              <th scope="col">Name</th>
+              <th scope="col" class="numeric">Quantity</th>
+              <th scope="col" class="numeric">Current Price</th>
+              <th scope="col" class="numeric">Market Value</th>
+              <th scope="col" class="numeric">Gain/Loss</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (holding of holdings; track holding.symbol) {
+              <tr>
+                <th scope="row">
+                  <div class="instrument">
+                    <span class="instrument-mark" aria-hidden="true">
+                      {{ holding.symbol === 'SPY' ? 'S&P' : holding.symbol[0] }}
+                    </span>
+                    <span>{{ holding.symbol }}</span>
+                  </div>
+                </th>
+                <td class="company-name">{{ holding.name }}</td>
+                <td class="numeric">{{ holding.quantity | number:'1.0-4' }}</td>
+                <td class="numeric">{{ holding.currentPrice | currency }}</td>
+                <td class="numeric">{{ marketValue(holding) | currency }}</td>
+                <td
+                  class="numeric"
+                  [class.positive]="gain(holding) >= 0"
+                  [class.negative]="gain(holding) < 0"
+                >
+                  {{ sign(gain(holding)) }}{{ absolute(gain(holding)) | currency }}
+                  <small class="cell-detail">
+                    {{ sign(gain(holding)) }}{{ absolute(gainPercent(holding)) | percent:'1.2-2' }}
+                  </small>
+                </td>
+              </tr>
+            }
+          </tbody>
+          <tfoot>
+            <tr>
+              <td colspan="4">Total holdings value · Excludes available cash</td>
+              <td colspan="2" class="numeric">{{ holdingsValue | currency }}</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel" aria-labelledby="orders-title">
+      <div class="panel-heading">
+        <div class="section-title">
+          <h2 id="orders-title">Recent Orders</h2>
+          <span>{{ openOrders }} OPEN ORDER{{ openOrders === 1 ? '' : 'S' }}</span>
+        </div>
+        <button class="text-button" type="button" (click)="navigate('orders')">
+          View all orders <span aria-hidden="true">↗</span>
+        </button>
+      </div>
+
+      <div class="table-scroll" tabindex="0" role="region" aria-label="Recent orders table">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">Instrument</th>
+              <th scope="col">Buy/Sell</th>
+              <th scope="col" class="numeric">Quantity</th>
+              <th scope="col" class="numeric">Price</th>
+              <th scope="col">Status</th>
+              <th scope="col" class="numeric">Date</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (order of orders; track order.id) {
+              <tr>
+                <th scope="row">
+                  {{ order.instrument }}
+                  <small class="cell-detail">{{ order.type }} order</small>
+                </th>
+                <td [class.positive]="order.side === 'Buy'" [class.negative]="order.side === 'Sell'">
+                  {{ order.side }}
+                </td>
+                <td class="numeric">{{ order.quantity | number }}</td>
+                <td class="numeric">{{ order.price | currency }}</td>
+                <td>
+                  <span
+                    class="badge"
+                    [class.pending]="order.status === 'Pending'"
+                    [class.filled]="order.status === 'Filled'"
+                    [class.cancelled]="order.status === 'Cancelled'"
+                  >
+                    <i aria-hidden="true"></i>{{ order.status }}
+                  </span>
+                </td>
+                <td class="numeric">
+                  {{ order.date | date:'MMM d, y':'UTC' }}
+                  <small class="cell-detail">{{ order.time }}</small>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <footer class="page-footer">
+      <p>ILLUSTRATIVE MARKET DATA · ALL VALUES IN USD · INVESTING INVOLVES RISK</p>
+      <span>Demo account</span>
+    </footer>
+

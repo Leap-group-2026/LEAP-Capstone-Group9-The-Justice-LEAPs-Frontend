@@ -1,0 +1,356 @@
+<section class="welcome" aria-labelledby="welcome-heading">
+  <div>
+    <h1 id="welcome-heading">Transactions</h1>
+    <p>View and manage your account transactions.</p>
+  </div>
+
+  <button class="button primary" type="button" (click)="openAddFundsModal()">
+    Add Funds
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path [attr.d]="icons['plus']"/>
+    </svg>
+  </button>
+</section>
+
+<section class="summary-grid" aria-label="Account summary">
+  <article class="summary-card">
+    <h2>Available Cash</h2>
+    <strong>{{ formatCurrency(availableCash) }}</strong>
+    <p>Ready to invest</p>
+  </article>
+
+  <article class="summary-card">
+    <h2>Total Deposits</h2>
+    <strong class="positive">{{ formatCurrency(totalDeposits) }}</strong>
+    <p>Completed deposits</p>
+  </article>
+
+  <article class="summary-card">
+    <h2>Total Withdrawals</h2>
+    <strong class="negative">{{ formatCurrency(totalWithdrawals) }}</strong>
+    <p>Completed withdrawals</p>
+  </article>
+
+  <article class="summary-card">
+    <h2>Total Transaction Value</h2>
+    <strong>{{ formatCurrency(totalTransactionValue) }}</strong>
+    <p>All completed transactions</p>
+  </article>
+</section>
+
+<section class="panel" aria-labelledby="filters-title">
+  <div class="panel-heading">
+    <h2 id="filters-title">Filter Transactions</h2>
+  </div>
+
+  <div class="filters-container">
+    <div class="filter-field">
+      <label for="search-input">Search</label>
+      <input
+        id="search-input"
+        type="text"
+        placeholder="Search by ID, description, or symbol..."
+        [value]="searchQuery"
+        (input)="onSearchChange($event.target.value)"
+        class="filter-input"
+      />
+    </div>
+
+    <div class="filter-field">
+      <label for="type-filter">Transaction Type</label>
+      <select
+        id="type-filter"
+        [value]="typeFilter"
+        (change)="onTypeFilterChange($event)"
+        class="filter-input"
+      >
+        <option value="all">All Types</option>
+        <option value="deposit">Deposits</option>
+        <option value="withdrawal">Withdrawals</option>
+        <option value="buy">Buy Orders</option>
+        <option value="sell">Sell Orders</option>
+      </select>
+    </div>
+
+    <div class="filter-field">
+      <label for="status-filter">Status</label>
+      <select
+        id="status-filter"
+        [value]="statusFilter"
+        (change)="onStatusFilterChange($event)"
+        class="filter-input"
+      >
+        <option value="all">All Statuses</option>
+        <option value="completed">Completed</option>
+        <option value="pending">Pending</option>
+        <option value="failed">Failed</option>
+      </select>
+    </div>
+  </div>
+</section>
+
+<section class="panel" aria-labelledby="history-title">
+  <div class="panel-heading">
+    <div class="section-title">
+      <h2 id="history-title">Transaction History</h2>
+      <span>{{ completedTransactionsCount }} COMPLETED</span>
+    </div>
+  </div>
+
+  @if (filteredTransactions().length > 0) {
+    <div class="table-scroll" tabindex="0" role="region" aria-label="Transaction history table">
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">ID</th>
+            <th scope="col">Date</th>
+            <th scope="col">Type</th>
+            <th scope="col">Description</th>
+            <th scope="col" class="numeric">Amount</th>
+            <th scope="col">Status</th>
+            <th scope="col" class="actions-col">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (transaction of filteredTransactions(); track transaction.id) {
+            <tr>
+              <th scope="row" class="transaction-id">{{ transaction.id }}</th>
+              <td>
+                {{ formatDate(transaction.date) }}
+                <small class="cell-detail">{{ transaction.time }}</small>
+              </td>
+              <td>
+                <span class="transaction-type" [class.deposit]="transaction.type === 'Deposit'" [class.withdrawal]="transaction.type === 'Withdrawal'" [class.buy]="transaction.type === 'Buy'" [class.sell]="transaction.type === 'Sell'">
+                  {{ transaction.type }}
+                </span>
+              </td>
+              <td>{{ transaction.description }}</td>
+              <td class="numeric" [class.positive]="transaction.amount >= 0" [class.negative]="transaction.amount < 0">
+                {{ getAmountDisplay(transaction.amount) }}
+              </td>
+              <td>
+                <span class="badge" [class]="getStatusBadgeClass(transaction.status)">
+                  <i></i>
+                  {{ transaction.status }}
+                </span>
+              </td>
+              <td class="actions-col">
+                <button
+                  type="button"
+                  class="details-button"
+                  [attr.aria-expanded]="isTransactionExpanded(transaction.id)"
+                  (click)="toggleTransactionDetails(transaction.id)"
+                  [attr.aria-label]="'View details for ' + transaction.id"
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path [attr.d]="icons['chevron']"/>
+                  </svg>
+                </button>
+              </td>
+            </tr>
+
+            @if (isTransactionExpanded(transaction.id)) {
+              <tr class="details-row">
+                <td colspan="7">
+                  <div class="transaction-details">
+                    <div class="details-grid">
+                      <div class="detail-item">
+                        <span class="detail-label">Transaction ID</span>
+                        <strong>{{ transaction.id }}</strong>
+                      </div>
+                      <div class="detail-item">
+                        <span class="detail-label">Date & Time</span>
+                        <strong>{{ formatDate(transaction.date) }} · {{ transaction.time }}</strong>
+                      </div>
+                      <div class="detail-item">
+                        <span class="detail-label">Type</span>
+                        <strong>{{ transaction.type }}</strong>
+                      </div>
+                      <div class="detail-item">
+                        <span class="detail-label">Status</span>
+                        <strong>{{ transaction.status }}</strong>
+                      </div>
+                      <div class="detail-item">
+                        <span class="detail-label">Description</span>
+                        <strong>{{ transaction.description }}</strong>
+                      </div>
+                      <div class="detail-item">
+                        <span class="detail-label">Amount</span>
+                        <strong [class.positive]="transaction.amount >= 0" [class.negative]="transaction.amount < 0">
+                          {{ getAmountDisplay(transaction.amount) }}
+                        </strong>
+                      </div>
+
+                      @if (transaction.instrument) {
+                        <div class="detail-item">
+                          <span class="detail-label">Instrument</span>
+                          <strong>{{ transaction.instrument }}</strong>
+                        </div>
+                      }
+                      @if (transaction.quantity !== undefined) {
+                        <div class="detail-item">
+                          <span class="detail-label">Quantity</span>
+                          <strong>{{ transaction.quantity | number:'1.0-4' }} shares</strong>
+                        </div>
+                      }
+                      @if (transaction.price !== undefined) {
+                        <div class="detail-item">
+                          <span class="detail-label">Price per Share</span>
+                          <strong>{{ formatCurrency(transaction.price) }}</strong>
+                        </div>
+                      }
+                    </div>
+                  </div>
+                </td>
+              </tr>
+            }
+          }
+        </tbody>
+      </table>
+    </div>
+  } @else {
+    <div class="empty-state">
+      <p>No transactions match your filters.</p>
+      <button type="button" class="text-button" (click)="searchQuery = ''; typeFilter = 'all'; statusFilter = 'all'; applyFilters()">
+        Clear filters
+      </button>
+    </div>
+  }
+</section>
+
+@if (showAddFundsModal()) {
+  <div class="modal-backdrop" (click)="closeAddFundsModal()"></div>
+  <div class="modal" role="dialog" aria-labelledby="modal-title">
+    @if (addFundsStep() === 'form') {
+      <div class="modal-header">
+        <h2 id="modal-title">Add Funds</h2>
+        <button type="button" class="modal-close" (click)="closeAddFundsModal()" aria-label="Close">×</button>
+      </div>
+
+      <div class="modal-body">
+        @if (addFundsError) {
+          <div class="modal-error" role="alert">
+            {{ addFundsError }}
+          </div>
+        }
+
+        <div class="form-group">
+          <label for="amount-input">Amount (USD)</label>
+          <input
+            id="amount-input"
+            type="text"
+            inputmode="decimal"
+            placeholder="Enter amount (e.g., 1000)"
+            [(ngModel)]="addFundsAmount"
+            class="form-input"
+            [class.error]="addFundsError && addFundsAmount"
+          />
+          <small>Minimum $1 · Maximum $100,000</small>
+        </div>
+
+        <div class="form-group">
+          <label for="funding-method">Funding Method</label>
+          <select
+            id="funding-method"
+            [(ngModel)]="addFundsFundingMethod"
+            class="form-input"
+          >
+            @for (method of fundingMethods; track method.id) {
+              <option [value]="method.id">{{ method.label }}</option>
+            }
+          </select>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="button secondary" (click)="closeAddFundsModal()">
+          Cancel
+        </button>
+        <button type="button" class="button primary" (click)="reviewAddFunds()">
+          Continue
+        </button>
+      </div>
+    }
+
+    @if (addFundsStep() === 'review') {
+      <div class="modal-header">
+        <h2 id="modal-title">Review Your Deposit</h2>
+        <button type="button" class="modal-close" (click)="cancelAddFunds()" aria-label="Back">×</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="review-section">
+          <p class="review-heading">You're adding</p>
+          <strong class="review-amount">{{ formatCurrency(getReviewAmount()) }}</strong>
+          <p class="review-method">
+            Via {{ fundingMethods.find(m => m.id === addFundsFundingMethod)?.label || 'Bank transfer' }}
+          </p>
+        </div>
+
+        <div class="review-details">
+          <div class="review-row">
+            <span>Current Available Cash</span>
+            <strong>{{ formatCurrency(availableCash) }}</strong>
+          </div>
+          <div class="review-row total">
+            <span>New Available Cash</span>
+            <strong>{{ formatCurrency(getNewCashBalance()) }}</strong>
+          </div>
+        </div>
+
+        <div class="review-note">
+          <p>Funds will be added to your account after confirmation. This is a simulated transaction.</p>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="button secondary" (click)="cancelAddFunds()">
+          Back
+        </button>
+        <button type="button" class="button primary" (click)="confirmAddFunds()">
+          Confirm Deposit
+        </button>
+      </div>
+    }
+
+    @if (addFundsStep() === 'success') {
+      <div class="modal-header">
+        <h2 id="modal-title">Funds Added Successfully</h2>
+      </div>
+
+      <div class="modal-body success-body">
+        <div class="success-icon">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M5 12l4 4L19 6"/>
+          </svg>
+        </div>
+
+        <div class="success-message">
+          <strong>Deposit Complete</strong>
+          <p>{{ formatCurrency(getReviewAmount()) }} has been added to your account.</p>
+        </div>
+
+        <div class="success-details">
+          <div class="detail-row">
+            <span>Amount</span>
+            <strong>{{ formatCurrency(getReviewAmount()) }}</strong>
+          </div>
+          <div class="detail-row">
+            <span>Funding Method</span>
+            <strong>{{ fundingMethods.find(m => m.id === addFundsFundingMethod)?.label }}</strong>
+          </div>
+          <div class="detail-row">
+            <span>New Available Cash</span>
+            <strong class="accent">{{ formatCurrency(availableCash) }}</strong>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="button primary" (click)="finishAddFunds()">
+          Done
+        </button>
+      </div>
+    }
+  </div>
+}

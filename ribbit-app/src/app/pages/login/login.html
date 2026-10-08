@@ -1,0 +1,242 @@
+<div class="login-page">
+  <header class="navigation">
+    <a class="brand" href="/" aria-label="Ribbit home">
+      <svg viewBox="0 0 28 30" aria-hidden="true">
+        <path
+          d="M0 30 13 0h7L8 30H0Zm15-13L22 3l6 27h-9l-4-13Z"
+          fill="currentColor"
+          fill-rule="evenodd"
+        />
+      </svg>
+      <span>ribbit</span>
+    </a>
+
+    <a class="help-link" href="/help">
+      <span class="help-icon" aria-hidden="true">?</span>
+      Need help?
+    </a>
+  </header>
+
+  <main class="workspace">
+    <section class="sign-in" aria-labelledby="login-heading">
+      <div class="introduction">
+        <div class="eyebrow">YOUR NEXT MOVE</div>
+        <h1 id="login-heading">Welcome back.</h1>
+        <p>Log in to your account. The markets await.</p>
+      </div>
+
+      <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
+        <div class="field">
+          <label for="email">Email address</label>
+          <input
+            id="email"
+            type="email"
+            formControlName="email"
+            placeholder="you@example.com"
+            autocomplete="username"
+            spellcheck="false"
+            required
+            [attr.aria-invalid]="
+              form.controls.email.touched && form.controls.email.invalid
+            "
+            [attr.aria-describedby]="
+              form.controls.email.touched && form.controls.email.invalid
+                ? 'email-error' : null
+            "
+          />
+
+          @if (form.controls.email.touched && form.controls.email.invalid) {
+            <p id="email-error" class="field-error">
+              Enter a valid email address.
+            </p>
+          }
+        </div>
+
+        <div class="field">
+          <label for="password">Password</label>
+          <div class="password-input">
+            <input
+              id="password"
+              [type]="showPassword ? 'text' : 'password'"
+              formControlName="password"
+              placeholder="Enter your password"
+              autocomplete="current-password"
+              required
+              [attr.aria-invalid]="
+                form.controls.password.touched && form.controls.password.invalid
+              "
+              [attr.aria-describedby]="
+                form.controls.password.touched && form.controls.password.invalid
+                  ? 'password-error' : null
+              "
+            />
+            <button
+              class="visibility-button"
+              type="button"
+              (click)="showPassword = !showPassword"
+              [attr.aria-label]="showPassword ? 'Hide password' : 'Show password'"
+              [attr.aria-pressed]="showPassword"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/>
+                <circle cx="12" cy="12" r="3"/>
+                @if (showPassword) {
+                  <path d="m3 3 18 18"/>
+                }
+              </svg>
+            </button>
+          </div>
+
+          @if (form.controls.password.touched && form.controls.password.invalid) {
+            <p id="password-error" class="field-error">
+              Enter your password.
+            </p>
+          }
+        </div>
+
+        <div class="preferences">
+          <label class="remember">
+            <input type="checkbox" formControlName="rememberEmail" />
+            <span>Remember my email</span>
+          </label>
+          <a href="/forgot-password">Forgot password?</a>
+        </div>
+
+        @if (errorMessage) {
+          <p class="field-error" role="alert">{{ errorMessage }}</p>
+        }
+
+        <button
+          class="primary-button"
+          type="submit"
+          [disabled]="loading"
+          [attr.aria-busy]="loading"
+        >
+          <span>{{ loading ? 'Logging in…' : 'Log in' }}</span>
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M5 12h14m-6-6 6 6-6 6"/>
+          </svg>
+        </button>
+      </form>
+
+      <p class="sign-up">
+        New to Ribbit?
+        <a href="/signup">Create an account <span aria-hidden="true">↗</span></a>
+      </p>
+
+      <div class="security">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <rect x="5" y="10" width="14" height="11" rx="2"/>
+          <path d="M8 10V7a4 4 0 0 1 8 0v3m-4 5v2"/>
+        </svg>
+        Secure, encrypted sign-in
+      </div>
+    </section>
+
+    <section class="market-panel" aria-labelledby="market-heading">
+      <div class="orbit orbit-one"></div>
+      <div class="orbit orbit-two"></div>
+
+      <div class="market-context">
+        <span>A WORLD OF POSSIBILITY</span>
+        <span class="market-status">MARKET PULSE</span>
+      </div>
+
+      <h2 id="market-heading">
+        LEAP into trading.
+      </h2>
+
+      <div class="chart">
+        <div class="index-quote">
+          <span>S&amp;P 500</span>
+          <strong>5,892.16</strong>
+          <small>↗ &nbsp;+1.24% today</small>
+        </div>
+
+        <svg
+          class="chart-svg"
+          viewBox="0 0 780 340"
+          preserveAspectRatio="none"
+          aria-hidden="true"
+        >
+          <defs>
+            <linearGradient id="apex-chart-fill" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#c1ff39" stop-opacity=".15"/>
+              <stop offset="100%" stop-color="#c1ff39" stop-opacity="0"/>
+            </linearGradient>
+          </defs>
+
+          <g class="grid">
+            @for (y of [55, 125, 195, 265, 335]; track y) {
+              <path [attr.d]="'M0 ' + y + 'H760'"/>
+            }
+          </g>
+          <g class="grid vertical-grid">
+            @for (x of [0, 152, 304, 456, 608, 759]; track x) {
+              <path [attr.d]="'M' + x + ' 0V335'"/>
+            }
+          </g>
+
+          <path
+            [attr.d]="chartPath + ' L760 340 L0 340 Z'"
+            fill="url(#apex-chart-fill)"
+          />
+
+          @for (candle of candles; track candle.x) {
+            <g class="candle" [class.down]="candle.down">
+              <line
+                [attr.x1]="candle.x + 4"
+                [attr.x2]="candle.x + 4"
+                [attr.y1]="candle.y"
+                [attr.y2]="candle.y + candle.height"
+              />
+              <rect
+                [attr.x]="candle.x"
+                [attr.y]="candle.y + 10"
+                width="9"
+                [attr.height]="candle.height - 20"
+              />
+            </g>
+          }
+
+          <path class="trajectory" [attr.d]="chartPath"/>
+          <circle cx="760" cy="20" r="12" fill="#c1ff39" opacity=".13"/>
+          <circle cx="760" cy="20" r="4" fill="#c1ff39"/>
+        </svg>
+
+        <div class="time-labels">
+          <span>09:30</span><span>11:00</span><span>12:30</span>
+          <span>14:00</span><span>16:00</span>
+        </div>
+      </div>
+
+      <div class="market-strip">
+        @for (quote of quotes; track quote.symbol) {
+          <div class="quote">
+            <span class="symbol">{{ quote.symbol }}</span>
+            <div>
+              <strong>{{ quote.price }}</strong>
+              <small>{{ quote.change }}</small>
+            </div>
+          </div>
+        }
+      </div>
+
+      <p class="disclosure">
+        ILLUSTRATIVE MARKET DATA · NOT INVESTMENT ADVICE
+      </p>
+    </section>
+  </main>
+
+  <footer>
+    <div class="copyright">
+      <span>© 2026 Ribbit Trading</span>
+      <span>Investing involves risk.</span>
+    </div>
+    <nav aria-label="Legal">
+      <a href="/privacy">Privacy</a>
+      <a href="/terms">Terms</a>
+      <a href="/disclosures">Disclosures</a>
+    </nav>
+  </footer>
+</div>

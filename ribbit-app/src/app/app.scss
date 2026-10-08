@@ -1,0 +1,239 @@
+// ============================================================================
+// IMPORT GLOBAL COMPONENT STYLES (must be first)
+// ============================================================================
+@use './global-components.scss' as *;
+
+// ============================================================================
+// APEX TRADING - GLOBAL DESIGN SYSTEM
+// ============================================================================
+
+// Design System Variables
+:root {
+  --background: #090b0a;
+  --surface: #111612;
+  --surface-raised: #171d17;
+  --border: #293029;
+  --text: #f4f7f4;
+  --muted: #98a399;
+  --subtle: #7c897f;
+  --accent: #c1ff39;
+  --negative: #f08e85;
+  --sidebar-width: 214px;
+  --header-height: 80px;
+  --accent-light: #d0ff6a;
+  --error: #ff9b9b;
+}
+
+// Global Styles
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--background);
+  color: var(--text);
+  font-family: 'Inter', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+// Typography
+h1, h2, h3, h4, h5, h6 {
+  font-weight: 600;
+  letter-spacing: -0.5px;
+  margin: 0;
+}
+
+h1 { font-size: 44px; line-height: 1.12; }
+h2 { font-size: 36px; line-height: 1.2; }
+h3 { font-size: 28px; line-height: 1.3; }
+h4 { font-size: 20px; line-height: 1.4; }
+h5 { font-size: 16px; line-height: 1.5; }
+h6 { font-size: 14px; line-height: 1.5; }
+
+p {
+  margin: 0;
+  line-height: 1.6;
+}
+
+a {
+  color: var(--accent);
+  text-decoration: none;
+  transition: color 0.15s ease;
+  
+  &:hover {
+    color: var(--accent-light);
+  }
+  
+  &:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 4px;
+  }
+}
+
+// Buttons & Forms
+button, input, select, textarea {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+  border: none;
+  background: none;
+  transition: all 0.15s ease;
+  -webkit-tap-highlight-color: transparent;
+  
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+  
+  &:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 4px;
+  }
+}
+
+input, select, textarea {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 16px;
+  color: var(--text);
+  transition: border-color 0.15s ease;
+  -webkit-tap-highlight-color: transparent;
+  
+  &::placeholder {
+    color: var(--subtle);
+  }
+  
+  &:focus {
+    outline: none;
+    border-color: var(--accent);
+  }
+  
+  &:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 4px;
+  }
+}
+
+svg {
+  display: block;
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+// ============================================================================
+// APP ROOT LAYOUT
+// ============================================================================
+
+app-root {
+  display: block;
+  min-height: 100dvh;
+  background: var(--background);
+}
+
+.app-wrapper {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+}
+
+.app-main {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+}
+
+.app-content {
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
+}
+
+// ============================================================================
+// SCROLLBAR STYLING
+// ============================================================================
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--background);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 4px;
+
+  &:hover {
+    background: var(--subtle);
+  }
+}
+
+// ============================================================================
+// UTILITY CLASSES
+// ============================================================================
+
+.text-muted {
+  color: var(--muted);
+}
+
+.text-subtle {
+  color: var(--subtle);
+}
+
+.text-accent {
+  color: var(--accent);
+}
+
+.bg-surface {
+  background: var(--surface);
+}
+
+.border-subtle {
+  border-color: var(--border);
+}
+
+.positive {
+  color: var(--accent) !important;
+}
+
+.negative {
+  color: var(--negative) !important;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  border: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+// ============================================================================
+// RESPONSIVE DESIGN
+// ============================================================================
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

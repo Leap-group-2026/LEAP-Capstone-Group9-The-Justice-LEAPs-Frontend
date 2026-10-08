@@ -1,0 +1,37 @@
+<header class="app-header">
+  <div class="header-container">
+    <!-- Logo Section -->
+    <a class="header-logo" href="/" aria-label="Ribbit home">
+      <svg viewBox="0 0 28 30" aria-hidden="true">
+        <path
+          d="M0 30 13 0h7L8 30H0Zm15-13L22 3l6 27h-9l-4-13Z"
+          fill="currentColor"
+          fill-rule="evenodd"
+        />
+      </svg>
+      <span>ribbit</span>
+    </a>
+
+    <!-- Spacer -->
+    <div class="header-spacer"></div>
+
+    <!-- User Section -->
+    <div class="header-user">
+      <div class="user-info">
+        <span class="user-name">John Trader</span>
+        <span class="account-balance">Account: $50,000.00</span>
+      </div>
+      <div class="user-menu-wrapper">
+        <button class="user-avatar" (click)="toggleUserMenu()">
+          <span>JT</span>
+        </button>
+        <div class="user-menu" *ngIf="userMenuOpen">
+          <a href="#" class="menu-item">Profile</a>
+          <a href="#" class="menu-item">Settings</a>
+          <hr class="menu-divider" />
+          <button (click)="logout()" class="menu-item logout-btn">Logout</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</header>
