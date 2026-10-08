@@ -1,0 +1,63 @@
+// Page Container Component Styles - Apex Trading Design System
+
+// Design Tokens
+$spacing-md: 16px;
+$spacing-lg: 24px;
+$radius-md: 8px;
+
+.page-container {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-lg;
+}
+
+.page-header {
+  background: linear-gradient(135deg, rgba(193, 255, 57, 0.05) 0%, transparent 100%);
+  border-radius: $radius-md;
+  border: 1px solid var(--border);
+  padding: $spacing-lg;
+  backdrop-filter: blur(10px);
+}
+
+.page-header-content {
+  max-width: 100%;
+}
+
+.page-title {
+  font-size: 36px;
+  font-weight: 600;
+  color: var(--text);
+  margin: 0 0 $spacing-md 0;
+  letter-spacing: -0.5px;
+  background: linear-gradient(135deg, var(--text) 0%, var(--muted) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.page-description {
+  font-size: 14px;
+  color: var(--muted);
+  margin: 0;
+  line-height: 1.6;
+}
+
+.page-content {
+  background-color: transparent;
+  border-radius: $radius-md;
+}
+
+// Responsive Design
+@media (max-width: 768px) {
+  .page-header {
+    padding: $spacing-md;
+  }
+
+  .page-title {
+    font-size: 24px;
+  }
+
+  .page-description {
+    font-size: 13px;
+  }
+}

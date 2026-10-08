@@ -1,0 +1,30 @@
+<aside class="sidebar" [class.collapsed]="!sidebarOpen">
+  <nav class="nav-menu">
+    <div class="nav-section">
+      <p class="nav-section-title" *ngIf="sidebarOpen">Main Navigation</p>
+      <ul class="nav-items">
+        <li *ngFor="let item of navItems" class="nav-item">
+          <a
+            [routerLink]="item.route"
+            routerLinkActive="active"
+            [routerLinkActiveOptions]="{ exact: true }"
+            class="nav-link"
+          >
+            <span class="nav-icon">{{ item.icon }}</span>
+            <span class="nav-label" *ngIf="sidebarOpen">{{ item.label }}</span>
+            <span class="nav-badge" *ngIf="item.badge && sidebarOpen" [class.badge-highlight]="item.badge > 0">
+              {{ item.badge }}
+            </span>
+          </a>
+        </li>
+      </ul>
+    </div>
+  </nav>
+
+  <div class="sidebar-footer">
+    <button class="toggle-btn" (click)="toggleSidebar()" title="Toggle Sidebar">
+      <span *ngIf="sidebarOpen">◀</span>
+      <span *ngIf="!sidebarOpen">▶</span>
+    </button>
+  </div>
+</aside>

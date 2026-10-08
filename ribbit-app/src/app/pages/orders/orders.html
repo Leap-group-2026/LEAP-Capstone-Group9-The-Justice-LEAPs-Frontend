@@ -1,0 +1,318 @@
+<section class="welcome" aria-labelledby="welcome-heading">
+  <div>
+    <h1 id="welcome-heading">Orders</h1>
+    <p>View and manage your orders.</p>
+  </div>
+  <button class="button primary" type="button" (click)="navigate('trade')">
+    Trade
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path [attr.d]="icons['plus']"/>
+    </svg>
+  </button>
+</section>
+
+<section class="summary-grid" aria-label="Order summary">
+  <article class="summary-card">
+    <h2>Total Orders</h2>
+    <strong>{{ totalOrders() }}</strong>
+    <p>All time orders</p>
+  </article>
+
+  <article class="summary-card">
+    <h2>Open Orders</h2>
+    <strong class="accent">{{ openOrders() }}</strong>
+    <p>Pending execution</p>
+  </article>
+
+  <article class="summary-card">
+    <h2>Filled Orders</h2>
+    <strong class="positive">{{ filledOrders() }}</strong>
+    <p>Completed orders</p>
+  </article>
+
+  <article class="summary-card">
+    <h2>Cancelled Orders</h2>
+    <strong class="negative">{{ cancelledOrders() }}</strong>
+    <p>Cancelled or rejected</p>
+  </article>
+</section>
+
+<section class="panel" aria-labelledby="filters-title">
+  <div class="panel-heading">
+    <h2 id="filters-title">Filter Orders</h2>
+  </div>
+
+  <div class="filters-container">
+    <div class="filter-field">
+      <label for="search-input">Search</label>
+      <input
+        id="search-input"
+        type="text"
+        placeholder="Search by Order ID, symbol, or name..."
+        [value]="searchQuery"
+        (input)="onSearchChange($event.target.value)"
+        class="filter-input"
+      />
+    </div>
+
+    <div class="filter-field">
+      <label for="status-filter">Status</label>
+      <select
+        id="status-filter"
+        [value]="statusFilter"
+        (change)="onStatusFilterChange($event)"
+        class="filter-input"
+      >
+        <option value="all">All Statuses</option>
+        <option value="pending">Pending</option>
+        <option value="filled">Filled</option>
+        <option value="cancelled">Cancelled</option>
+        <option value="rejected">Rejected</option>
+      </select>
+    </div>
+
+    <div class="filter-field">
+      <label for="side-filter">Side</label>
+      <select
+        id="side-filter"
+        [value]="sideFilter"
+        (change)="onSideFilterChange($event)"
+        class="filter-input"
+      >
+        <option value="all">All Sides</option>
+        <option value="buy">Buy</option>
+        <option value="sell">Sell</option>
+      </select>
+    </div>
+
+    <div class="filter-field">
+      <label for="type-filter">Order Type</label>
+      <select
+        id="type-filter"
+        [value]="orderTypeFilter"
+        (change)="onOrderTypeFilterChange($event)"
+        class="filter-input"
+      >
+        <option value="all">All Types</option>
+        <option value="market">Market</option>
+        <option value="limit">Limit</option>
+      </select>
+    </div>
+
+    <div class="filter-field">
+      <label for="date-filter">Date</label>
+      <select
+        id="date-filter"
+        [value]="dateFilter"
+        (change)="onDateFilterChange($event)"
+        class="filter-input"
+      >
+        <option value="all">All Time</option>
+        <option value="today">Today</option>
+        <option value="week">Past Week</option>
+        <option value="month">Past Month</option>
+      </select>
+    </div>
+  </div>
+</section>
+
+<section class="panel" aria-labelledby="orders-title">
+  <div class="panel-heading">
+    <div class="section-title">
+      <h2 id="orders-title">Orders</h2>
+      <span>{{ filteredOrders().length }} TOTAL</span>
+    </div>
+  </div>
+
+  @if (filteredOrders().length > 0) {
+    <div class="table-scroll" tabindex="0" role="region" aria-label="Orders table">
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">Order ID</th>
+            <th scope="col">Date</th>
+            <th scope="col">Symbol</th>
+            <th scope="col">Side</th>
+            <th scope="col" class="numeric">Qty</th>
+            <th scope="col">Type</th>
+            <th scope="col" class="numeric">Price</th>
+            <th scope="col" class="numeric">Total</th>
+            <th scope="col">Status</th>
+            <th scope="col" class="actions-col">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (order of filteredOrders(); track order.id) {
+            <tr>
+              <th scope="row" class="order-id">{{ order.id }}</th>
+              <td>
+                {{ formatDate(order.date) }}
+                <small class="cell-detail">{{ order.time }}</small>
+              </td>
+              <td>
+                <strong>{{ order.symbol }}</strong>
+                <small class="cell-detail">{{ order.instrument }}</small>
+              </td>
+              <td>
+                <span class="order-side" [class]="getSideClass(order.side)">
+                  {{ order.side }}
+                </span>
+              </td>
+              <td class="numeric">{{ order.quantity }}</td>
+              <td>
+                <span class="order-type" [class]="order.orderType.toLowerCase()">
+                  {{ order.orderType }}
+                </span>
+              </td>
+              <td class="numeric">{{ formatCurrency(order.price) }}</td>
+              <td class="numeric">{{ formatCurrency(order.totalValue) }}</td>
+              <td>
+                <span class="badge" [class]="getStatusBadgeClass(order.status)">
+                  <i></i>
+                  {{ order.status }}
+                </span>
+              </td>
+              <td class="actions-col">
+                <button
+                  type="button"
+                  class="details-button"
+                  [attr.aria-expanded]="isOrderExpanded(order.id)"
+                  (click)="toggleOrderDetails(order.id)"
+                  [attr.aria-label]="'View details for ' + order.id"
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path [attr.d]="icons['chevron']"/>
+                  </svg>
+                </button>
+              </td>
+            </tr>
+
+            @if (isOrderExpanded(order.id)) {
+              <tr class="details-row">
+                <td colspan="10">
+                  <div class="order-details">
+                    <div class="details-grid">
+                      <div class="detail-item">
+                        <span class="detail-label">Order ID</span>
+                        <strong>{{ order.id }}</strong>
+                      </div>
+                      <div class="detail-item">
+                        <span class="detail-label">Date & Time</span>
+                        <strong>{{ formatDate(order.date) }} · {{ order.time }}</strong>
+                      </div>
+                      <div class="detail-item">
+                        <span class="detail-label">Symbol</span>
+                        <strong>{{ order.symbol }}</strong>
+                      </div>
+                      <div class="detail-item">
+                        <span class="detail-label">Instrument</span>
+                        <strong>{{ order.instrument }}</strong>
+                      </div>
+                      <div class="detail-item">
+                        <span class="detail-label">Side</span>
+                        <strong>{{ order.side }}</strong>
+                      </div>
+                      <div class="detail-item">
+                        <span class="detail-label">Quantity</span>
+                        <strong>{{ order.quantity }}</strong>
+                      </div>
+                      <div class="detail-item">
+                        <span class="detail-label">Order Type</span>
+                        <strong>{{ order.orderType }}</strong>
+                      </div>
+                      <div class="detail-item">
+                        <span class="detail-label">Price</span>
+                        <strong>{{ formatCurrency(order.price) }}</strong>
+                      </div>
+                      <div class="detail-item">
+                        <span class="detail-label">Total Value</span>
+                        <strong>{{ formatCurrency(order.totalValue) }}</strong>
+                      </div>
+                      <div class="detail-item">
+                        <span class="detail-label">Status</span>
+                        <strong>{{ order.status }}</strong>
+                      </div>
+
+                      @if (order.filledQuantity !== undefined) {
+                        <div class="detail-item">
+                          <span class="detail-label">Filled Quantity</span>
+                          <strong>{{ order.filledQuantity }}</strong>
+                        </div>
+                      }
+                      @if (order.averageFillPrice !== undefined) {
+                        <div class="detail-item">
+                          <span class="detail-label">Average Fill Price</span>
+                          <strong>{{ formatCurrency(order.averageFillPrice) }}</strong>
+                        </div>
+                      }
+                    </div>
+
+                    @if (canCancelOrder(order)) {
+                      <div class="details-actions">
+                        <button type="button" class="button secondary" (click)="openCancelConfirmation(order.id)">
+                          Cancel Order
+                        </button>
+                      </div>
+                    }
+                  </div>
+                </td>
+              </tr>
+            }
+          }
+        </tbody>
+      </table>
+    </div>
+  } @else {
+    <div class="empty-state">
+      <p>No orders match your filters.</p>
+    </div>
+  }
+</section>
+
+@if (showCancelConfirmModal()) {
+  <div class="modal-backdrop" (click)="closeCancelConfirmation()"></div>
+  <div class="modal" role="dialog" aria-labelledby="cancel-modal-title">
+    <div class="modal-header">
+      <h2 id="cancel-modal-title">Cancel Order?</h2>
+      <button type="button" class="modal-close" (click)="closeCancelConfirmation()" aria-label="Close">×</button>
+    </div>
+
+    <div class="modal-body">
+      <p>Are you sure you want to cancel this order?</p>
+
+      @if (selectedOrder()) {
+        <div class="cancel-summary">
+          <div class="summary-row">
+            <span>Order ID</span>
+            <strong>{{ selectedOrder()!.id }}</strong>
+          </div>
+          <div class="summary-row">
+            <span>Instrument</span>
+            <strong>{{ selectedOrder()!.instrument }}</strong>
+          </div>
+          <div class="summary-row">
+            <span>Side</span>
+            <strong>{{ selectedOrder()!.side }}</strong>
+          </div>
+          <div class="summary-row">
+            <span>Quantity</span>
+            <strong>{{ selectedOrder()!.quantity }}</strong>
+          </div>
+          <div class="summary-row">
+            <span>Price</span>
+            <strong>{{ formatCurrency(selectedOrder()!.price) }}</strong>
+          </div>
+        </div>
+      }
+    </div>
+
+    <div class="modal-footer">
+      <button type="button" class="button secondary" (click)="closeCancelConfirmation()">
+        Keep Order
+      </button>
+      <button type="button" class="button primary" (click)="confirmCancelOrder()">
+        Cancel Order
+      </button>
+    </div>
+  </div>
+}

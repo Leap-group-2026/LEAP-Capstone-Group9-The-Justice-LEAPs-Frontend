@@ -1,0 +1,535 @@
+<div class="page-intro">
+  <div>
+    <h1 id="trade-heading" tabindex="-1">
+      {{
+        step() === 'entry' ? 'Make your next move.' :
+        step() === 'review' ? 'Review your order.' :
+        'Simulated order submitted.'
+      }}
+    </h1>
+    <p>{{ snapshotLabel }} · Individual account ending 4821</p>
+  </div>
+  <span class="badge">SIMULATED TRADING</span>
+</div>
+
+<ol class="progress" aria-label="Order progress">
+  <li
+    [class.current]="step() === 'entry'"
+    [attr.aria-current]="step() === 'entry' ? 'step' : null"
+  >
+    <span>1</span> Order details
+  </li>
+  <li
+    [class.current]="step() === 'review'"
+    [attr.aria-current]="step() === 'review' ? 'step' : null"
+  >
+    <span>2</span> Review order
+  </li>
+  <li
+    [class.current]="step() === 'success'"
+    [attr.aria-current]="step() === 'success' ? 'step' : null"
+  >
+    <span>3</span> Submitted
+  </li>
+</ol>
+
+<div class="trade-layout">
+  <div class="order-column">
+    @if (step() === 'entry') {
+      <form
+        class="panel order-ticket"
+        [formGroup]="form"
+        (ngSubmit)="reviewOrder()"
+        novalidate
+      >
+        <div class="panel-heading">
+          <h2>Order details</h2>
+          <span class="badge">{{ side | uppercase }} ORDER</span>
+        </div>
+
+        <div class="segments" role="group" aria-label="Buy or Sell">
+          <button
+            type="button"
+            [class.selected]="side === 'Buy'"
+            [attr.aria-pressed]="side === 'Buy'"
+            (click)="selectSide('Buy')"
+          >Buy</button>
+          <button
+            type="button"
+            [class.selected]="side === 'Sell'"
+            [attr.aria-pressed]="side === 'Sell'"
+            (click)="selectSide('Sell')"
+          >Sell</button>
+        </div>
+
+        @if (attempted() && form.invalid) {
+          <div class="notice error-notice" role="alert">
+            <strong>Check your order details.</strong>
+            <ul>
+              @for (message of errorSummary; track message) {
+                <li>{{ message }}</li>
+              }
+            </ul>
+          </div>
+        }
+
+        <div class="field">
+          <label for="trade-search">Search instruments *</label>
+          <input
+            id="trade-search"
+            type="text"
+            placeholder="Search by symbol or name (e.g., AAPL or Apple)"
+            [value]="searchQuery()"
+            (input)="updateSearch($event.target.value)"
+            autocomplete="off"
+          />
+          <small>
+            {{ filteredInstruments.length }} 
+            {{ filteredInstruments.length === 1 ? 'result' : 'results' }}
+            @if (searchQuery()) {
+              · Clear search to see all
+            }
+          </small>
+        </div>
+
+        @if (filteredInstruments.length > 0) {
+          <div class="instrument-list">
+            @for (instrument of filteredInstruments; track instrument.symbol) {
+              <div class="instrument-item" [class.selected]="selectedInstrument?.symbol === instrument.symbol">
+                <button
+                  type="button"
+                  class="instrument-select-btn"
+                  (click)="selectInstrument(instrument.symbol)"
+                >
+                  <span class="instrument-info">
+                    <strong>{{ instrument.symbol }}</strong>
+                    <small>{{ instrument.name }}</small>
+                  </span>
+                  <span class="instrument-details">
+                    <strong>{{ money(instrument.priceCents) }}</strong>
+                    <small>{{ instrument.owned }} owned</small>
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  class="view-info-btn"
+                  aria-label="View more information for {{ instrument.symbol }}"
+                  (click)="openInstrumentModal(instrument)"
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M12 5v14 M5 12h14"/>
+                  </svg>
+                </button>
+              </div>
+            }
+          </div>
+        } @else {
+          <div class="notice">
+            <p>No instruments match your search. Try a different term.</p>
+          </div>
+        }
+
+        @if (selectedInstrument; as instrument) {
+          <div class="instrument-summary">
+            <div>
+              <strong>{{ instrument.name }}</strong>
+              <small>
+                {{ instrument.exchange }} · {{ instrument.owned }} shares owned
+              </small>
+            </div>
+            <div class="quote">
+              <strong>{{ money(instrument.priceCents) }}</strong>
+              <small>CURRENT MOCK PRICE</small>
+            </div>
+          </div>
+        }
+
+        <div class="form-row">
+          <div class="field">
+            <label for="trade-quantity">Quantity *</label>
+            <input
+              id="trade-quantity"
+              type="text"
+              inputmode="numeric"
+              formControlName="quantity"
+              placeholder="Enter shares"
+              autocomplete="off"
+              required
+              [class.invalid]="fieldError('quantity')"
+              [attr.aria-invalid]="!!fieldError('quantity')"
+              [attr.aria-describedby]="
+                fieldError('quantity')
+                  ? 'quantity-help quantity-error'
+                  : 'quantity-help'
+              "
+            />
+            @if (fieldError('quantity')) {
+              <small id="quantity-error" class="field-error">
+                {{ fieldError('quantity') }}
+              </small>
+            }
+            <small id="quantity-help">
+              Whole shares only · Minimum 1
+              @if (side === 'Sell' && selectedInstrument) {
+                · Maximum {{ selectedInstrument.owned }}
+              }
+            </small>
+          </div>
+
+          <div class="field">
+            <span id="order-type-label" class="field-label">Order type *</span>
+            <div class="segments" role="group" aria-labelledby="order-type-label">
+              <button
+                type="button"
+                [class.selected]="!isLimit"
+                [attr.aria-pressed]="!isLimit"
+                (click)="selectType('Market')"
+              >Market</button>
+              <button
+                type="button"
+                [class.selected]="isLimit"
+                [attr.aria-pressed]="isLimit"
+                (click)="selectType('Limit')"
+              >Limit</button>
+            </div>
+            <small>
+              {{ isLimit ? 'Set your price threshold' : 'Uses an estimated market price' }}
+            </small>
+          </div>
+        </div>
+
+        @if (isLimit) {
+          <div class="field">
+            <label for="trade-limit">Entry / limit price (USD) *</label>
+            <input
+              id="trade-limit"
+              type="text"
+              inputmode="decimal"
+              formControlName="limitPrice"
+              placeholder="Enter limit price"
+              autocomplete="off"
+              required
+              [class.invalid]="fieldError('limitPrice')"
+              [attr.aria-invalid]="!!fieldError('limitPrice')"
+              [attr.aria-describedby]="
+                fieldError('limitPrice') ? 'price-help price-error' : 'price-help'
+              "
+            />
+            @if (fieldError('limitPrice')) {
+              <small id="price-error" class="field-error">
+                {{ fieldError('limitPrice') }}
+              </small>
+            }
+            <small id="price-help">
+              Greater than zero · Up to 2 decimal places
+            </small>
+          </div>
+        }
+
+        @if (
+          form.hasError('insufficientFunds') &&
+          (attempted() || form.controls.quantity.touched)
+        ) {
+          <div class="notice error-notice" role="alert">
+            <strong>Insufficient funds — {{ money(fundsShortfall) }} short.</strong>
+            <p>
+              At this price, you can buy up to {{ maximumBuyQuantity }} shares.
+              Reduce the quantity or limit price.
+            </p>
+          </div>
+        }
+
+        <div class="totals" aria-live="polite">
+          <div class="total-line">
+            <span>Estimated order value</span>
+            <strong>{{ money(estimatedCents) }}</strong>
+          </div>
+          <dl>
+            <div><dt>Available cash</dt><dd>{{ money(cashCents) }}</dd></div>
+            <div>
+              <dt>
+                {{ isLimit && side === 'Buy'
+                  ? 'Cash after reservation (est.)'
+                  : 'Estimated cash after order' }}
+              </dt>
+              <dd class="accent">{{ money(cashAfterCents) }}</dd>
+            </div>
+            <div><dt>Time in force</dt><dd>Day</dd></div>
+            <div><dt>Fees</dt><dd>$0.00 · Not modeled</dd></div>
+          </dl>
+        </div>
+
+        <button class="button primary" type="submit">
+          Review Order
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path [attr.d]="icons['arrow']"/>
+          </svg>
+        </button>
+
+        <p class="fine-print">
+          @if (isLimit) {
+            Limit orders may remain unfilled. Buy cash-after reflects a
+            hypothetical reservation, not a completed purchase.
+          } @else {
+            Market prices and totals are estimates. Execution price is not guaranteed.
+          }
+          Sell proceeds are hypothetical and may require settlement.
+          Demo balances remain unchanged.
+        </p>
+        <small>* Required fields · Whole shares only · No short sales</small>
+      </form>
+    } @else {
+      @if (displayedOrder; as order) {
+        <section
+          class="panel order-ticket"
+          [attr.aria-label]="step() === 'success' ? 'Simulated order receipt' : 'Order review'"
+        >
+          @if (step() === 'success') {
+            <div class="panel-heading">
+              <span class="success-icon">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path [attr.d]="icons['check']"/>
+                </svg>
+              </span>
+              <span class="badge">SUBMITTED · SIMULATION</span>
+            </div>
+
+            <div role="status">
+              <h2>{{ order.side }} {{ order.quantity }} shares of {{ order.instrument.symbol }}</h2>
+              <p class="muted">{{ order.instrument.name }} · {{ order.type }} order</p>
+            </div>
+
+            <div class="notice">
+              <strong>No real trade was executed.</strong>
+              <p>
+                This is a simulated submission, not a fill.
+                Your cash and holdings have not changed.
+              </p>
+            </div>
+          } @else {
+            <div class="panel-heading">
+              <h2>Review Order</h2>
+              <span class="badge">{{ order.side | uppercase }} · {{ order.type | uppercase }}</span>
+            </div>
+            <div class="review-instrument">
+              <span class="instrument-mark">{{ order.instrument.symbol[0] }}</span>
+              <div>
+                <strong>{{ order.instrument.symbol }}</strong>
+                <p>{{ order.instrument.name }}</p>
+              </div>
+            </div>
+          }
+
+          <dl class="order-details">
+            @if (step() === 'success') {
+              <div><dt>Mock order ID</dt><dd>{{ submission()?.id }}</dd></div>
+              <div>
+                <dt>Submitted</dt>
+                <dd>{{ submission()?.submittedAt | date:'medium' }}</dd>
+              </div>
+            }
+            <div><dt>Account</dt><dd>Individual · •••• 4821</dd></div>
+            <div><dt>Buy/Sell</dt><dd class="accent">{{ order.side }}</dd></div>
+            <div><dt>Instrument</dt><dd>{{ order.instrument.symbol }}</dd></div>
+            <div><dt>Instrument name</dt><dd>{{ order.instrument.name }}</dd></div>
+            <div><dt>Quantity</dt><dd>{{ order.quantity }} shares</dd></div>
+            <div><dt>Order type</dt><dd>{{ order.type }}</dd></div>
+            <div>
+              <dt>{{ order.type === 'Limit' ? 'Limit price' : 'Estimated price' }}</dt>
+              <dd>{{ money(order.priceCents) }}</dd>
+            </div>
+            <div><dt>Time in force</dt><dd>{{ order.timeInForce }}</dd></div>
+            <div><dt>Fees</dt><dd>$0.00 · Not modeled</dd></div>
+          </dl>
+
+          <div class="totals">
+            <div class="total-line">
+              <span>Estimated total</span>
+              <strong>{{ money(order.totalCents) }}</strong>
+            </div>
+            <dl>
+              <div><dt>Available cash</dt><dd>{{ money(cashCents) }}</dd></div>
+              <div>
+                <dt>{{ order.type === 'Limit' && order.side === 'Buy'
+                  ? 'Cash after reservation (est.)'
+                  : 'Estimated cash after order' }}</dt>
+                <dd class="accent">{{ money(order.cashAfterCents) }}</dd>
+              </div>
+            </dl>
+            <small>
+              {{ order.quantity }} shares × {{ money(order.priceCents) }}
+              · Hypothetical, not an executed value
+            </small>
+          </div>
+
+          <p class="fine-print">
+            {{ order.type === 'Market'
+              ? 'Market execution price and final total are not guaranteed.'
+              : 'Limit orders may remain unfilled. Buy cash-after reflects hypothetical reservation.' }}
+            Sell proceeds may require settlement. This demo does not execute orders.
+          </p>
+
+          @if (step() === 'review') {
+            <div class="actions">
+              <button class="button primary" type="button" (click)="confirmOrder()">
+                Confirm Order
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path [attr.d]="icons['arrow']"/>
+                </svg>
+              </button>
+              <button class="button secondary" type="button" (click)="cancelReview()">
+                Cancel
+              </button>
+            </div>
+          } @else {
+            <div class="actions">
+              <button class="button primary" type="button" (click)="newOrder()">
+                Place another order
+              </button>
+              <button
+                class="button secondary"
+                type="button"
+                (click)="navigateTo('orders')"
+              >View orders</button>
+            </div>
+          }
+        </section>
+      }
+    }
+  </div>
+
+  <aside class="context-column" aria-label="Account and instrument information">
+    <section class="cash-card">
+      <span>Available cash</span>
+      <strong>{{ money(cashCents) }}</strong>
+      <small>Individual account · •••• 4821 · USD</small>
+    </section>
+
+    @if (step() === 'entry') {
+      <section class="panel instruments-panel">
+        <div class="panel-heading">
+          <h2>Your instruments</h2>
+          <small>5 POSITIONS</small>
+        </div>
+        @for (instrument of instruments; track instrument.symbol) {
+          <button
+            class="instrument-option"
+            type="button"
+            [class.selected]="selectedInstrument?.symbol === instrument.symbol"
+            [attr.aria-pressed]="selectedInstrument?.symbol === instrument.symbol"
+            (click)="selectInstrument(instrument.symbol)"
+          >
+            <span>
+              <strong>{{ instrument.symbol }}</strong>
+              <small>{{ instrument.name }}</small>
+            </span>
+            <span class="quote">
+              <strong>{{ money(instrument.priceCents) }}</strong>
+              <small>{{ instrument.owned }} shares owned</small>
+            </span>
+          </button>
+        }
+      </section>
+    }
+
+    <section class="panel context-note">
+      <h2>{{ step() === 'success' ? 'Your account is unchanged' : 'Trade with clarity' }}</h2>
+      <p>
+        Buy within your available cash. Sell only shares you own.
+        Whole shares only; short selling is not supported.
+      </p>
+      <p>
+        This page uses fixed mock prices. Confirming an order records
+        "Submitted," not "Filled." No broker, API, or backend is connected.
+      </p>
+    </section>
+  </aside>
+</div>
+
+<footer class="page-footer">
+  ILLUSTRATIVE MARKET DATA · ALL VALUES IN USD · INVESTING INVOLVES RISK
+</footer>
+
+@if (showInstrumentModal() && selectedInstrumentForModal(); as instrument) {
+  <div class="modal-backdrop" (click)="closeInstrumentModal()"></div>
+  <div class="instrument-modal" role="dialog" aria-labelledby="modal-title">
+    <div class="modal-header">
+      <h2 id="modal-title">{{ instrument.name }}</h2>
+      <button
+        type="button"
+        class="modal-close"
+        aria-label="Close"
+        (click)="closeInstrumentModal()"
+      >
+        ×
+      </button>
+    </div>
+
+    <div class="modal-body">
+      <div class="chart-container">
+        <svg class="mock-chart" viewBox="0 0 400 200" preserveAspectRatio="xMidYMid meet">
+          <!-- Grid lines -->
+          <line x1="40" y1="20" x2="40" y2="180" stroke="var(--border)" stroke-width="1"/>
+          <line x1="40" y1="180" x2="400" y2="180" stroke="var(--border)" stroke-width="1"/>
+          
+          <!-- Mock price chart line -->
+          <polyline
+            points="50,120 80,110 110,115 140,95 170,100 200,85 230,90 260,75 290,80 320,70 350,75 380,60"
+            fill="none"
+            stroke="var(--accent)"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+          
+          <!-- Y-axis labels -->
+          <text x="20" y="185" font-size="10" fill="var(--subtle)" text-anchor="end">$0</text>
+          <text x="20" y="105" font-size="10" fill="var(--subtle)" text-anchor="end">$300</text>
+          <text x="20" y="25" font-size="10" fill="var(--subtle)" text-anchor="end">$600</text>
+        </svg>
+      </div>
+
+      <div class="modal-info">
+        <div class="info-row">
+          <span>Current price</span>
+          <strong>{{ money(instrument.priceCents) }}</strong>
+        </div>
+        <div class="info-row">
+          <span>24h change</span>
+          <strong class="accent">+2.45%</strong>
+        </div>
+        <div class="info-row">
+          <span>Exchange</span>
+          <strong>{{ instrument.exchange }}</strong>
+        </div>
+        <div class="info-row">
+          <span>Your position</span>
+          <strong>{{ instrument.owned }} shares</strong>
+        </div>
+      </div>
+
+      <div class="modal-description">
+        <h3>About this company</h3>
+        <p>{{ instrument.name }} is a leading technology company traded on {{ instrument.exchange }}. 
+        Current market data is illustrative only and uses mock prices for demonstration purposes.</p>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button
+        type="button"
+        class="button secondary"
+        (click)="closeInstrumentModal()"
+      >
+        Close
+      </button>
+      <button
+        type="button"
+        class="button primary"
+        (click)="selectFromModal()"
+      >
+        Select this instrument
+      </button>
+    </div>
+  </div>
+}

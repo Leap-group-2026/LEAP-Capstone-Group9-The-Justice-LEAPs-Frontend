@@ -1,0 +1,364 @@
+<section class="page-intro" aria-labelledby="portfolio-heading">
+  <div>
+    <div class="eyebrow">YOUR INVESTMENTS</div>
+    <h1 id="portfolio-heading">Your portfolio.</h1>
+    <p>A clear view of what you own, and how it's performing.</p>
+  </div>
+
+  <button
+    class="button primary"
+    type="button"
+    (click)="navigate('trade')"
+  >
+    Trade
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path [attr.d]="icons['external']"/>
+    </svg>
+  </button>
+</section>
+
+    @if (state === 'loading') {
+      <p class="sr-only" role="status">Loading your portfolio.</p>
+
+      <div class="summary-grid" aria-hidden="true">
+        @for (card of [1, 2, 3, 4]; track card) {
+          <div class="summary-card">
+            <div class="skeleton skeleton-label"></div>
+            <div class="skeleton skeleton-value"></div>
+            <div class="skeleton skeleton-caption"></div>
+          </div>
+        }
+      </div>
+
+      <section class="panel loading-allocation" aria-hidden="true">
+        <div class="skeleton skeleton-label"></div>
+        <div class="loading-allocation-body">
+          <div class="skeleton skeleton-donut"></div>
+          <div class="loading-legend">
+            @for (row of [1, 2, 3, 4]; track row) {
+              <div class="skeleton skeleton-legend-row"></div>
+            }
+          </div>
+        </div>
+      </section>
+
+      <section class="panel loading-holdings" aria-hidden="true">
+        <div class="skeleton skeleton-label"></div>
+        @for (row of skeletonRows; track row) {
+          <div class="skeleton-table-row">
+            @for (cell of [1, 2, 3, 4]; track cell) {
+              <div class="skeleton"></div>
+            }
+          </div>
+        }
+      </section>
+    } @else if (state === 'error') {
+      <section class="panel state-panel" role="alert">
+        <div class="state-icon error-icon">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path [attr.d]="icons['warning']"/>
+          </svg>
+        </div>
+        <div class="eyebrow">PORTFOLIO UNAVAILABLE</div>
+        <h2>We couldn't load your portfolio.</h2>
+        <p>
+          Your balances and holdings are unavailable right now.
+          Try again to restore your view.
+        </p>
+        <button class="button primary" type="button" (click)="retry()">
+          Try again
+        </button>
+        <button
+          class="text-button"
+          type="button"
+          routerLink="/account"
+        >
+          Contact support
+        </button>
+      </section>
+    } @else {
+      <section class="summary-grid" aria-label="Portfolio summary">
+        <article class="summary-card portfolio-card">
+          <h2>Total Portfolio Value</h2>
+          <strong>{{ portfolioValue | currency }}</strong>
+          <p>Holdings + available cash</p>
+        </article>
+
+        <article class="summary-card">
+          <h2>Available Cash</h2>
+          <strong>{{ availableCash | currency }}</strong>
+          <p>Ready to invest</p>
+        </article>
+
+        <article class="summary-card">
+          <h2>Total Invested</h2>
+          <strong>{{ totalInvested | currency }}</strong>
+          <p>Cost basis of current holdings</p>
+        </article>
+
+        <article class="summary-card">
+          <h2>Total Gain/Loss</h2>
+          <strong
+            [class.positive]="totalGain >= 0"
+            [class.negative]="totalGain < 0"
+          >
+            {{ sign(totalGain) }}{{ absolute(totalGain) | currency }}
+          </strong>
+          <p
+            [class.positive]="totalGain >= 0"
+            [class.negative]="totalGain < 0"
+          >
+            {{ sign(totalGain) }}{{ absolute(totalGainPercent) | percent:'1.2-2' }}
+            of initial portfolio capital
+          </p>
+        </article>
+      </section>
+
+      <section class="panel" aria-labelledby="allocation-title">
+        <div class="panel-heading">
+          <div>
+            <h2 id="allocation-title">Portfolio allocation</h2>
+            <p>Based on total portfolio value, including cash.</p>
+          </div>
+          <span class="meta-label">USD</span>
+        </div>
+
+        <div class="allocation-layout">
+          <div
+            class="donut"
+            role="img"
+            [attr.aria-label]="allocationDescription"
+            [style.background]="allocationGradient"
+          >
+            <div class="donut-center" aria-hidden="true">
+              <span>TOTAL VALUE</span>
+              <strong>{{ portfolioValue | currency:'USD':'symbol':'1.0-0' }}</strong>
+              <small>{{ holdings.length }} positions</small>
+            </div>
+          </div>
+
+          <div class="allocation-legend">
+            @for (item of allocation; track item.label) {
+              <div class="allocation-row">
+                <span class="allocation-color" [style.background]="item.color"></span>
+                <div class="allocation-name">
+                  <strong>{{ item.label }}</strong>
+                  <small>{{ item.name }}</small>
+                </div>
+                <div class="allocation-value">
+                  <strong>{{ item.value | currency }}</strong>
+                  <small>{{ item.percentage | percent:'1.1-1' }}</small>
+                </div>
+                <div
+                  class="allocation-track"
+                  aria-hidden="true"
+                >
+                  <span
+                    [style.width.%]="item.percentage * 100"
+                    [style.background]="item.color"
+                  ></span>
+                </div>
+              </div>
+            } @empty {
+              <p class="muted">Your allocation will appear once you add funds or invest.</p>
+            }
+          </div>
+        </div>
+
+        <p class="panel-note">
+          Allocation always reflects your full portfolio, not the filtered table.
+        </p>
+      </section>
+
+      <section class="panel" aria-labelledby="holdings-title">
+        <div class="panel-heading">
+          <div class="section-title">
+            <h2 id="holdings-title">Your holdings</h2>
+            <span class="meta-label">{{ holdings.length }} POSITIONS</span>
+          </div>
+          <span class="snapshot">{{ snapshotLabel }}</span>
+        </div>
+
+        @if (holdings.length === 0) {
+          <div class="state-panel empty-state">
+            <div class="state-icon">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path [attr.d]="icons['portfolio']"/>
+              </svg>
+            </div>
+            <h3>Your first investment starts here.</h3>
+            <p>
+              You don't own any instruments yet.
+              Explore the market and build your portfolio at your own pace.
+            </p>
+            <button
+              class="button primary"
+              type="button"
+              (click)="navigate('trade')"
+            >
+              Explore investments
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path [attr.d]="icons['external']"/>
+              </svg>
+            </button>
+          </div>
+        } @else {
+          <div class="holdings-toolbar">
+            <div class="search-field">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path [attr.d]="icons['search']"/>
+              </svg>
+              <label for="holding-search" class="sr-only">Search holdings</label>
+              <input
+                id="holding-search"
+                type="search"
+                [(ngModel)]="search"
+                placeholder="Search by symbol or instrument"
+                autocomplete="off"
+                aria-controls="holdings-table"
+              />
+            </div>
+
+            <div class="filter-field">
+              <label for="holding-filter">Show</label>
+              <select
+                id="holding-filter"
+                [(ngModel)]="filter"
+                aria-controls="holdings-table"
+              >
+                <option value="all">All holdings</option>
+                <option value="gainers">Gainers</option>
+                <option value="losers">Losers</option>
+                <option value="stocks">Stocks</option>
+                <option value="etfs">ETFs</option>
+              </select>
+            </div>
+
+            <span class="result-count" role="status" aria-live="polite">
+              {{ filteredHoldings.length }} of {{ holdings.length }} positions
+            </span>
+          </div>
+
+          @if (filteredHoldings.length === 0) {
+            <div class="state-panel no-results">
+              <div class="state-icon">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path [attr.d]="icons['search']"/>
+                </svg>
+              </div>
+              <h3>No holdings match your search.</h3>
+              <p>Try another symbol, instrument name, or filter.</p>
+              <button class="button secondary" type="button" (click)="clearFilters()">
+                Clear search &amp; filters
+              </button>
+            </div>
+          } @else {
+            <div
+              class="table-scroll"
+              tabindex="0"
+              role="region"
+              aria-label="Portfolio holdings table"
+            >
+              <table id="holdings-table">
+                <caption class="sr-only">
+                  Select a symbol to inspect a holding.
+                </caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Symbol</th>
+                    <th scope="col">Instrument Name</th>
+                    <th scope="col" class="numeric">Quantity</th>
+                    <th scope="col" class="numeric">Avg. Purchase Price</th>
+                    <th scope="col" class="numeric">Current Price</th>
+                    <th scope="col" class="numeric">Market Value</th>
+                    <th scope="col" class="numeric">Gain/Loss</th>
+                    <th scope="col" class="numeric">Gain/Loss %</th>
+                  </tr>
+                </thead>
+
+                <tbody>
+                  @for (holding of filteredHoldings; track holding.symbol) {
+                    <tr [class.selected-row]="selectedSymbol === holding.symbol">
+                      <th scope="row">
+                        <button
+                          class="holding-button"
+                          type="button"
+                          [attr.aria-label]="'Select ' + holding.name"
+                          [attr.aria-pressed]="selectedSymbol === holding.symbol"
+                          (click)="selectHolding(holding)"
+                        >
+                          <span class="instrument-mark" aria-hidden="true">
+                            {{ holding.symbol === 'SPY' ? 'S&P' : holding.symbol[0] }}
+                          </span>
+                          {{ holding.symbol }}
+                          <span class="select-arrow" aria-hidden="true">↗</span>
+                        </button>
+                      </th>
+                      <td class="instrument-name">
+                        {{ holding.name }}
+                        <small>{{ holding.type }}</small>
+                      </td>
+                      <td class="numeric">{{ holding.quantity | number:'1.0-4' }}</td>
+                      <td class="numeric">{{ holding.averagePurchasePrice | currency }}</td>
+                      <td class="numeric">{{ holding.currentPrice | currency }}</td>
+                      <td class="numeric">{{ marketValue(holding) | currency }}</td>
+                      <td
+                        class="numeric"
+                        [class.positive]="gain(holding) >= 0"
+                        [class.negative]="gain(holding) < 0"
+                      >
+                        {{ sign(gain(holding)) }}{{ absolute(gain(holding)) | currency }}
+                      </td>
+                      <td
+                        class="numeric"
+                        [class.positive]="gain(holding) >= 0"
+                        [class.negative]="gain(holding) < 0"
+                      >
+                        {{ sign(gain(holding)) }}{{ absolute(gainPercent(holding)) | percent:'1.2-2' }}
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+
+            <div class="holdings-footer">
+              <span>Select a symbol to inspect a holding.</span>
+              <span>
+                Full portfolio holdings value
+                <strong>{{ holdingsValue | currency }}</strong>
+              </span>
+            </div>
+
+            @if (selectedHolding; as holding) {
+              <div class="selection-panel" role="region" aria-label="Selected holding">
+                <div>
+                  <span class="eyebrow">SELECTED HOLDING</span>
+                  <h3>{{ holding.symbol }} <span>{{ holding.name }}</span></h3>
+                  <p>
+                    {{ holding.quantity | number }} shares ·
+                    Market value {{ marketValue(holding) | currency }}
+                  </p>
+                </div>
+                <button
+                  class="button secondary"
+                  type="button"
+                  (click)="navigate('trade')"
+                >
+                  View instrument
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path [attr.d]="icons['external']"/>
+                  </svg>
+                </button>
+              </div>
+            }
+          }
+        }
+      </section>
+    }
+
+    <footer class="page-footer">
+      <p>ILLUSTRATIVE MARKET DATA · ALL VALUES IN USD · INVESTING INVOLVES RISK</p>
+      <span>Demo account</span>
+    </footer>
+

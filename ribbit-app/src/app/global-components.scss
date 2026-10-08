@@ -1,0 +1,529 @@
+// ============================================================================
+// APEX TRADING - GLOBAL COMPONENT STYLES
+// ============================================================================
+// Reusable component styles based on the Apex Trading design system
+
+// ============================================================================
+// BUTTONS
+// ============================================================================
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 20px;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-decoration: none;
+  
+  &:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 4px;
+  }
+  
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+  
+  svg {
+    width: 20px;
+    height: 20px;
+  }
+}
+
+// Primary Button - Accent color
+.btn-primary {
+  background: var(--accent);
+  color: var(--background);
+  
+  &:hover:not(:disabled) {
+    background: var(--accent-light);
+  }
+  
+  &:active:not(:disabled) {
+    transform: scale(0.98);
+  }
+}
+
+// Secondary Button - Surface with border
+.btn-secondary {
+  background: transparent;
+  color: var(--text);
+  border: 1px solid var(--border);
+  
+  &:hover:not(:disabled) {
+    background: var(--surface);
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+}
+
+// Ghost Button - Text only
+.btn-ghost {
+  background: transparent;
+  color: var(--accent);
+  
+  &:hover:not(:disabled) {
+    color: var(--accent-light);
+  }
+}
+
+// Danger Button
+.btn-danger {
+  background: transparent;
+  color: #ff9b9b;
+  border: 1px solid #ff9b9b;
+  
+  &:hover:not(:disabled) {
+    background: rgba(255, 155, 155, 0.1);
+  }
+}
+
+// Button Sizes
+.btn-sm {
+  padding: 8px 16px;
+  font-size: 12px;
+}
+
+.btn-lg {
+  padding: 16px 24px;
+  font-size: 16px;
+  height: 56px;
+}
+
+.btn-block {
+  width: 100%;
+}
+
+// ============================================================================
+// FORMS
+// ============================================================================
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.form-label {
+  display: block;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text);
+}
+
+.form-field {
+  width: 100%;
+  height: 56px;
+  padding: 0 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 14px;
+  transition: all 0.15s ease;
+  
+  &::placeholder {
+    color: var(--subtle);
+  }
+  
+  &:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(193, 255, 57, 0.1);
+  }
+  
+  &[aria-invalid='true'] {
+    border-color: #ff9b9b;
+    
+    &:focus {
+      box-shadow: 0 0 0 3px rgba(255, 155, 155, 0.1);
+    }
+  }
+  
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+}
+
+textarea.form-field {
+  height: auto;
+  min-height: 120px;
+  resize: vertical;
+  padding: 12px 16px;
+}
+
+.form-error {
+  font-size: 12px;
+  color: #ff9b9b;
+  line-height: 1.5;
+  margin-top: -8px;
+}
+
+.form-help {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.5;
+  margin-top: -8px;
+}
+
+// Checkbox & Radio
+.form-checkbox,
+.form-radio {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  user-select: none;
+  
+  input {
+    width: 18px;
+    height: 18px;
+    margin: 0;
+    cursor: pointer;
+    accent-color: var(--accent);
+  }
+  
+  label {
+    cursor: pointer;
+    color: var(--muted);
+    font-size: 14px;
+  }
+}
+
+// ============================================================================
+// CARDS
+// ============================================================================
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 24px;
+  transition: all 0.15s ease;
+  
+  &:hover {
+    border-color: var(--accent);
+  }
+}
+
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.card-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text);
+  margin: 0;
+}
+
+.card-subtitle {
+  font-size: 13px;
+  color: var(--muted);
+  margin: 0;
+}
+
+.card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+// ============================================================================
+// ALERTS
+// ============================================================================
+
+.alert {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  font-size: 14px;
+  line-height: 1.5;
+  
+  svg {
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+}
+
+.alert-info {
+  background: rgba(193, 255, 57, 0.1);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.alert-success {
+  background: rgba(52, 211, 153, 0.1);
+  border-color: #34d399;
+  color: #34d399;
+}
+
+.alert-warning {
+  background: rgba(251, 191, 36, 0.1);
+  border-color: #fbbf24;
+  color: #fbbf24;
+}
+
+.alert-error {
+  background: rgba(255, 155, 155, 0.1);
+  border-color: #ff9b9b;
+  color: #ff9b9b;
+}
+
+// ============================================================================
+// BADGES
+// ============================================================================
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.badge-primary {
+  background: rgba(193, 255, 57, 0.2);
+  color: var(--accent);
+}
+
+.badge-secondary {
+  background: var(--border);
+  color: var(--muted);
+}
+
+.badge-success {
+  background: rgba(52, 211, 153, 0.2);
+  color: #34d399;
+}
+
+.badge-error {
+  background: rgba(255, 155, 155, 0.2);
+  color: #ff9b9b;
+}
+
+// ============================================================================
+// TABLES
+// ============================================================================
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+  
+  thead {
+    background: var(--surface);
+    border-bottom: 2px solid var(--border);
+  }
+  
+  th {
+    padding: 12px 16px;
+    text-align: left;
+    font-weight: 600;
+    color: var(--muted);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  
+  td {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    color: var(--text);
+  }
+  
+  tbody tr {
+    transition: background-color 0.15s ease;
+    
+    &:hover {
+      background-color: rgba(193, 255, 57, 0.05);
+    }
+  }
+}
+
+// ============================================================================
+// SPACING UTILITIES
+// ============================================================================
+
+.gap-xs { gap: 4px; }
+.gap-sm { gap: 8px; }
+.gap-md { gap: 16px; }
+.gap-lg { gap: 24px; }
+.gap-xl { gap: 32px; }
+
+.p-xs { padding: 4px; }
+.p-sm { padding: 8px; }
+.p-md { padding: 16px; }
+.p-lg { padding: 24px; }
+.p-xl { padding: 32px; }
+
+.m-xs { margin: 4px; }
+.m-sm { margin: 8px; }
+.m-md { margin: 16px; }
+.m-lg { margin: 24px; }
+.m-xl { margin: 32px; }
+
+// ============================================================================
+// TEXT UTILITIES
+// ============================================================================
+
+.text-center { text-align: center; }
+.text-right { text-align: right; }
+.text-left { text-align: left; }
+
+.text-xs { font-size: 11px; }
+.text-sm { font-size: 12px; }
+.text-md { font-size: 14px; }
+.text-lg { font-size: 16px; }
+.text-xl { font-size: 20px; }
+
+.text-bold { font-weight: 600; }
+.text-normal { font-weight: 400; }
+.text-light { font-weight: 300; }
+
+.text-uppercase { text-transform: uppercase; }
+.text-lowercase { text-transform: lowercase; }
+.text-capitalize { text-transform: capitalize; }
+
+.line-height-tight { line-height: 1.2; }
+.line-height-normal { line-height: 1.5; }
+.line-height-relaxed { line-height: 1.8; }
+
+// ============================================================================
+// LAYOUT UTILITIES
+// ============================================================================
+
+.flex { display: flex; }
+.flex-col { flex-direction: column; }
+.flex-row { flex-direction: row; }
+.flex-center { justify-content: center; align-items: center; }
+.flex-between { justify-content: space-between; align-items: center; }
+.flex-start { justify-content: flex-start; align-items: flex-start; }
+.flex-end { justify-content: flex-end; align-items: flex-end; }
+
+.grid { display: grid; }
+.grid-2 { grid-template-columns: repeat(2, 1fr); }
+.grid-3 { grid-template-columns: repeat(3, 1fr); }
+.grid-4 { grid-template-columns: repeat(4, 1fr); }
+
+.w-full { width: 100%; }
+.h-full { height: 100%; }
+
+.overflow-hidden { overflow: hidden; }
+.overflow-auto { overflow: auto; }
+.overflow-x-auto { overflow-x: auto; }
+.overflow-y-auto { overflow-y: auto; }
+
+// ============================================================================
+// STATES
+// ============================================================================
+
+.disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.active {
+  color: var(--accent);
+}
+
+.pending {
+  opacity: 0.7;
+}
+
+// ============================================================================
+// ANIMATIONS
+// ============================================================================
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.3s ease;
+}
+
+.animate-slide-down {
+  animation: slideDown 0.3s ease;
+}
+
+.animate-slide-up {
+  animation: slideUp 0.3s ease;
+}
+
+.animate-pulse {
+  animation: pulse 2s ease-in-out infinite;
+}
