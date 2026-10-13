@@ -1,0 +1,89 @@
+<div class="signup-page">
+  <main class="signup-shell">
+    <section class="signup-card" aria-labelledby="signup-heading">
+      <div class="eyebrow">START YOUR JOURNEY</div>
+      <h1 id="signup-heading">Create your account.</h1>
+      <p class="intro">Join Ribbit and take your next move with you.</p>
+
+      @if (registrationComplete()) {
+        <div class="success" role="status">
+          <strong>Your account is ready.</strong>
+          <span>Sign in to begin trading.</span>
+        </div>
+        <a class="primary-button" routerLink="/login">
+          <span>Go to log in</span>
+          <span aria-hidden="true">→</span>
+        </a>
+      } @else {
+        <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
+          <div class="form-grid">
+            <div class="field field-wide">
+              <label for="name">Full name</label>
+              <input id="name" type="text" formControlName="name" autocomplete="name" placeholder="Your full name" required />
+              @if (form.controls.name.touched && form.controls.name.invalid) {
+                <p class="field-error">Enter your full name.</p>
+              }
+            </div>
+
+            <div class="field field-wide">
+              <label for="email">Email address</label>
+              <input id="email" type="email" formControlName="email" autocomplete="email" placeholder="you@example.com" required />
+              @if (form.controls.email.touched && form.controls.email.invalid) {
+                <p class="field-error">Enter a valid email address.</p>
+              }
+            </div>
+
+            <div class="field">
+              <label for="dateOfBirth">Date of birth</label>
+              <input id="dateOfBirth" type="date" formControlName="dateOfBirth" autocomplete="bday" required />
+              @if (form.controls.dateOfBirth.touched && form.controls.dateOfBirth.invalid) {
+                <p class="field-error">Enter your date of birth.</p>
+              }
+            </div>
+
+            <div class="field">
+              <label for="ssn">Social Security number</label>
+              <input id="ssn" type="text" formControlName="ssn" autocomplete="off" placeholder="123-45-6789" inputmode="numeric" required />
+              @if (form.controls.ssn.touched && form.controls.ssn.invalid) {
+                <p class="field-error">Use 9 digits, such as 123-45-6789.</p>
+              }
+            </div>
+
+            <div class="field field-wide">
+              <label for="address">Address</label>
+              <input id="address" type="text" formControlName="address" autocomplete="street-address" placeholder="Street address" required />
+              @if (form.controls.address.touched && form.controls.address.invalid) {
+                <p class="field-error">Enter your address.</p>
+              }
+            </div>
+
+            <div class="field field-wide">
+              <label for="password">Password</label>
+              <div class="password-input">
+                <input id="password" [type]="showPassword ? 'text' : 'password'" formControlName="password" autocomplete="new-password" placeholder="Create a strong password" required />
+                <button class="visibility-button" type="button" (click)="showPassword = !showPassword" [attr.aria-label]="showPassword ? 'Hide password' : 'Show password'">
+                  {{ showPassword ? 'Hide' : 'Show' }}
+                </button>
+              </div>
+              <p class="hint">At least 12 characters, including 2 uppercase letters and 2 special characters.</p>
+              @if (form.controls.password.touched && form.controls.password.invalid) {
+                <p class="field-error">Use the password format described above.</p>
+              }
+            </div>
+          </div>
+
+          @if (registrationError()) {
+            <p class="field-error form-error" role="alert">{{ registrationError() }}</p>
+          }
+
+          <button class="primary-button" type="submit" [disabled]="isSubmitting()" [attr.aria-busy]="isSubmitting()">
+            <span>{{ isSubmitting() ? 'Creating account...' : 'Create account' }}</span>
+            <span aria-hidden="true">→</span>
+          </button>
+        </form>
+
+        <p class="sign-in-link">Already have an account? <a routerLink="/login">Log in <span aria-hidden="true">↗</span></a></p>
+      }
+    </section>
+  </main>
+</div>

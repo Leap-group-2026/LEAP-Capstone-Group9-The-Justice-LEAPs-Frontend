@@ -17,7 +17,8 @@ export class App {
   protected readonly isLoggedIn = this.authService.isLoggedIn;
 
   protected showNavigation(): boolean {
-    return this.isLoggedIn() && !this.router.url.includes('/login');
+    const isPublicPage = this.router.url.includes('/login') || this.router.url.includes('/signup');
+    return this.isLoggedIn() && !isPublicPage;
   }
 
   protected getCurrentPageTitle(): string {
