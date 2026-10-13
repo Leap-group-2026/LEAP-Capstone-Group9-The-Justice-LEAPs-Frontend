@@ -37,6 +37,9 @@ interface PreferenceSettings {
 })
 export class Account {
   private readonly router = inject(Router);
+  readonly accessToken = typeof localStorage === 'undefined'
+    ? null
+    : localStorage.getItem('token');
 
   // Icons
   readonly icons: Record<string, string> = {
