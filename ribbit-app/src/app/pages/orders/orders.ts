@@ -451,7 +451,7 @@ export class Orders implements OnInit {
       return null;
     }
 
-    const response = await fetch(environment.springapi, {
+    const response = await fetch(`${environment.springUrl}/user/accounts`, {
       headers: { Authorization: `Bearer ${token}` }
     });
 
