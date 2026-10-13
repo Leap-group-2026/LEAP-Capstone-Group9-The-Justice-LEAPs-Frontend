@@ -7,7 +7,7 @@ import {
   Validators
 } from '@angular/forms';
 import { CommonModule } from '@angular/common';
-import { Router } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { finalize, switchMap, throwError, timeout } from 'rxjs';
 import { environment } from '../../environments/environment';
 
@@ -32,7 +32,7 @@ interface UserResponse {
 @Component({
   selector: 'app-login',
   standalone: true,
-  imports: [ReactiveFormsModule, CommonModule],
+  imports: [ReactiveFormsModule, CommonModule, RouterLink],
   templateUrl: './login.html',
   styleUrls: ['./login.scss']
 })
@@ -121,7 +121,7 @@ export class Login {
 
           localStorage.setItem('token', accessToken);
 
-          return this.http.get<UserResponse>(`${environment.springUrl}/user`, {
+          return this.http.get<UserResponse>(`${environment.apiUrl}/user`, {
             headers: {
               Authorization: `Bearer ${accessToken}`
             }

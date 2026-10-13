@@ -1,13 +1,18 @@
-import { Component, inject, signal, computed } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { Component, OnInit, PLATFORM_ID, inject, signal, computed } from '@angular/core';
+import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
+import { HttpErrorResponse } from '@angular/common/http';
+import { finalize } from 'rxjs';
+import { OrdersApiService, OrderHistoryApiResponse } from '../../shared/services/orders-api.service';
+import { environment } from '../../environments/environment';
 
 type OrderStatus = 'Pending' | 'Filled' | 'Cancelled' | 'Rejected';
 type OrderSide = 'Buy' | 'Sell';
 type OrderType = 'Market' | 'Limit';
 
 interface Order {
+  backendOrderId?: number;
   id: string;
   date: string;
   time: string;
@@ -23,7 +28,9 @@ interface Order {
   averageFillPrice?: number;
 }
 
-interface MockOrder extends Order {}
+interface AccountApiResponse {
+  accountId: number;
+}
 
 @Component({
   selector: 'app-orders',
@@ -32,8 +39,10 @@ interface MockOrder extends Order {}
   templateUrl: './orders.html',
   styleUrls: ['./orders.scss']
 })
-export class Orders {
+export class Orders implements OnInit {
   private readonly router = inject(Router);
+  private readonly platformId = inject(PLATFORM_ID);
+  private readonly ordersApiService = inject(OrdersApiService);
 
   readonly user = {
     name: 'Jordan Lee',
@@ -42,7 +51,7 @@ export class Orders {
     accountEnding: '4821'
   };
 
-  readonly mockOrders: MockOrder[] = [
+  readonly mockOrders: Order[] = [
     {
       id: 'ORD-2026-1048',
       date: '2026-10-08',
@@ -184,13 +193,15 @@ export class Orders {
   ];
 
   // State management
-  readonly orders = signal<Order[]>(this.mockOrders);
+  readonly orders = signal<Order[]>([]);
   readonly filteredOrders = computed(() => this.applyFilters());
   readonly expandedOrderId = signal<string | null>(null);
   readonly showOrderDetailsModal = signal(false);
   readonly selectedOrder = signal<Order | null>(null);
   readonly showCancelConfirmModal = signal(false);
   readonly orderToCancelId = signal<string | null>(null);
+  readonly isLoading = signal(false);
+  readonly loadError = signal('');
 
   // Filter state
   searchQuery = '';
@@ -217,6 +228,47 @@ export class Orders {
   readonly cancelledOrders = computed(() => 
     this.orders().filter(o => o.status === 'Cancelled' || o.status === 'Rejected').length
   );
+
+  ngOnInit(): void {
+    if (!isPlatformBrowser(this.platformId)) {
+      return;
+    }
+
+    this.loadOrders();
+  }
+
+  async loadOrders(): Promise<void> {
+    this.isLoading.set(true);
+    this.loadError.set('');
+
+    try {
+      const accountId = await this.resolveAccountId();
+
+      if (!accountId) {
+        this.orders.set([]);
+        this.loadError.set('No active account was found for the logged-in user.');
+        return;
+      }
+
+      this.ordersApiService
+        .getOrderHistory(accountId)
+        .pipe(finalize(() => this.isLoading.set(false)))
+        .subscribe({
+          next: apiOrders => {
+            this.orders.set(apiOrders.map(order => this.mapApiOrderToView(order)));
+          },
+          error: error => {
+            this.orders.set([]);
+            this.loadError.set(this.getLoadErrorMessage(error));
+          }
+        });
+        console.log(this.orders().length);
+    } catch {
+      this.orders.set([]);
+      this.isLoading.set(false);
+      this.loadError.set('Unable to load the logged-in user account.');
+    }
+  }
 
   navigate(destination: string): void {
     this.router.navigate([`/${destination}`]);
@@ -388,5 +440,100 @@ export class Orders {
 
   getSideClass(side: OrderSide): string {
     return side.toLowerCase();
+  }
+
+  private async resolveAccountId(): Promise<number | null> {
+    if (typeof window === 'undefined') {
+      return null;
+    }
+    const token = localStorage.getItem('token');
+    if (!token) {
+      return null;
+    }
+
+    const response = await fetch(`${environment.apiUrl}/user`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+
+    if (!response.ok) {
+      throw new Error(`Account request failed: ${response.status}`);
+    }
+
+    const accounts = await response.json() as AccountApiResponse[];
+    const accountId = accounts[0]?.accountId;
+
+    return Number.isInteger(accountId) && accountId > 0 ? accountId : null;
+  }
+
+  private mapApiOrderToView(order: OrderHistoryApiResponse): Order {
+    const parsedDate = order.executedAt ? new Date(order.executedAt) : null;
+    const hasValidDate = !!parsedDate && !Number.isNaN(parsedDate.getTime());
+    const status = this.mapOrderStatus(order.status);
+
+    return {
+      backendOrderId: order.orderId,
+      id: `ORD-${order.orderId}`,
+      date: hasValidDate ? parsedDate!.toISOString().slice(0, 10) : '',
+      time: hasValidDate
+        ? new Intl.DateTimeFormat('en-US', {
+            hour: 'numeric',
+            minute: '2-digit',
+            hour12: true,
+            timeZoneName: 'short'
+          }).format(parsedDate!)
+        : 'N/A',
+      symbol: (order.ticker || '').toUpperCase(),
+      instrument: (order.ticker || '').toUpperCase(),
+      side: this.mapOrderSide(order.side),
+      quantity: Number(order.quantity) || 0,
+      orderType: 'Market',
+      price: Number(order.pricePerUnit) || 0,
+      totalValue: Number(order.totalPrice) || 0,
+      status,
+      filledQuantity: status === 'Filled' ? Number(order.quantity) || 0 : undefined,
+      averageFillPrice: status === 'Filled' ? Number(order.pricePerUnit) || 0 : undefined
+    };
+  }
+
+  private mapOrderStatus(status: string): OrderStatus {
+    switch ((status || '').toUpperCase()) {
+      case 'PENDING':
+        return 'Pending';
+      case 'FILLED':
+        return 'Filled';
+      case 'CANCELED':
+      case 'CANCELLED':
+        return 'Cancelled';
+      case 'DECLINED':
+      case 'FAILED':
+      case 'REJECTED':
+        return 'Rejected';
+      default:
+        return 'Pending';
+    }
+  }
+
+  private mapOrderSide(side: string): OrderSide {
+    return (side || '').toUpperCase() === 'SELL' ? 'Sell' : 'Buy';
+  }
+
+  private getLoadErrorMessage(error: unknown): string {
+    if (!(error instanceof HttpErrorResponse)) {
+      return 'Unable to load live orders. Showing mock orders.';
+    }
+
+    if (error.status === 0) {
+      return 'Could not reach API (network/CORS). Showing mock orders.';
+    }
+
+    if (error.status === 401 || error.status === 403) {
+      return 'API auth failed (401/403). Add a valid JWT token in localStorage. Showing mock orders.';
+    }
+
+    if (error.status === 404) {
+      return 'Account or endpoint not found (404). Verify localStorage accountId and API base URL. Showing mock orders.';
+    }
+
+    return `Live orders request failed (HTTP ${error.status}). Showing mock orders.`;
   }
 }

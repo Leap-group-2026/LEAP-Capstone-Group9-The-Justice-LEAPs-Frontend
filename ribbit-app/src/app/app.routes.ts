@@ -7,10 +7,12 @@ import { Positions } from './pages/positions/positions';
 import { Orders } from './pages/orders/orders';
 import { Transactions } from './pages/transactions/transactions';
 import { Account } from './pages/account/account';
+import { Signup } from './pages/signup/signup';
 
 export const routes: Routes = [
   { path: '', redirectTo: '/login', pathMatch: 'full' },
   { path: 'login', component: Login },
+  { path: 'signup', component: Signup },
   { path: 'dashboard', component: Dashboard },
   { path: 'portfolio', component: Portfolio },
   { path: 'trade', component: Trade },

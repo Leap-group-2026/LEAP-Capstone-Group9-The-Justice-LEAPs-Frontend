@@ -37,92 +37,22 @@
   </article>
 </section>
 
-<section class="panel" aria-labelledby="filters-title">
-  <div class="panel-heading">
-    <h2 id="filters-title">Filter Orders</h2>
-  </div>
-
-  <div class="filters-container">
-    <div class="filter-field">
-      <label for="search-input">Search</label>
-      <input
-        id="search-input"
-        type="text"
-        placeholder="Search by Order ID, symbol, or name..."
-        [value]="searchQuery"
-        (input)="onSearchChange($event.target.value)"
-        class="filter-input"
-      />
-    </div>
-
-    <div class="filter-field">
-      <label for="status-filter">Status</label>
-      <select
-        id="status-filter"
-        [value]="statusFilter"
-        (change)="onStatusFilterChange($event)"
-        class="filter-input"
-      >
-        <option value="all">All Statuses</option>
-        <option value="pending">Pending</option>
-        <option value="filled">Filled</option>
-        <option value="cancelled">Cancelled</option>
-        <option value="rejected">Rejected</option>
-      </select>
-    </div>
-
-    <div class="filter-field">
-      <label for="side-filter">Side</label>
-      <select
-        id="side-filter"
-        [value]="sideFilter"
-        (change)="onSideFilterChange($event)"
-        class="filter-input"
-      >
-        <option value="all">All Sides</option>
-        <option value="buy">Buy</option>
-        <option value="sell">Sell</option>
-      </select>
-    </div>
-
-    <div class="filter-field">
-      <label for="type-filter">Order Type</label>
-      <select
-        id="type-filter"
-        [value]="orderTypeFilter"
-        (change)="onOrderTypeFilterChange($event)"
-        class="filter-input"
-      >
-        <option value="all">All Types</option>
-        <option value="market">Market</option>
-        <option value="limit">Limit</option>
-      </select>
-    </div>
-
-    <div class="filter-field">
-      <label for="date-filter">Date</label>
-      <select
-        id="date-filter"
-        [value]="dateFilter"
-        (change)="onDateFilterChange($event)"
-        class="filter-input"
-      >
-        <option value="all">All Time</option>
-        <option value="today">Today</option>
-        <option value="week">Past Week</option>
-        <option value="month">Past Month</option>
-      </select>
-    </div>
-  </div>
-</section>
-
 <section class="panel" aria-labelledby="orders-title">
   <div class="panel-heading">
     <div class="section-title">
       <h2 id="orders-title">Orders</h2>
       <span>{{ filteredOrders().length }} TOTAL</span>
     </div>
+    <button class="button secondary" type="button" (click)="loadOrders()" [disabled]="isLoading()">
+      {{ isLoading() ? 'Loading...' : 'Refresh' }}
+    </button>
   </div>
+
+  @if (loadError()) {
+    <div class="empty-state">
+      <p>{{ loadError() }}</p>
+    </div>
+  }
 
   @if (filteredOrders().length > 0) {
     <div class="table-scroll" tabindex="0" role="region" aria-label="Orders table">
