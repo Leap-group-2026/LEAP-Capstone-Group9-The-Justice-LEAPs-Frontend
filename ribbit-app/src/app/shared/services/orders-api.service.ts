@@ -34,7 +34,7 @@ export class OrdersApiService {
       return 'http://localhost:8080';
     }
 
-    return environment.apiUrl;
+    return environment.springUrl;
   }
 
   private createAuthHeaders(): HttpHeaders {
