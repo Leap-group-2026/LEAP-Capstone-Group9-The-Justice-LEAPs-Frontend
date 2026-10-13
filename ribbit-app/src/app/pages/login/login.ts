@@ -1,4 +1,5 @@
-import { Component, EventEmitter, Input, Output, inject } from '@angular/core';
+import { Component, EventEmitter, Input, Output, inject, signal } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
 import {
   FormControl,
   FormGroup,
@@ -7,12 +8,19 @@ import {
 } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
-import { AuthService } from '../../shared/services/auth.service';
+import { finalize, timeout } from 'rxjs';
+import { environment } from '../../environments/environment';
 
 export interface LoginCredentials {
   email: string;
   password: string;
   rememberEmail: boolean;
+}
+
+interface LoginResponse {
+  accessToken?: string;
+  access_token?: string;
+  token?: string;
 }
 
 @Component({
@@ -23,7 +31,7 @@ export interface LoginCredentials {
   styleUrls: ['./login.scss']
 })
 export class Login {
-  private readonly authService = inject(AuthService);
+  private readonly http = inject(HttpClient);
   private readonly router = inject(Router);
 
   @Input() loading = false;
@@ -33,6 +41,8 @@ export class Login {
   @Output() passkeyRequested = new EventEmitter<void>();
 
   showPassword = false;
+  readonly isSubmitting = signal(false);
+  readonly loginError = signal('');
 
   readonly form = new FormGroup({
     email: new FormControl('', {
@@ -75,7 +85,7 @@ export class Login {
   ];
 
   submit(): void {
-    if (this.loading) return;
+    if (this.loading || this.isSubmitting()) return;
 
     if (this.form.invalid) {
       this.form.markAllAsTouched();
@@ -83,15 +93,42 @@ export class Login {
     }
 
     const credentials = this.form.getRawValue();
+    const requestBody = {
+      email: credentials.email.trim(),
+      password: credentials.password
+    };
 
-    // Set authentication state and redirect to dashboard
-    this.authService.login(credentials.email);
-    this.router.navigate(['/dashboard']);
+    this.isSubmitting.set(true);
+    this.loginError.set('');
+
+    this.http
+      .post<LoginResponse>(`${environment.authUrl}/auth/login`, requestBody)
+      .pipe(
+        timeout(5000),
+        finalize(() => this.isSubmitting.set(false))
+      )
+      .subscribe({
+        next: (response) => {
+          const accessToken =
+            response.accessToken ?? response.access_token ?? response.token;
+
+          if (!accessToken) {
+            this.loginError.set('Login failed, username or password is incorrect.');
+            return;
+          }
+
+          localStorage.setItem('token', accessToken);
+          this.router.navigate(['/dashboard']);
+        },
+        error: () => {
+          this.loginError.set('Login failed, username or password is incorrect.');
+        }
+      });
 
     // Emit event for any additional login logic (e.g., API call)
     this.loginRequested.emit({
       ...credentials,
-      email: credentials.email.trim()
+      email: requestBody.email
     });
   }
 }

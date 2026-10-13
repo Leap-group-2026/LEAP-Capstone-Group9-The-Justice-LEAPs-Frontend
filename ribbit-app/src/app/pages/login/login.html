@@ -102,17 +102,17 @@
           <a href="/forgot-password">Forgot password?</a>
         </div>
 
-        @if (errorMessage) {
-          <p class="field-error" role="alert">{{ errorMessage }}</p>
+        @if (errorMessage || loginError()) {
+          <p class="field-error" role="alert">{{ errorMessage || loginError() }}</p>
         }
 
         <button
           class="primary-button"
           type="submit"
-          [disabled]="loading"
-          [attr.aria-busy]="loading"
+          [disabled]="loading || isSubmitting()"
+          [attr.aria-busy]="loading || isSubmitting()"
         >
-          <span>{{ loading ? 'Logging in…' : 'Log in' }}</span>
+          <span>{{ loading || isSubmitting() ? 'Logging in…' : 'Log in' }}</span>
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path d="M5 12h14m-6-6 6 6-6 6"/>
           </svg>
