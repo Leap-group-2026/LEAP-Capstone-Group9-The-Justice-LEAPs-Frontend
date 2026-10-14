@@ -153,7 +153,7 @@ export class Portfolio implements OnInit {
   }
 
   get portfolioValue(): number {
-    return this.apiPortfolioValue();
+    return this.apiPortfolioValue() + this.availableCash;
   }
 
   get totalInvested(): number {
