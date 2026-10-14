@@ -4,12 +4,11 @@
       {{
         step() === 'entry' ? 'Make your next move.' :
         step() === 'review' ? 'Review your order.' :
-        'Simulated order submitted.'
+        'Order submitted.'
       }}
     </h1>
     <p>{{ snapshotLabel }} · Individual account ending 4821</p>
   </div>
-  <span class="badge">SIMULATED TRADING</span>
 </div>
 
 <ol class="progress" aria-label="Order progress">
@@ -139,7 +138,7 @@
             </div>
             <div class="quote">
               <strong>{{ money(instrument.priceCents) }}</strong>
-              <small>CURRENT MOCK PRICE</small>
+              <small>CURRENT PRICE</small>
             </div>
           </div>
         }
@@ -255,7 +254,6 @@
               <dd class="accent">{{ money(cashAfterCents) }}</dd>
             </div>
             <div><dt>Time in force</dt><dd>Day</dd></div>
-            <div><dt>Fees</dt><dd>$0.00 · Not modeled</dd></div>
           </dl>
         </div>
 
@@ -274,7 +272,6 @@
             Market prices and totals are estimates. Execution price is not guaranteed.
           }
           Sell proceeds are hypothetical and may require settlement.
-          Demo balances remain unchanged.
         </p>
         <small>* Required fields · Whole shares only · No short sales</small>
       </form>
@@ -282,7 +279,7 @@
       @if (displayedOrder; as order) {
         <section
           class="panel order-ticket"
-          [attr.aria-label]="step() === 'success' ? 'Simulated order receipt' : 'Order review'"
+          [attr.aria-label]="step() === 'success' ? 'Order receipt' : 'Order review'"
         >
           @if (step() === 'success') {
             <div class="panel-heading">
@@ -291,20 +288,12 @@
                   <path [attr.d]="icons['check']"/>
                 </svg>
               </span>
-              <span class="badge">SUBMITTED · SIMULATION</span>
+              <span class="badge">SUBMITTED</span>
             </div>
 
             <div role="status">
               <h2>{{ order.side }} {{ order.quantity }} shares of {{ order.instrument.symbol }}</h2>
               <p class="muted">{{ order.instrument.name }} · {{ order.type }} order</p>
-            </div>
-
-            <div class="notice">
-              <strong>No real trade was executed.</strong>
-              <p>
-                This is a simulated submission, not a fill.
-                Your cash and holdings have not changed.
-              </p>
             </div>
           } @else {
             <div class="panel-heading">
@@ -322,7 +311,7 @@
 
           <dl class="order-details">
             @if (step() === 'success') {
-              <div><dt>Mock order ID</dt><dd>{{ submission()?.id }}</dd></div>
+              <div><dt>Order ID</dt><dd>{{ submission()?.id }}</dd></div>
               <div>
                 <dt>Submitted</dt>
                 <dd>{{ submission()?.submittedAt | date:'medium' }}</dd>
@@ -339,7 +328,6 @@
               <dd>{{ money(order.priceCents) }}</dd>
             </div>
             <div><dt>Time in force</dt><dd>{{ order.timeInForce }}</dd></div>
-            <div><dt>Fees</dt><dd>$0.00 · Not modeled</dd></div>
           </dl>
 
           <div class="totals">
@@ -366,7 +354,7 @@
             {{ order.type === 'Market'
               ? 'Market execution price and final total are not guaranteed.'
               : 'Limit orders may remain unfilled. Buy cash-after reflects hypothetical reservation.' }}
-            Sell proceeds may require settlement. This demo does not execute orders.
+            Sell proceeds may require settlement.
           </p>
 
           @if (step() === 'review') {
@@ -438,16 +426,12 @@
         Buy within your available cash. Sell only shares you own.
         Whole shares only; short selling is not supported.
       </p>
-      <p>
-        This page uses fixed mock prices. Confirming an order records
-        "Submitted," not "Filled." No broker, API, or backend is connected.
-      </p>
     </section>
   </aside>
 </div>
 
 <footer class="page-footer">
-  ILLUSTRATIVE MARKET DATA · ALL VALUES IN USD · INVESTING INVOLVES RISK
+  ALL VALUES IN USD · INVESTING INVOLVES RISK
 </footer>
 
 @if (showInstrumentModal() && selectedInstrumentForModal(); as instrument) {
@@ -467,12 +451,10 @@
 
     <div class="modal-body">
       <div class="chart-container">
-        <svg class="mock-chart" viewBox="0 0 400 200" preserveAspectRatio="xMidYMid meet">
+        <svg class="price-chart" viewBox="0 0 400 200" preserveAspectRatio="xMidYMid meet">
           <!-- Grid lines -->
           <line x1="40" y1="20" x2="40" y2="180" stroke="var(--border)" stroke-width="1"/>
           <line x1="40" y1="180" x2="400" y2="180" stroke="var(--border)" stroke-width="1"/>
-          
-          <!-- Mock price chart line -->
           <polyline
             points="50,120 80,110 110,115 140,95 170,100 200,85 230,90 260,75 290,80 320,70 350,75 380,60"
             fill="none"
@@ -511,7 +493,7 @@
       <div class="modal-description">
         <h3>About this company</h3>
         <p>{{ instrument.name }} is a leading technology company traded on {{ instrument.exchange }}. 
-        Current market data is illustrative only and uses mock prices for demonstration purposes.</p>
+        </p>
       </div>
     </div>
 

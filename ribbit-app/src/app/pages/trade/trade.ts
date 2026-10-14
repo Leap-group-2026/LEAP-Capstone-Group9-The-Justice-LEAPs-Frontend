@@ -86,7 +86,7 @@ export class Trade {
   private readonly destroyRef = inject(DestroyRef);
 
   readonly cashCents = this.readStoredBalance() * 100;
-  readonly snapshotLabel = 'Oct 8, 2026 · Mock prices';
+  readonly snapshotLabel = 'Oct 8, 2026';
 
   readonly instruments: readonly Instrument[] = Object.freeze([
     Object.freeze({
