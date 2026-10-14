@@ -2,6 +2,7 @@ import { Component, signal, computed, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
+import { AuthService } from '../../shared/services/auth.service';
 
 type EditProfileStep = 'view' | 'edit' | 'success';
 type ChangePasswordStep = 'form' | 'success';
@@ -10,15 +11,7 @@ interface UserProfile {
   firstName: string;
   lastName: string;
   email: string;
-  phone: string;
-}
-
-interface AccountInfo {
-  accountId: string;
-  accountType: string;
-  accountStatus: string;
-  accountCreated: string;
-  portfolioProfile: string;
+  address: string;
 }
 
 interface PreferenceSettings {
@@ -37,6 +30,7 @@ interface PreferenceSettings {
 })
 export class Account {
   private readonly router = inject(Router);
+  private readonly authService = inject(AuthService);
   readonly accessToken = typeof localStorage === 'undefined'
     ? null
     : localStorage.getItem('token');
@@ -52,25 +46,14 @@ export class Account {
     logout: 'M9 3H4v18h5 M10 12h11 M17 8l4 4-4 4'
   };
 
-  // Mock user profile data
-  readonly mockProfile: UserProfile = {
-    firstName: 'John',
-    lastName: 'Trader',
-    email: 'john.trader@example.com',
-    phone: '(555) 123-4567'
-  };
-
-  // Mock account information
-  readonly mockAccountInfo: AccountInfo = {
-    accountId: 'RB-100024',
-    accountType: 'Individual',
-    accountStatus: 'Active',
-    accountCreated: 'August 15, 2026',
-    portfolioProfile: 'Balanced'
-  };
+  readonly accountId = this.readStorage('accountId');
+  readonly accountType = this.readStorage('tradeType');
+  readonly accountStatus = this.readStorage('accountActive') === 'true' ? 'Active' : 'Inactive';
+  readonly accountCreated = this.formatAccountDate(this.readStorage('createdAt'));
+  readonly portfolioProfile = this.readStorage('portfolioSize');
 
   // State signals
-  readonly profileData = signal<UserProfile>({ ...this.mockProfile });
+  readonly profileData = signal<UserProfile>(this.readProfile());
   readonly editProfileStep = signal<EditProfileStep>('view');
   readonly changePasswordStep = signal<ChangePasswordStep>('form');
   readonly showChangePasswordModal = signal(false);
@@ -85,7 +68,7 @@ export class Account {
   editFirstName = '';
   editLastName = '';
   editEmail = '';
-  editPhone = '';
+  editAddress = '';
   editFormError = '';
 
   currentPassword = '';
@@ -103,18 +86,13 @@ export class Account {
     return 'September 12, 2026';
   }
 
-  // Format phone number for display
-  formatPhoneDisplay(phone: string): string {
-    return phone || 'Not provided';
-  }
-
   // Edit Profile methods
   openEditProfile(): void {
     const profile = this.profileData();
     this.editFirstName = profile.firstName;
     this.editLastName = profile.lastName;
     this.editEmail = profile.email;
-    this.editPhone = profile.phone;
+    this.editAddress = profile.address;
     this.editFormError = '';
     this.editProfileStep.set('edit');
   }
@@ -148,14 +126,8 @@ export class Account {
       return false;
     }
 
-    if (!this.editPhone.trim()) {
-      this.editFormError = 'Phone number is required.';
-      return false;
-    }
-
-    const phoneRegex = /^\(\d{3}\)\s\d{3}-\d{4}$/;
-    if (!phoneRegex.test(this.editPhone)) {
-      this.editFormError = 'Please enter a valid phone number (e.g., (555) 123-4567).';
+    if (!this.editAddress.trim()) {
+      this.editFormError = 'Address is required.';
       return false;
     }
 
@@ -168,7 +140,12 @@ export class Account {
         firstName: this.editFirstName,
         lastName: this.editLastName,
         email: this.editEmail,
-        phone: this.editPhone
+        address: this.editAddress
+      });
+      this.authService.setUserProfile({
+        name: `${this.editFirstName.trim()} ${this.editLastName.trim()}`,
+        email: this.editEmail.trim(),
+        address: this.editAddress.trim()
       });
       this.editProfileStep.set('success');
     }
@@ -176,6 +153,35 @@ export class Account {
 
   finishProfileEdit(): void {
     this.editProfileStep.set('view');
+  }
+
+  private readProfile(): UserProfile {
+    const user = this.authService.getUserProfile();
+    const nameParts = user.name.trim().split(/\s+/).filter(Boolean);
+
+    return {
+      firstName: nameParts[0] ?? '',
+      lastName: nameParts.slice(1).join(' '),
+      email: user.email,
+      address: user.address
+    };
+  }
+
+  private readStorage(key: string): string {
+    return typeof localStorage === 'undefined' ? '' : localStorage.getItem(key) ?? '';
+  }
+
+  private formatAccountDate(value: string): string {
+    if (!value) return '';
+
+    const date = new Date(value);
+    return Number.isNaN(date.getTime())
+      ? value
+      : date.toLocaleDateString('en-US', {
+        month: 'long',
+        day: 'numeric',
+        year: 'numeric'
+      });
   }
 
   // Change Password methods

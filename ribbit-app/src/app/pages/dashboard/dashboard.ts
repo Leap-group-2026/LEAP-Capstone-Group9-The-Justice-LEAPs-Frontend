@@ -1,6 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { Component, inject } from '@angular/core';
 import { Router } from '@angular/router';
+import { AuthService } from '../../shared/services/auth.service';
 
 type Period = '1D' | '1W' | '1M' | '3M' | '1Y' | 'ALL';
 type Destination =
@@ -46,19 +47,27 @@ interface PerformancePoint {
 })
 export class Dashboard {
   private readonly router = inject(Router);
+  private readonly authService = inject(AuthService);
 
   selectedPeriod: Period = '1M';
 
-  readonly user = {
-    name: 'Jordan Lee',
-    firstName: 'Jordan',
-    initials: 'JL',
-    accountEnding: '4821'
-  };
+  readonly user = this.createUser();
 
   readonly snapshotLabel = 'Oct 7, 2026, 2:32 PM ET';
-  readonly availableCash = 12500;
+  readonly availableCash = this.readStoredBalance();
   readonly todayGain = 864.20;
+
+  private createUser() {
+    const user = this.authService.getUserProfile();
+    const firstName = user.name.trim().split(/\s+/)[0] ?? '';
+
+    return { ...user, firstName };
+  }
+
+  private readStoredBalance(): number {
+    const balance = Number(typeof localStorage === 'undefined' ? null : localStorage.getItem('balance'));
+    return Number.isFinite(balance) ? balance : 0;
+  }
 
   readonly holdings: Holding[] = [
     {
