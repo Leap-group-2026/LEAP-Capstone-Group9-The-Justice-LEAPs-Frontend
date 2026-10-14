@@ -19,7 +19,7 @@
         <div class="profile-info">
           <h3>{{ profileData().firstName }} {{ profileData().lastName }}</h3>
           <p class="profile-email">{{ profileData().email }}</p>
-          <p class="profile-phone">{{ profileData().phone }}</p>
+          <p class="profile-address">{{ profileData().address }}</p>
         </div>
         <button type="button" class="button secondary" (click)="openEditProfile()">
           Edit Profile
@@ -43,8 +43,8 @@
           <strong>{{ profileData().email }}</strong>
         </div>
         <div class="detail-row">
-          <span class="detail-label">Phone</span>
-          <strong>{{ formatPhoneDisplay(profileData().phone) }}</strong>
+          <span class="detail-label">Address</span>
+          <strong>{{ profileData().address }}</strong>
         </div>
       </div>
     </div>
@@ -100,16 +100,15 @@
         </div>
 
         <div class="form-field">
-          <label for="edit-phone">Phone Number *</label>
+          <label for="edit-address">Address *</label>
           <input
-            id="edit-phone"
-            type="tel"
-            placeholder="(555) 123-4567"
-            [(ngModel)]="editPhone"
-            name="phone"
+            id="edit-address"
+            type="text"
+            placeholder="Enter address"
+            [(ngModel)]="editAddress"
+            name="address"
             class="form-input"
           />
-          <small class="form-hint">Format: (555) 123-4567</small>
         </div>
 
         <div class="form-actions">
@@ -149,23 +148,23 @@
     <div class="info-grid">
       <div class="info-item">
         <span class="info-label">Account ID</span>
-        <strong class="account-id">{{ mockAccountInfo.accountId }}</strong>
+        <strong class="account-id">{{ accountId }}</strong>
       </div>
       <div class="info-item">
         <span class="info-label">Account Type</span>
-        <strong>{{ mockAccountInfo.accountType }}</strong>
+        <strong>{{ accountType }}</strong>
       </div>
       <div class="info-item">
         <span class="info-label">Account Status</span>
-        <strong class="status-active">{{ mockAccountInfo.accountStatus }}</strong>
+        <strong [class.status-active]="accountStatus === 'Active'">{{ accountStatus }}</strong>
       </div>
       <div class="info-item">
         <span class="info-label">Account Created</span>
-        <strong>{{ mockAccountInfo.accountCreated }}</strong>
+        <strong>{{ accountCreated }}</strong>
       </div>
       <div class="info-item">
         <span class="info-label">Portfolio Profile</span>
-        <strong>{{ mockAccountInfo.portfolioProfile }}</strong>
+        <strong>{{ portfolioProfile }}</strong>
       </div>
     </div>
   </div>

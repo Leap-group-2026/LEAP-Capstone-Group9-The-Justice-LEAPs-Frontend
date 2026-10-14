@@ -1,5 +1,5 @@
 import { Component, EventEmitter, Input, Output, inject, signal } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpHeaders } from '@angular/common/http';
 import {
   FormControl,
   FormGroup,
@@ -8,7 +8,7 @@ import {
 } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { Router, RouterLink } from '@angular/router';
-import { finalize, timeout } from 'rxjs';
+import { finalize, map, Observable, switchMap, tap, throwError, timeout } from 'rxjs';
 import { environment } from '../../environments/environment';
 
 export interface LoginCredentials {
@@ -21,6 +21,26 @@ interface LoginResponse {
   accessToken?: string;
   access_token?: string;
   token?: string;
+}
+
+interface UserResponse {
+  name: string;
+  email: string;
+  address: string;
+}
+
+interface UserAccount {
+  accountId: number;
+}
+
+interface AccountResponse {
+  accountId: number;
+  tradeType?: string;
+  balance: number;
+  portfolio_size: string;
+  trade_type?: string;
+  created_at: string;
+  account_active: boolean;
 }
 
 @Component({
@@ -105,19 +125,34 @@ export class Login {
       .post<LoginResponse>(`${environment.authUrl}/auth/login`, requestBody)
       .pipe(
         timeout(5000),
-        finalize(() => this.isSubmitting.set(false))
-      )
-      .subscribe({
-        next: (response) => {
+        switchMap((response) => {
           const accessToken =
             response.accessToken ?? response.access_token ?? response.token;
 
           if (!accessToken) {
-            this.loginError.set('Login failed, username or password is incorrect.');
-            return;
+            return throwError(() => new Error('Missing access token'));
           }
 
           localStorage.setItem('token', accessToken);
+
+          return this.http.get<UserResponse>(`${environment.springUrl}/user`, {
+            headers: {
+              Authorization: `Bearer ${accessToken}`
+            }
+          });
+        }),
+        switchMap((user) =>
+          this.loadAccount(localStorage.getItem('token')!).pipe(
+            map(() => user)
+          )
+        ),
+        finalize(() => this.isSubmitting.set(false))
+      )
+      .subscribe({
+        next: (user) => {
+          localStorage.setItem('name', user.name);
+          localStorage.setItem('email', user.email);
+          localStorage.setItem('address', user.address);
           this.router.navigate(['/dashboard']);
         },
         error: () => {
@@ -130,5 +165,46 @@ export class Login {
       ...credentials,
       email: requestBody.email
     });
+  }
+
+  private loadAccount(accessToken: string): Observable<void> {
+    return this.http
+      .get<UserAccount[]>(`${environment.springUrl}/user/accounts`, {
+        headers: new HttpHeaders({
+          Authorization: `Bearer ${accessToken}`
+        })
+      })
+      .pipe(
+        switchMap((accounts) => {
+          const accountIds = accounts
+            .map((account) => account.accountId)
+            .filter((accountId) => Number.isFinite(accountId));
+
+          if (!accountIds.length) {
+            return throwError(() => new Error('No account found for user'));
+          }
+
+          const accountId = Math.min(...accountIds);
+          localStorage.setItem('accountId', String(accountId));
+
+          return this.http.get<AccountResponse>(
+            `${environment.springUrl}/accounts/${accountId}`,
+            {
+              headers: new HttpHeaders({
+                Authorization: `Bearer ${accessToken}`
+              })
+            }
+          );
+        }),
+        tap((account) => {
+          localStorage.setItem('accountId', String(account.accountId));
+          localStorage.setItem('tradeType', account.tradeType ?? account.trade_type ?? '');
+          localStorage.setItem('balance', String(account.balance));
+          localStorage.setItem('portfolioSize', account.portfolio_size);
+          localStorage.setItem('createdAt', account.created_at);
+          localStorage.setItem('accountActive', String(account.account_active));
+        }),
+        map(() => undefined)
+      );
   }
 }
