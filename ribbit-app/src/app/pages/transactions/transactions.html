@@ -2,6 +2,14 @@
   <div>
     <h1 id="welcome-heading">Transactions</h1>
     <p>View and manage your account transactions.</p>
+    @if (account()) {
+      <small class="account-line">
+        @if (accountName()) {
+          {{ accountName() }} ·
+        }
+        Account ending {{ accountEnding() }}
+      </small>
+    }
   </div>
 
   <button class="button primary" type="button" (click)="openAddFundsModal()">
@@ -15,25 +23,25 @@
 <section class="summary-grid" aria-label="Account summary">
   <article class="summary-card">
     <h2>Available Cash</h2>
-    <strong>{{ formatCurrency(availableCash) }}</strong>
+    <strong>{{ account() ? formatCurrency(availableCash) : '—' }}</strong>
     <p>Ready to invest</p>
   </article>
 
   <article class="summary-card">
     <h2>Total Deposits</h2>
-    <strong class="positive">{{ formatCurrency(totalDeposits) }}</strong>
+    <strong class="positive">{{ formatCurrency(totalDeposits()) }}</strong>
     <p>Completed deposits</p>
   </article>
 
   <article class="summary-card">
     <h2>Total Withdrawals</h2>
-    <strong class="negative">{{ formatCurrency(totalWithdrawals) }}</strong>
+    <strong class="negative">{{ formatCurrency(totalWithdrawals()) }}</strong>
     <p>Completed withdrawals</p>
   </article>
 
   <article class="summary-card">
     <h2>Total Transaction Value</h2>
-    <strong>{{ formatCurrency(totalTransactionValue) }}</strong>
+    <strong>{{ formatCurrency(totalTransactionValue()) }}</strong>
     <p>All completed transactions</p>
   </article>
 </section>
@@ -50,7 +58,7 @@
         id="search-input"
         type="text"
         placeholder="Search by ID, description, or symbol..."
-        [value]="searchQuery"
+        [value]="searchQuery()"
         (input)="onSearchChange($event.target.value)"
         class="filter-input"
       />
@@ -60,7 +68,7 @@
       <label for="type-filter">Transaction Type</label>
       <select
         id="type-filter"
-        [value]="typeFilter"
+        [value]="typeFilter()"
         (change)="onTypeFilterChange($event)"
         class="filter-input"
       >
@@ -76,7 +84,7 @@
       <label for="status-filter">Status</label>
       <select
         id="status-filter"
-        [value]="statusFilter"
+        [value]="statusFilter()"
         (change)="onStatusFilterChange($event)"
         class="filter-input"
       >
@@ -93,11 +101,28 @@
   <div class="panel-heading">
     <div class="section-title">
       <h2 id="history-title">Transaction History</h2>
-      <span>{{ completedTransactionsCount }} COMPLETED</span>
+      <span>{{ completedTransactionsCount() }} COMPLETED</span>
     </div>
   </div>
 
-  @if (filteredTransactions().length > 0) {
+  @if (loading()) {
+    <div class="empty-state" role="status">
+      <p>Loading transactions…</p>
+    </div>
+  } @else if (error()) {
+    <div class="error-banner" role="alert">
+      <p>{{ error() }}</p>
+      <button type="button" class="button secondary" (click)="load()">Retry</button>
+    </div>
+  } @else if (noAccount()) {
+    <div class="empty-state">
+      <p>No open account.</p>
+    </div>
+  } @else if (transactions().length === 0) {
+    <div class="empty-state">
+      <p>No transactions yet.</p>
+    </div>
+  } @else if (filteredTransactions().length > 0) {
     <div class="table-scroll" tabindex="0" role="region" aria-label="Transaction history table">
       <table>
         <thead>
@@ -117,7 +142,7 @@
               <th scope="row" class="transaction-id">{{ transaction.id }}</th>
               <td>
                 {{ formatDate(transaction.date) }}
-                <small class="cell-detail">{{ transaction.time }}</small>
+                <small class="cell-detail">{{ formatTime(transaction.time) }}</small>
               </td>
               <td>
                 <span class="transaction-type" [class.deposit]="transaction.type === 'Deposit'" [class.withdrawal]="transaction.type === 'Withdrawal'" [class.buy]="transaction.type === 'Buy'" [class.sell]="transaction.type === 'Sell'">
@@ -160,7 +185,13 @@
                       </div>
                       <div class="detail-item">
                         <span class="detail-label">Date & Time</span>
-                        <strong>{{ formatDate(transaction.date) }} · {{ transaction.time }}</strong>
+                        <strong>
+                          @if (transaction.date) {
+                            {{ formatDate(transaction.date) }} · {{ formatTime(transaction.time) }}
+                          } @else {
+                            Not yet executed
+                          }
+                        </strong>
                       </div>
                       <div class="detail-item">
                         <span class="detail-label">Type</span>
@@ -200,6 +231,28 @@
                         </div>
                       }
                     </div>
+
+                    @if (historyFor(transaction.id); as history) {
+                      <div class="order-history">
+                        <span class="detail-label">Order History</span>
+                        @if (history.loading) {
+                          <p class="muted">Loading history…</p>
+                        } @else if (history.error) {
+                          <p class="negative">{{ history.error }}</p>
+                        } @else if (history.events.length === 0) {
+                          <p class="muted">No history recorded for this order.</p>
+                        } @else {
+                          <ol class="timeline">
+                            @for (event of history.events; track event.event_id; let first = $first) {
+                              <li>
+                                <strong>{{ first ? 'Placed · ' : '' }}{{ event.status }}</strong>
+                                <small>{{ formatDateTime(event.occurred_at) }}</small>
+                              </li>
+                            }
+                          </ol>
+                        }
+                      </div>
+                    }
                   </div>
                 </td>
               </tr>
@@ -211,7 +264,7 @@
   } @else {
     <div class="empty-state">
       <p>No transactions match your filters.</p>
-      <button type="button" class="text-button" (click)="searchQuery = ''; typeFilter = 'all'; statusFilter = 'all'; applyFilters()">
+      <button type="button" class="text-button" (click)="clearFilters()">
         Clear filters
       </button>
     </div>
@@ -245,7 +298,7 @@
             class="form-input"
             [class.error]="addFundsError && addFundsAmount"
           />
-          <small>Minimum $1 · Maximum $100,000</small>
+          <small>Minimum $0.01 · Maximum $100,000</small>
         </div>
 
         <div class="form-group">
@@ -299,7 +352,11 @@
         </div>
 
         <div class="review-note">
-          <p>Funds will be added to your account after confirmation. This is a simulated transaction.</p>
+          @if (depositsEnabled) {
+            <p>Funds will be added to your account after confirmation.</p>
+          } @else {
+            <p>Deposits aren't available yet. Your balance has not been changed.</p>
+          }
         </div>
       </div>
 
@@ -307,7 +364,7 @@
         <button type="button" class="button secondary" (click)="cancelAddFunds()">
           Back
         </button>
-        <button type="button" class="button primary" (click)="confirmAddFunds()">
+        <button type="button" class="button primary" [disabled]="!depositsEnabled" (click)="confirmAddFunds()">
           Confirm Deposit
         </button>
       </div>

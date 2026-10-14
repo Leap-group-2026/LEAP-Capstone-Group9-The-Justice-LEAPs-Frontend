@@ -823,3 +823,58 @@ th.numeric, td.numeric {
     font-size: 24px;
   }
 }
+
+.account-line {
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.error-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 16px 18px;
+  padding: 14px 16px;
+  background: #3a2424;
+  border: 1px solid rgba(240, 142, 133, 0.4);
+  border-radius: 6px;
+
+  p {
+    color: #ff9b9b;
+    font-size: 13px;
+  }
+}
+
+.button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.order-history {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+
+  p { font-size: 12px; }
+}
+
+.timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 0 0 0 16px;
+  border-left: 1px solid var(--border);
+  list-style: none;
+
+  strong {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 12px;
+    font-weight: 500;
+  }
+}
