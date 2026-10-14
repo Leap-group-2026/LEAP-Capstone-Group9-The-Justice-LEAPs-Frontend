@@ -1,8 +1,9 @@
 import { CommonModule } from '@angular/common';
-import { Component, inject } from '@angular/core';
+import { Component, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { AuthService } from '../../shared/services/auth.service';
+import { PortfolioValueService } from '../../shared/services/portfolio-value.service';
 
 export type PortfolioState = 'ready' | 'loading' | 'error';
 
@@ -41,12 +42,14 @@ interface AllocationItem {
   templateUrl: './portfolio.html',
   styleUrls: ['./portfolio.scss']
 })
-export class Portfolio {
+export class Portfolio implements OnInit {
   private readonly router = inject(Router);
   private readonly authService = inject(AuthService);
+  private readonly portfolioValueService = inject(PortfolioValueService);
 
   state: PortfolioState = 'ready';
   availableCash = this.readStoredBalance();
+  private readonly apiPortfolioValue = signal(0);
 
   holdings: Holding[] = [
     {
@@ -93,6 +96,22 @@ export class Portfolio {
 
   readonly user = this.authService.getUserProfile();
 
+  ngOnInit(): void {
+    const accountId = this.readAccountId();
+
+    if (accountId === null) return;
+
+    this.portfolioValueService.getPortfolioValue(accountId).subscribe({
+      next: value => {
+        this.apiPortfolioValue.set(value);
+      },
+      error: error => {
+        console.error('Unable to load portfolio value', error);
+        this.state = 'ready';
+      }
+    });
+  }
+
   private readStoredBalance(): number {
     const balance = Number(typeof localStorage === 'undefined' ? null : localStorage.getItem('balance'));
     return Number.isFinite(balance) ? balance : 0;
@@ -134,7 +153,7 @@ export class Portfolio {
   }
 
   get portfolioValue(): number {
-    return this.round(this.holdingsValue + this.availableCash);
+    return this.apiPortfolioValue();
   }
 
   get totalInvested(): number {
@@ -270,6 +289,7 @@ export class Portfolio {
 
   retry(): void {
     this.state = 'ready';
+    this.ngOnInit();
   }
 
   absolute(value: number): number {
@@ -282,5 +302,10 @@ export class Portfolio {
 
   private round(value: number): number {
     return Math.round(value * 100) / 100;
+  }
+
+  private readAccountId(): number | null {
+    const accountId = Number(typeof localStorage === 'undefined' ? null : localStorage.getItem('accountId'));
+    return Number.isInteger(accountId) && accountId > 0 ? accountId : null;
   }
 }
