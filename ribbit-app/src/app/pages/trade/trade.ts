@@ -27,6 +27,7 @@ export interface Instrument {
   readonly symbol: string;
   readonly name: string;
   readonly priceCents: number;
+  readonly changePct: number;
   readonly owned: number;
   readonly exchange: string;
 }
@@ -88,13 +89,13 @@ export class Trade {
   private readonly instrumentsApi = inject(InstrumentsApiService);
 
   readonly cashCents = this.readStoredBalance() * 100;
-  readonly snapshotLabel = 'Oct 8, 2026';
 
   readonly instruments: readonly Instrument[] = Object.freeze([
     Object.freeze({
       symbol: 'AAPL',
       name: 'Apple Inc.',
       priceCents: 22_842,
+      changePct: 0.84,
       owned: 80,
       exchange: 'NASDAQ'
     }),
@@ -102,6 +103,7 @@ export class Trade {
       symbol: 'NVDA',
       name: 'NVIDIA Corporation',
       priceCents: 14_287,
+      changePct: 2.45,
       owned: 120,
       exchange: 'NASDAQ'
     }),
@@ -109,6 +111,7 @@ export class Trade {
       symbol: 'MSFT',
       name: 'Microsoft Corporation',
       priceCents: 42_560,
+      changePct: -0.37,
       owned: 40,
       exchange: 'NASDAQ'
     }),
@@ -116,6 +119,7 @@ export class Trade {
       symbol: 'SPY',
       name: 'SPDR S&P 500 ETF Trust',
       priceCents: 58_921,
+      changePct: 0.12,
       owned: 60,
       exchange: 'NYSE ARCA'
     }),
@@ -123,6 +127,7 @@ export class Trade {
       symbol: 'TSLA',
       name: 'Tesla, Inc.',
       priceCents: 24_850,
+      changePct: -1.92,
       owned: 30,
       exchange: 'NASDAQ'
     })
@@ -162,7 +167,7 @@ export class Trade {
         nonNullable: true,
         validators: [Validators.required]
       }),
-      symbol: new FormControl('NVDA', {
+      symbol: new FormControl('', {
         nonNullable: true,
         validators: [
           Validators.required,
@@ -173,7 +178,7 @@ export class Trade {
               : { unknownInstrument: true }
         ]
       }),
-      quantity: new FormControl('20', {
+      quantity: new FormControl('', {
         nonNullable: true,
         validators: [Validators.required, wholeShares]
       }),
@@ -181,7 +186,7 @@ export class Trade {
         nonNullable: true,
         validators: [Validators.required]
       }),
-      limitPrice: new FormControl('140.00', { nonNullable: true })
+      limitPrice: new FormControl('0.00', { nonNullable: true })
     },
     { validators: [control => this.validateOrder(control)] }
   );
@@ -371,6 +376,11 @@ export class Trade {
       : this.currencyFormatter.format(cents / 100);
   }
 
+  formatChange(pct: number): string {
+    const sign = pct > 0 ? '+' : '';
+    return `${sign}${pct.toFixed(2)}%`;
+  }
+
   selectSide(side: Side): void {
     this.form.controls.side.setValue(side);
   }
@@ -382,6 +392,13 @@ export class Trade {
   selectInstrument(symbol: string): void {
     this.form.controls.symbol.setValue(symbol);
     this.searchQuery.set('');
+
+    const instrument = this.instruments.find(item => item.symbol === symbol);
+    if (instrument && Number(this.form.controls.limitPrice.value) === 0) {
+      this.form.controls.limitPrice.setValue(
+        (instrument.priceCents / 100).toFixed(2)
+      );
+    }
   }
 
   updateSearch(query: string): void {
@@ -521,10 +538,10 @@ export class Trade {
 
     this.form.reset({
       side: 'Buy',
-      symbol: 'NVDA',
-      quantity: '20',
+      symbol: '',
+      quantity: '',
       orderType: 'Market',
-      limitPrice: '140.00'
+      limitPrice: '0.00'
     });
 
     this.focusHeading();

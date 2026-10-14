@@ -1,13 +1,16 @@
 <div class="page-intro">
   <div>
-    <h1 id="trade-heading" tabindex="-1">
-      {{
-        step() === 'entry' ? 'Make your next move.' :
-        step() === 'review' ? 'Review your order.' :
-        'Order submitted.'
-      }}
-    </h1>
-    <p>{{ snapshotLabel }} · Individual account ending 4821</p>
+    @if (selectedInstrument; as instrument) {
+      <h1 id="trade-heading" tabindex="-1" class="ticker-line">
+        <span>{{ instrument.symbol }}</span>
+        <span class="quote">{{ money(instrument.priceCents) }}</span>
+        <span class="quote" [class.accent]="instrument.changePct >= 0" [class.negative]="instrument.changePct < 0">{{ formatChange(instrument.changePct) }}</span>
+      </h1>
+      <p>{{ instrument.exchange }} · Individual account ending 4821 · Available cash {{ money(cashCents) }}</p>
+    } @else {
+      <h1 id="trade-heading" tabindex="-1">Trade</h1>
+      <p>Select an instrument to see its price</p>
+    }
   </div>
 </div>
 
@@ -487,13 +490,7 @@
         </div>
         <div class="info-row">
           <span>24h change</span>
-          <strong [class.accent]="(chartChangePercent ?? 0) >= 0" [class.negative-change]="(chartChangePercent ?? 0) < 0">
-            @if (chartChangePercent === null) {
-              —
-            } @else {
-              {{ chartChangePercent! >= 0 ? '+' : '' }}{{ chartChangePercent! | number:'1.2-2' }}%
-            }
-          </strong>
+          <strong [class.accent]="instrument.changePct >= 0" [class.negative]="instrument.changePct < 0">{{ formatChange(instrument.changePct) }}</strong>
         </div>
         <div class="info-row">
           <span>Exchange</span>
