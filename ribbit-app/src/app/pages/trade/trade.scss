@@ -31,7 +31,8 @@ small { display: block; font-size: 10px; color: var(--subtle); line-height: 1.6;
 .muted { color: var(--muted); }
 
 .page-intro { display: flex; justify-content: space-between; align-items: center; gap: 24px; }
-.page-intro p { margin-top: 10px; color: var(--muted); font-size: 11px; line-height: 1.6; }
+.available-cash { font-size: 12px; color: var(--muted); white-space: nowrap; }
+.available-cash strong { margin-left: 8px; font-family: "IBM Plex Mono", monospace; font-size: 16px; font-weight: 400; color: var(--text); }
 .ticker-line { display: flex; align-items: baseline; flex-wrap: wrap; gap: 14px; }
 .ticker-line .quote { font-size: 20px; font-weight: 600; }
 .negative { color: var(--error); }
@@ -273,16 +274,6 @@ dd {
 .fine-print { color: var(--subtle); font-size: 11px; line-height: 1.7; }
 
 .context-column { display: grid; gap: 24px; }
-.cash-card {
-  padding: 24px;
-  display: grid;
-  gap: 16px;
-  background: #151d11;
-  border: 1px solid #38462a;
-  border-radius: 12px;
-}
-.cash-card > span { color: var(--muted); font-size: 12px; }
-.cash-card strong { font-family: "IBM Plex Mono", monospace; font-size: 27px; font-weight: 400; }
 .instruments-panel { overflow: hidden; }
 .instruments-panel .panel-heading { padding: 24px; }
 .instruments-panel h2 { font-size: 15px; }
@@ -605,7 +596,6 @@ dd {
 @media (max-width: 1250px) {
   .trade-layout { grid-template-columns: minmax(0, 1fr); }
   .context-column { grid-template-columns: 1fr 1fr; align-items: start; }
-  .cash-card { grid-column: 1 / -1; }
 }
 
 @media (max-width: 760px) {

@@ -6,12 +6,11 @@
         <span class="quote">{{ money(instrument.priceCents) }}</span>
         <span class="quote" [class.accent]="instrument.changePct >= 0" [class.negative]="instrument.changePct < 0">{{ formatChange(instrument.changePct) }}</span>
       </h1>
-      <p>{{ instrument.exchange }} · Individual account ending 4821 · Available cash {{ money(cashCents) }}</p>
     } @else {
-      <h1 id="trade-heading" tabindex="-1">Trade</h1>
-      <p>Select an instrument to see its price</p>
+      <h1 id="trade-heading" tabindex="-1">Select an instrument to trade</h1>
     }
   </div>
+  <div class="available-cash">Available cash:<strong>{{ money(cashCents) }}</strong></div>
 </div>
 
 <ol class="progress" aria-label="Order progress">
@@ -390,12 +389,6 @@
   </div>
 
   <aside class="context-column" aria-label="Account and instrument information">
-    <section class="cash-card">
-      <span>Available cash</span>
-      <strong>{{ money(cashCents) }}</strong>
-      <small>Individual account · •••• 4821 · USD</small>
-    </section>
-
     @if (step() === 'entry') {
       <section class="panel instruments-panel">
         <div class="panel-heading">
