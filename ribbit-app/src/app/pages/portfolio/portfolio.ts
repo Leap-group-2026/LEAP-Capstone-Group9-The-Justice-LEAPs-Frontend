@@ -1,11 +1,12 @@
 import { CommonModule } from '@angular/common';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { isPlatformBrowser } from '@angular/common';
-import { Component, inject, OnInit, PLATFORM_ID } from '@angular/core';
+import { Component, inject, OnInit, PLATFORM_ID, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { environment } from '../../environments/environment';
 import { AuthService } from '../../shared/services/auth.service';
+import { PortfolioValueService } from '../../shared/services/portfolio-value.service';
 
 export type PortfolioState = 'ready' | 'loading' | 'error';
 
@@ -63,13 +64,16 @@ export class Portfolio implements OnInit {
   private readonly platformId = inject(PLATFORM_ID);
   private readonly router = inject(Router);
   private readonly authService = inject(AuthService);
+  private readonly portfolioValueService = inject(PortfolioValueService);
 
   state: PortfolioState = 'ready';
   availableCash = this.readStoredBalance();
+  private readonly apiPortfolioValue = signal(0);
 
   ngOnInit(): void {
     if (isPlatformBrowser(this.platformId)) {
       this.loadPositions();
+      this.loadPortfolioValue();
     }
   }
 
@@ -118,7 +122,7 @@ export class Portfolio implements OnInit {
   }
 
   get portfolioValue(): number {
-    return this.round(this.holdingsValue + this.availableCash);
+    return this.apiPortfolioValue();
   }
 
   get totalInvested(): number {
@@ -255,6 +259,23 @@ export class Portfolio implements OnInit {
   retry(): void {
     this.state = 'ready';
     this.loadPositions();
+    this.loadPortfolioValue();
+  }
+
+  private loadPortfolioValue(): void {
+    const accountId = this.readAccountId();
+
+    if (accountId === null) return;
+
+    this.portfolioValueService.getPortfolioValue(accountId).subscribe({
+      next: value => {
+        this.apiPortfolioValue.set(value);
+      },
+      error: error => {
+        console.error('Unable to load portfolio value', error);
+        this.state = 'ready';
+      }
+    });
   }
 
   private loadPositions(): void {
@@ -307,5 +328,10 @@ export class Portfolio implements OnInit {
 
   private round(value: number): number {
     return Math.round(value * 100) / 100;
+  }
+
+  private readAccountId(): number | null {
+    const accountId = Number(typeof localStorage === 'undefined' ? null : localStorage.getItem('accountId'));
+    return Number.isInteger(accountId) && accountId > 0 ? accountId : null;
   }
 }
