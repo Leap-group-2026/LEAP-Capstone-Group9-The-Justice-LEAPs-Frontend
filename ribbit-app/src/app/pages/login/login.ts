@@ -10,6 +10,7 @@ import { CommonModule } from '@angular/common';
 import { Router, RouterLink } from '@angular/router';
 import { finalize, map, Observable, of, switchMap, tap, throwError, timeout } from 'rxjs';
 import { environment } from '../../environments/environment';
+import { AuthService } from '../../shared/services/auth.service';
 
 export interface LoginCredentials {
   email: string;
@@ -53,6 +54,7 @@ interface AccountResponse {
 export class Login {
   private readonly http = inject(HttpClient);
   private readonly router = inject(Router);
+  private readonly authService = inject(AuthService);
 
   @Input() loading = false;
   @Input() errorMessage = '';
@@ -162,6 +164,17 @@ export class Login {
             localStorage.setItem('name', user.name);
             localStorage.setItem('email', user.email);
             localStorage.setItem('address', user.address);
+            this.authService.setUserProfile({
+              name: user.name,
+              email: user.email,
+              address: user.address
+            });
+          } else {
+            this.authService.setUserProfile({
+              name: 'Administrator',
+              email: requestBody.email,
+              address: ''
+            });
           }
 
           localStorage.setItem('userEmail', requestBody.email);

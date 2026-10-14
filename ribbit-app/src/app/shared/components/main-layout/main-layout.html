@@ -30,19 +30,22 @@
       <small>INDIVIDUAL ACCOUNT</small>
     </div>
 
-    <button
-      class="profile"
-      type="button"
-      aria-label="Open account"
-      (click)="navigate('account')"
-    >
-      <span class="avatar">{{ user.initials }}</span>
-      <span class="profile-details">
-        <strong>{{ user.name }}</strong>
-        <small>ACCT · •••• {{ user.accountEnding }}</small>
-      </span>
-      <span aria-hidden="true">⌄</span>
-    </button>
+    @if (!isAdminUser) {
+      <button
+        class="profile"
+        type="button"
+        aria-label="Open account"
+        (click)="navigate('account')"
+      >
+        <span class="avatar">{{ user.initials }}</span>
+        <span class="profile-details">
+          <strong>{{ user.name }}</strong>
+          <small>ACCT · •••• {{ user.accountEnding }}</small>
+        </span>
+        <span aria-hidden="true">⌄</span>
+      </button>
+    }
+
   </header>
 
   @if (sidebarOpen) {

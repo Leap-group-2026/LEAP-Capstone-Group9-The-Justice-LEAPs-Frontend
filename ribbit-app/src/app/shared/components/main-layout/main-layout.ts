@@ -50,6 +50,10 @@ export class MainLayout implements OnInit, OnDestroy {
     return this.navigation.filter(item => item.id !== 'admin');
   }
 
+  get isAdminUser(): boolean {
+    return this.authService.isAdmin();
+  }
+
   readonly icons: Record<string, string> = {
     dashboard: 'M3 3h7v7H3z M14 3h7v7h-7z M3 14h7v7H3z M14 14h7v7h-7z',
     portfolio: 'M8 7V5h8v2 M3 7h18v13H3z M3 12h18 M10 12v3h4v-3',
@@ -87,12 +91,15 @@ export class MainLayout implements OnInit, OnDestroy {
   private updateCurrentPage(): void {
     const path = this.router.url.split('/')[1] || 'dashboard';
     this.currentPage = path;
+    this.user = this.authService.getUserProfile();
   }
 
   navigate(destination: string): void {
     this.sidebarOpen = false;
     if (destination === 'logout') {
       this.router.navigate(['/login']);
+    } else if (destination === 'account' && this.authService.isAdmin()) {
+      this.router.navigate(['/admin']);
     } else {
       this.router.navigate([`/${destination}`]);
     }
