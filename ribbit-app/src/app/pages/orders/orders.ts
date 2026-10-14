@@ -443,12 +443,18 @@ export class Orders implements OnInit {
     if (typeof window === 'undefined') {
       return null;
     }
+
+    const storedAccountId = Number(window.localStorage.getItem('accountId'));
+    if (Number.isInteger(storedAccountId) && storedAccountId > 0) {
+      return storedAccountId;
+    }
+
     const token = localStorage.getItem('token');
     if (!token) {
       return null;
     }
 
-    const response = await fetch(`${environment.springUrl}/user`, {
+    const response = await fetch(`${environment.springUrl}/user/accounts`, {
       headers: { Authorization: `Bearer ${token}` }
     });
 
