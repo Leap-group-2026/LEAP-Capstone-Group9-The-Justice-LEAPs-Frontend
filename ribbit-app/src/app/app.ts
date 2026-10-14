@@ -17,7 +17,8 @@ export class App {
   protected readonly isLoggedIn = this.authService.isLoggedIn;
 
   protected showNavigation(): boolean {
-    const isPublicPage = this.router.url.includes('/login') || this.router.url.includes('/signup');
+    const currentPath = this.router.url.split('?')[0].replace(/\/$/, '');
+    const isPublicPage = ['/login', '/admin-login', '/signup'].includes(currentPath);
     return this.isLoggedIn() && !isPublicPage;
   }
 
@@ -29,7 +30,8 @@ export class App {
       trade: 'Trade',
       orders: 'Orders',
       transactions: 'Transactions',
-      account: 'Account'
+      account: 'Account',
+      admin: 'Admin'
     };
     return titleMap[path] || 'Dashboard';
   }
