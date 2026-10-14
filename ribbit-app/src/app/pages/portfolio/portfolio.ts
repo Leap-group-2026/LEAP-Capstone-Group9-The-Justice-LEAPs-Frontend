@@ -1,7 +1,10 @@
 import { CommonModule } from '@angular/common';
-import { Component, inject } from '@angular/core';
+import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { isPlatformBrowser } from '@angular/common';
+import { Component, inject, OnInit, PLATFORM_ID } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
+import { environment } from '../../environments/environment';
 
 export type PortfolioState = 'ready' | 'loading' | 'error';
 
@@ -33,6 +36,30 @@ interface AllocationItem {
   color: string;
 }
 
+interface UserAccount {
+  accountId: number;
+  userId: number;
+  balance: number;
+  portfolioSize: string;
+  tradeType: string;
+  createdAt: string;
+  accountActive: boolean;
+}
+
+interface AccountPosition {
+  position_id: number;
+  account_id: number;
+  instrument_id: number;
+  ticker: string;
+  asset_name: string;
+  asset_type: string;
+  currency: string;
+  quantity: number;
+  average_price: number;
+  total_price: number;
+  opened_at: string;
+}
+
 @Component({
   selector: 'app-portfolio',
   standalone: true,
@@ -40,12 +67,29 @@ interface AllocationItem {
   templateUrl: './portfolio.html',
   styleUrls: ['./portfolio.scss']
 })
-export class Portfolio {
+export class Portfolio implements OnInit {
+  private readonly http = inject(HttpClient);
+  private readonly platformId = inject(PLATFORM_ID);
   private readonly router = inject(Router);
+  readonly accessToken = typeof localStorage === 'undefined'
+    ? null
+    : localStorage.getItem('token');
 
   state: PortfolioState = 'ready';
+  accountId: number | null = null;
   availableCash = 12500;
 
+  ngOnInit(): void {
+    if (!isPlatformBrowser(this.platformId)) {
+      return;
+    }
+
+    this.loadAccount();
+  }
+
+  holdings: Holding[] = [];
+
+  /*
   holdings: Holding[] = [
     {
       symbol: 'AAPL',
@@ -88,6 +132,7 @@ export class Portfolio {
       currentPrice: 248.50
     }
   ];
+  */
 
   readonly user = {
     name: 'Jordan Lee',
@@ -267,6 +312,69 @@ export class Portfolio {
 
   retry(): void {
     this.state = 'ready';
+  }
+
+  private loadAccount(): void {
+    if (!this.accessToken) {
+      console.warn('No access token found; skipped account lookup.');
+      return;
+    }
+
+    this.http
+      .get<UserAccount[]>(`${environment.springUrl}/user/accounts`, {
+        headers: new HttpHeaders({
+          Authorization: `Bearer ${this.accessToken}`
+        })
+      })
+      .subscribe({
+        next: accounts => {
+          const accountIds = accounts
+            .map(account => account.accountId)
+            .filter(accountId => Number.isFinite(accountId));
+
+          this.accountId = accountIds.length ? Math.min(...accountIds) : null;
+          console.log('Earliest account ID:', this.accountId);
+
+          if (this.accountId !== null) {
+            this.loadPositions(this.accountId);
+          }
+        },
+        error: error => {
+          console.error('Account lookup failed:', error);
+        }
+      });
+  }
+
+  private loadPositions(accountId: number): void {
+    this.http
+      .get<AccountPosition[]>(
+        `${environment.springUrl}/positions/account/${accountId}`,
+        {
+          headers: new HttpHeaders({
+            Authorization: `Bearer ${this.accessToken}`
+          })
+        }
+      )
+      .subscribe({
+        next: positions => {
+          this.holdings = positions.map(position => ({
+            symbol: position.ticker,
+            name: position.asset_name,
+            type: position.asset_type.toUpperCase().includes('ETF')
+              ? 'ETF'
+              : 'Stock',
+            quantity: position.quantity,
+            averagePurchasePrice: position.average_price,
+            currentPrice: position.quantity > 0
+              ? position.total_price / position.quantity
+              : position.average_price
+          }));
+          console.log('Positions loaded:', this.holdings.length);
+        },
+        error: error => {
+          console.error('Positions lookup failed:', error);
+        }
+      });
   }
 
   absolute(value: number): number {
