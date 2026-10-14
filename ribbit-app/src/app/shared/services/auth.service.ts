@@ -92,7 +92,17 @@ export class AuthService {
       .slice(0, 2)
       .toUpperCase();
 
-    return { name, email, address, initials, accountEnding: '4821' };
+    const accountId = typeof localStorage === 'undefined'
+      ? ''
+      : localStorage.getItem('accountId') ?? '';
+
+    return {
+      name,
+      email,
+      address,
+      initials,
+      accountEnding: name === 'Administrator' ? 'Admin' : accountId || '—'
+    };
   }
 
 
