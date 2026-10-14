@@ -1,7 +1,10 @@
 import { CommonModule } from '@angular/common';
-import { Component, inject, OnInit, signal } from '@angular/core';
+import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { isPlatformBrowser } from '@angular/common';
+import { Component, inject, OnInit, PLATFORM_ID, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
+import { environment } from '../../environments/environment';
 import { AuthService } from '../../shared/services/auth.service';
 import { PortfolioValueService } from '../../shared/services/portfolio-value.service';
 
@@ -35,6 +38,20 @@ interface AllocationItem {
   color: string;
 }
 
+interface AccountPosition {
+  position_id: number;
+  account_id: number;
+  instrument_id: number;
+  ticker: string;
+  asset_name: string;
+  asset_type: string;
+  currency: string;
+  quantity: number;
+  average_price: number;
+  total_price: number;
+  opened_at: string;
+}
+
 @Component({
   selector: 'app-portfolio',
   standalone: true,
@@ -43,6 +60,8 @@ interface AllocationItem {
   styleUrls: ['./portfolio.scss']
 })
 export class Portfolio implements OnInit {
+  private readonly http = inject(HttpClient);
+  private readonly platformId = inject(PLATFORM_ID);
   private readonly router = inject(Router);
   private readonly authService = inject(AuthService);
   private readonly portfolioValueService = inject(PortfolioValueService);
@@ -51,66 +70,16 @@ export class Portfolio implements OnInit {
   availableCash = this.readStoredBalance();
   private readonly apiPortfolioValue = signal(0);
 
-  holdings: Holding[] = [
-    {
-      symbol: 'AAPL',
-      name: 'Apple Inc.',
-      type: 'Stock',
-      quantity: 80,
-      averagePurchasePrice: 210,
-      currentPrice: 228.42
-    },
-    {
-      symbol: 'NVDA',
-      name: 'NVIDIA Corporation',
-      type: 'Stock',
-      quantity: 120,
-      averagePurchasePrice: 120,
-      currentPrice: 142.87
-    },
-    {
-      symbol: 'MSFT',
-      name: 'Microsoft Corporation',
-      type: 'Stock',
-      quantity: 40,
-      averagePurchasePrice: 400,
-      currentPrice: 425.60
-    },
-    {
-      symbol: 'SPY',
-      name: 'SPDR S&P 500 ETF Trust',
-      type: 'ETF',
-      quantity: 60,
-      averagePurchasePrice: 550,
-      currentPrice: 589.21
-    },
-    {
-      symbol: 'TSLA',
-      name: 'Tesla, Inc.',
-      type: 'Stock',
-      quantity: 30,
-      averagePurchasePrice: 260,
-      currentPrice: 248.50
+  ngOnInit(): void {
+    if (isPlatformBrowser(this.platformId)) {
+      this.loadPositions();
+      this.loadPortfolioValue();
     }
-  ];
+  }
+
+  holdings: Holding[] = [];
 
   readonly user = this.authService.getUserProfile();
-
-  ngOnInit(): void {
-    const accountId = this.readAccountId();
-
-    if (accountId === null) return;
-
-    this.portfolioValueService.getPortfolioValue(accountId).subscribe({
-      next: value => {
-        this.apiPortfolioValue.set(value);
-      },
-      error: error => {
-        console.error('Unable to load portfolio value', error);
-        this.state = 'ready';
-      }
-    });
-  }
 
   private readStoredBalance(): number {
     const balance = Number(typeof localStorage === 'undefined' ? null : localStorage.getItem('balance'));
@@ -289,7 +258,64 @@ export class Portfolio implements OnInit {
 
   retry(): void {
     this.state = 'ready';
-    this.ngOnInit();
+    this.loadPositions();
+    this.loadPortfolioValue();
+  }
+
+  private loadPortfolioValue(): void {
+    const accountId = this.readAccountId();
+
+    if (accountId === null) return;
+
+    this.portfolioValueService.getPortfolioValue(accountId).subscribe({
+      next: value => {
+        this.apiPortfolioValue.set(value);
+      },
+      error: error => {
+        console.error('Unable to load portfolio value', error);
+        this.state = 'ready';
+      }
+    });
+  }
+
+  private loadPositions(): void {
+    const accessToken = localStorage.getItem('token');
+    const storedAccountId = Number(localStorage.getItem('accountId'));
+
+    if (!accessToken || !Number.isInteger(storedAccountId) || storedAccountId <= 0) {
+      console.warn('Missing token or account ID; skipped positions lookup.');
+      return;
+    }
+
+    this.http
+      .get<AccountPosition[]>(
+        `${environment.springUrl}/positions/account/${storedAccountId}`,
+        {
+          headers: new HttpHeaders({
+            Authorization: `Bearer ${accessToken}`
+          })
+        }
+      )
+      .subscribe({
+        next: positions => {
+          this.holdings = positions.map(position => ({
+            symbol: position.ticker,
+            name: position.asset_name,
+            type: position.asset_type.toUpperCase().includes('ETF')
+              ? 'ETF'
+              : 'Stock',
+            quantity: position.quantity,
+            averagePurchasePrice: position.average_price,
+            currentPrice: position.quantity > 0
+              ? position.total_price / position.quantity
+              : position.average_price
+          }));
+          console.log('Positions loaded:', this.holdings.length);
+        },
+        error: error => {
+          console.error('Positions lookup failed:', error);
+        }
+      });
   }
 
   absolute(value: number): number {
