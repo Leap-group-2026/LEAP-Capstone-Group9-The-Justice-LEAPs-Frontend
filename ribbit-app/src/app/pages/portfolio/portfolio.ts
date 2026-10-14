@@ -4,6 +4,7 @@ import { isPlatformBrowser } from '@angular/common';
 import { Component, inject, OnInit, PLATFORM_ID } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
+import { environment } from '../../environments/environment';
 import { AuthService } from '../../shared/services/auth.service';
 
 export type PortfolioState = 'ready' | 'loading' | 'error';
@@ -34,16 +35,6 @@ interface AllocationItem {
   value: number;
   percentage: number;
   color: string;
-}
-
-interface UserAccount {
-  accountId: number;
-  userId: number;
-  balance: number;
-  portfolioSize: string;
-  tradeType: string;
-  createdAt: string;
-  accountActive: boolean;
 }
 
 interface AccountPosition {
@@ -77,58 +68,12 @@ export class Portfolio implements OnInit {
   availableCash = this.readStoredBalance();
 
   ngOnInit(): void {
-    if (!isPlatformBrowser(this.platformId)) {
-      return;
+    if (isPlatformBrowser(this.platformId)) {
+      this.loadPositions();
     }
-
-    this.loadAccount();
   }
 
   holdings: Holding[] = [];
-
-  /*
-  holdings: Holding[] = [
-    {
-      symbol: 'AAPL',
-      name: 'Apple Inc.',
-      type: 'Stock',
-      quantity: 80,
-      averagePurchasePrice: 210,
-      currentPrice: 228.42
-    },
-    {
-      symbol: 'NVDA',
-      name: 'NVIDIA Corporation',
-      type: 'Stock',
-      quantity: 120,
-      averagePurchasePrice: 120,
-      currentPrice: 142.87
-    },
-    {
-      symbol: 'MSFT',
-      name: 'Microsoft Corporation',
-      type: 'Stock',
-      quantity: 40,
-      averagePurchasePrice: 400,
-      currentPrice: 425.60
-    },
-    {
-      symbol: 'SPY',
-      name: 'SPDR S&P 500 ETF Trust',
-      type: 'ETF',
-      quantity: 60,
-      averagePurchasePrice: 550,
-      currentPrice: 589.21
-    },
-    {
-      symbol: 'TSLA',
-      name: 'Tesla, Inc.',
-      type: 'Stock',
-      quantity: 30,
-      averagePurchasePrice: 260,
-      currentPrice: 248.50
-    }
-  ];
 
   readonly user = this.authService.getUserProfile();
 
@@ -309,46 +254,24 @@ export class Portfolio implements OnInit {
 
   retry(): void {
     this.state = 'ready';
+    this.loadPositions();
   }
 
-  private loadAccount(): void {
-    if (!this.accessToken) {
-      console.warn('No access token found; skipped account lookup.');
+  private loadPositions(): void {
+    const accessToken = localStorage.getItem('token');
+    const storedAccountId = Number(localStorage.getItem('accountId'));
+
+    if (!accessToken || !Number.isInteger(storedAccountId) || storedAccountId <= 0) {
+      console.warn('Missing token or account ID; skipped positions lookup.');
       return;
     }
 
     this.http
-      .get<UserAccount[]>(`${environment.springUrl}/user/accounts`, {
-        headers: new HttpHeaders({
-          Authorization: `Bearer ${this.accessToken}`
-        })
-      })
-      .subscribe({
-        next: accounts => {
-          const accountIds = accounts
-            .map(account => account.accountId)
-            .filter(accountId => Number.isFinite(accountId));
-
-          this.accountId = accountIds.length ? Math.min(...accountIds) : null;
-          console.log('Earliest account ID:', this.accountId);
-
-          if (this.accountId !== null) {
-            this.loadPositions(this.accountId);
-          }
-        },
-        error: error => {
-          console.error('Account lookup failed:', error);
-        }
-      });
-  }
-
-  private loadPositions(accountId: number): void {
-    this.http
       .get<AccountPosition[]>(
-        `${environment.springUrl}/positions/account/${accountId}`,
+        `${environment.springUrl}/positions/account/${storedAccountId}`,
         {
           headers: new HttpHeaders({
-            Authorization: `Bearer ${this.accessToken}`
+            Authorization: `Bearer ${accessToken}`
           })
         }
       )
