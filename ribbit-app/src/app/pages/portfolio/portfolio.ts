@@ -4,7 +4,7 @@ import { isPlatformBrowser } from '@angular/common';
 import { Component, inject, OnInit, PLATFORM_ID } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
-import { environment } from '../../environments/environment';
+import { AuthService } from '../../shared/services/auth.service';
 
 export type PortfolioState = 'ready' | 'loading' | 'error';
 
@@ -71,13 +71,10 @@ export class Portfolio implements OnInit {
   private readonly http = inject(HttpClient);
   private readonly platformId = inject(PLATFORM_ID);
   private readonly router = inject(Router);
-  readonly accessToken = typeof localStorage === 'undefined'
-    ? null
-    : localStorage.getItem('token');
+  private readonly authService = inject(AuthService);
 
   state: PortfolioState = 'ready';
-  accountId: number | null = null;
-  availableCash = 12500;
+  availableCash = this.readStoredBalance();
 
   ngOnInit(): void {
     if (!isPlatformBrowser(this.platformId)) {
@@ -132,13 +129,13 @@ export class Portfolio implements OnInit {
       currentPrice: 248.50
     }
   ];
-  */
 
-  readonly user = {
-    name: 'Jordan Lee',
-    initials: 'JL',
-    accountEnding: '4821'
-  };
+  readonly user = this.authService.getUserProfile();
+
+  private readStoredBalance(): number {
+    const balance = Number(typeof localStorage === 'undefined' ? null : localStorage.getItem('balance'));
+    return Number.isFinite(balance) ? balance : 0;
+  }
 
   readonly snapshotLabel = 'Oct 7, 2026, 2:32 PM ET';
   readonly skeletonRows = [1, 2, 3, 4, 5];

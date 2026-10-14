@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { Router, NavigationEnd } from '@angular/router';
 import { Subject } from 'rxjs';
 import { takeUntil, filter } from 'rxjs/operators';
+import { AuthService, StoredUser } from '../../services/auth.service';
 
 interface NavigationItem {
   id: string;
@@ -21,14 +22,11 @@ type Destination = 'dashboard' | 'portfolio' | 'trade' | 'orders' | 'transaction
 })
 export class MainLayout implements OnInit, OnDestroy {
   private readonly router = inject(Router);
+  private readonly authService = inject(AuthService);
   private readonly destroy$ = new Subject<void>();
 
   @Input() pageTitle = '';
-  @Input() user = {
-    name: 'Jordan Lee',
-    initials: 'JL',
-    accountEnding: '4821'
-  };
+  @Input() user: StoredUser = this.authService.getUserProfile();
 
   sidebarOpen = false;
   sidebarCollapsed = false;

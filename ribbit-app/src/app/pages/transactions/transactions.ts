@@ -2,6 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
+import { AuthService } from '../../shared/services/auth.service';
 
 type TransactionType = 'Deposit' | 'Withdrawal' | 'Buy' | 'Sell';
 type TransactionStatus = 'Completed' | 'Pending' | 'Failed';
@@ -31,14 +32,14 @@ interface MockTransaction extends Transaction {}
 })
 export class Transactions {
   private readonly router = inject(Router);
+  private readonly authService = inject(AuthService);
 
   // Account data
   readonly user = {
-    name: 'Jordan Lee',
-    accountEnding: '4821'
+    ...this.authService.getUserProfile()
   };
 
-  private availableCashCents = 1_250_000; // $12,500.00 in cents
+  private availableCashCents = this.readStoredBalanceCents();
 
   // Mock transaction data
   readonly mockTransactions: MockTransaction[] = [
@@ -181,6 +182,11 @@ export class Transactions {
 
   constructor() {
     this.applyFilters();
+  }
+
+  private readStoredBalanceCents(): number {
+    const balance = Number(typeof localStorage === 'undefined' ? null : localStorage.getItem('balance'));
+    return Number.isFinite(balance) ? Math.round(balance * 100) : 0;
   }
 
   // Getters for calculations

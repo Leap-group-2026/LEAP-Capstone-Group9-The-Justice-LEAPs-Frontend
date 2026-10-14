@@ -15,6 +15,10 @@ export class Header {
 
   userMenuOpen = false;
 
+  get user() {
+    return this.authService.getUserProfile();
+  }
+
   toggleUserMenu() {
     this.userMenuOpen = !this.userMenuOpen;
   }

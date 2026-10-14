@@ -85,7 +85,7 @@ export class Trade {
   private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
 
-  readonly cashCents = 1_250_000;
+  readonly cashCents = this.readStoredBalance() * 100;
   readonly snapshotLabel = 'Oct 8, 2026 · Mock prices';
 
   readonly instruments: readonly Instrument[] = Object.freeze([
@@ -140,6 +140,11 @@ export class Trade {
   readonly selectedInstrumentForModal = signal<Instrument | null>(null);
 
   private submissionCount = 0;
+
+  private readStoredBalance(): number {
+    const balance = Number(typeof localStorage === 'undefined' ? null : localStorage.getItem('balance'));
+    return Number.isFinite(balance) ? Math.round(balance) : 0;
+  }
 
   private readonly currencyFormatter = new Intl.NumberFormat('en-US', {
     style: 'currency',
