@@ -58,6 +58,7 @@ export class AuthService {
     return this.authState().user;
   }
 
+
   private readStoredUser(): StoredUser {
     const name = typeof localStorage === 'undefined' ? '' : localStorage.getItem('name') ?? '';
     const email = typeof localStorage === 'undefined' ? '' : localStorage.getItem('email') ?? '';
@@ -92,6 +93,40 @@ export class AuthService {
       .toUpperCase();
 
     return { name, email, address, initials, accountEnding: '4821' };
+  }
+
+
+  isAdmin(): boolean {
+    if (typeof window === 'undefined') {
+      return false;
+    }
+
+    const token = window.localStorage.getItem('token');
+    if (!token) {
+      return false;
+    }
+
+    try {
+      const payload = JSON.parse(this.decodeTokenPayload(token)) as { role?: string; roles?: string[] };
+      const roles = [payload.role, ...(payload.roles ?? [])]
+        .filter((role): role is string => !!role)
+        .map(role => role.toLowerCase().replace(/[_-]/g, ' '));
+
+      return roles.some(role => ['admin', 'super admin', 'superadmin'].includes(role));
+    } catch {
+      return false;
+    }
+  }
+
+  private decodeTokenPayload(token: string): string {
+    const payload = token.split('.')[1];
+    const normalized = payload.replace(/-/g, '+').replace(/_/g, '/');
+    return decodeURIComponent(
+      atob(normalized)
+        .split('')
+        .map(character => `%${`00${character.charCodeAt(0).toString(16)}`.slice(-2)}`)
+        .join('')
+    );
   }
 
 }
