@@ -21,8 +21,8 @@
     <section class="sign-in" aria-labelledby="login-heading">
       <div class="introduction">
         <div class="eyebrow">YOUR NEXT MOVE</div>
-        <h1 id="login-heading">Welcome back.</h1>
-        <p>Log in to your account. The markets await.</p>
+        <h1 id="login-heading">{{ isAdminLogin ? 'Admin sign in.' : 'Welcome back.' }}</h1>
+        <p>{{ isAdminLogin ? 'Sign in to the administrative workspace.' : 'Log in to your account. The markets await.' }}</p>
       </div>
 
       <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
@@ -120,8 +120,14 @@
       </form>
 
       <p class="sign-up">
-        New to Ribbit?
-        <a routerLink="/signup">Create an account <span aria-hidden="true">↗</span></a>
+        @if (isAdminLogin) {
+          <a routerLink="/login">Return to user login <span aria-hidden="true">↗</span></a>
+        } @else {
+          New to Ribbit?
+          <a routerLink="/signup">Create an account <span aria-hidden="true">↗</span></a>
+          <span aria-hidden="true"> · </span>
+          <a routerLink="/admin-login">Admin sign in</a>
+        }
       </p>
 
       <div class="security">

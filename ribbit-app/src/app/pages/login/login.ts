@@ -8,7 +8,7 @@ import {
 } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { Router, RouterLink } from '@angular/router';
-import { finalize, map, Observable, switchMap, tap, throwError, timeout } from 'rxjs';
+import { finalize, map, Observable, of, switchMap, tap, throwError, timeout } from 'rxjs';
 import { environment } from '../../environments/environment';
 
 export interface LoginCredentials {
@@ -63,6 +63,7 @@ export class Login {
   showPassword = false;
   readonly isSubmitting = signal(false);
   readonly loginError = signal('');
+  readonly isAdminLogin = this.router.url.startsWith('/admin-login');
 
   readonly form = new FormGroup({
     email: new FormControl('', {
@@ -122,7 +123,10 @@ export class Login {
     this.loginError.set('');
 
     this.http
-      .post<LoginResponse>(`${environment.authUrl}/auth/login`, requestBody)
+      .post<LoginResponse>(
+        `${environment.authUrl}/auth/${this.isAdminLogin ? 'adminLogin' : 'login'}`,
+        requestBody
+      )
       .pipe(
         timeout(5000),
         switchMap((response) => {
@@ -135,6 +139,10 @@ export class Login {
 
           localStorage.setItem('token', accessToken);
 
+          if (this.isAdminLogin) {
+            return of(null);
+          }
+
           return this.http.get<UserResponse>(`${environment.springUrl}/user`, {
             headers: {
               Authorization: `Bearer ${accessToken}`
@@ -142,18 +150,22 @@ export class Login {
           });
         }),
         switchMap((user) =>
-          this.loadAccount(localStorage.getItem('token')!).pipe(
-            map(() => user)
-          )
+          user
+            ? this.loadAccount(localStorage.getItem('token')!).pipe(map(() => user))
+            : of(null)
         ),
         finalize(() => this.isSubmitting.set(false))
       )
       .subscribe({
         next: (user) => {
-          localStorage.setItem('name', user.name);
-          localStorage.setItem('email', user.email);
-          localStorage.setItem('address', user.address);
-          this.router.navigate(['/dashboard']);
+          if (user) {
+            localStorage.setItem('name', user.name);
+            localStorage.setItem('email', user.email);
+            localStorage.setItem('address', user.address);
+          }
+
+          localStorage.setItem('userEmail', requestBody.email);
+          this.router.navigate([this.isAdminLogin ? '/admin' : '/dashboard']);
         },
         error: () => {
           this.loginError.set('Login failed, username or password is incorrect.');
