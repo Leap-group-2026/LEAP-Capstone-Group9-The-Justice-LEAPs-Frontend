@@ -12,12 +12,17 @@
     }
   </div>
 
-  <button class="button primary" type="button" (click)="openAddFundsModal()">
-    Add Funds
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <path [attr.d]="icons['plus']"/>
-    </svg>
-  </button>
+  <div class="welcome-actions">
+    <button class="button secondary" type="button" (click)="openFundsModal('withdraw')">
+      Withdraw
+    </button>
+    <button class="button primary" type="button" (click)="openFundsModal('deposit')">
+      Add Funds
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path [attr.d]="icons['plus']"/>
+      </svg>
+    </button>
+  </div>
 </section>
 
 <section class="summary-grid" aria-label="Account summary">
@@ -271,19 +276,38 @@
   }
 </section>
 
-@if (showAddFundsModal()) {
-  <div class="modal-backdrop" (click)="closeAddFundsModal()"></div>
-  <div class="modal" role="dialog" aria-labelledby="modal-title">
-    @if (addFundsStep() === 'form') {
+@if (showFundsModal()) {
+  <div class="modal-backdrop" (click)="closeFundsModal()"></div>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    @if (fundsStep() === 'form') {
       <div class="modal-header">
-        <h2 id="modal-title">Add Funds</h2>
-        <button type="button" class="modal-close" (click)="closeAddFundsModal()" aria-label="Close">×</button>
+        <h2 id="modal-title">{{ fundsMode() === 'deposit' ? 'Add Funds' : 'Withdraw Funds' }}</h2>
+        <button type="button" class="modal-close" (click)="closeFundsModal()" aria-label="Close">×</button>
       </div>
 
       <div class="modal-body">
-        @if (addFundsError) {
+        <div class="mode-toggle" role="group" aria-label="Transfer type">
+          <button
+            type="button"
+            [class.active]="fundsMode() === 'deposit'"
+            [attr.aria-pressed]="fundsMode() === 'deposit'"
+            (click)="setFundsMode('deposit')"
+          >
+            Deposit
+          </button>
+          <button
+            type="button"
+            [class.active]="fundsMode() === 'withdraw'"
+            [attr.aria-pressed]="fundsMode() === 'withdraw'"
+            (click)="setFundsMode('withdraw')"
+          >
+            Withdraw
+          </button>
+        </div>
+
+        @if (fundsError()) {
           <div class="modal-error" role="alert">
-            {{ addFundsError }}
+            {{ fundsError() }}
           </div>
         }
 
@@ -294,18 +318,23 @@
             type="text"
             inputmode="decimal"
             placeholder="Enter amount (e.g., 1000)"
-            [(ngModel)]="addFundsAmount"
+            [(ngModel)]="fundsAmount"
             class="form-input"
-            [class.error]="addFundsError && addFundsAmount"
+            [class.error]="fundsError() && fundsAmount"
           />
-          <small>Minimum $0.01 · Maximum $100,000</small>
+          <small>
+            Minimum $0.01 · Maximum $100,000
+            @if (fundsMode() === 'withdraw' && account()) {
+              · {{ formatCurrency(availableCash) }} available
+            }
+          </small>
         </div>
 
         <div class="form-group">
-          <label for="funding-method">Funding Method</label>
+          <label for="funding-method">{{ fundsMode() === 'deposit' ? 'Funding Method' : 'Withdraw To' }}</label>
           <select
             id="funding-method"
-            [(ngModel)]="addFundsFundingMethod"
+            [(ngModel)]="fundsMethod"
             class="form-input"
           >
             @for (method of fundingMethods; track method.id) {
@@ -316,27 +345,27 @@
       </div>
 
       <div class="modal-footer">
-        <button type="button" class="button secondary" (click)="closeAddFundsModal()">
+        <button type="button" class="button secondary" (click)="closeFundsModal()">
           Cancel
         </button>
-        <button type="button" class="button primary" (click)="reviewAddFunds()">
+        <button type="button" class="button primary" (click)="reviewFunds()">
           Continue
         </button>
       </div>
     }
 
-    @if (addFundsStep() === 'review') {
+    @if (fundsStep() === 'review') {
       <div class="modal-header">
-        <h2 id="modal-title">Review Your Deposit</h2>
-        <button type="button" class="modal-close" (click)="cancelAddFunds()" aria-label="Back">×</button>
+        <h2 id="modal-title">{{ fundsMode() === 'deposit' ? 'Review Your Deposit' : 'Review Your Withdrawal' }}</h2>
+        <button type="button" class="modal-close" (click)="backToFundsForm()" [disabled]="submitting()" aria-label="Back">×</button>
       </div>
 
       <div class="modal-body">
         <div class="review-section">
-          <p class="review-heading">You're adding</p>
+          <p class="review-heading">{{ fundsMode() === 'deposit' ? "You're adding" : "You're withdrawing" }}</p>
           <strong class="review-amount">{{ formatCurrency(getReviewAmount()) }}</strong>
           <p class="review-method">
-            Via {{ fundingMethods.find(m => m.id === addFundsFundingMethod)?.label || 'Bank transfer' }}
+            {{ fundsMode() === 'deposit' ? 'From' : 'To' }} {{ fundingMethodLabel() }}
           </p>
         </div>
 
@@ -346,33 +375,38 @@
             <strong>{{ formatCurrency(availableCash) }}</strong>
           </div>
           <div class="review-row total">
-            <span>New Available Cash</span>
-            <strong>{{ formatCurrency(getNewCashBalance()) }}</strong>
+            <span>Estimated New Available Cash</span>
+            <strong>{{ formatCurrency(getEstimatedBalance()) }}</strong>
           </div>
         </div>
 
         <div class="review-note">
-          @if (depositsEnabled) {
-            <p>Funds will be added to your account after confirmation.</p>
-          } @else {
-            <p>Deposits aren't available yet. Your balance has not been changed.</p>
-          }
+          <p>This is a simulated transfer. No real money moves, and no bank or card details are stored.</p>
         </div>
       </div>
 
       <div class="modal-footer">
-        <button type="button" class="button secondary" (click)="cancelAddFunds()">
+        <button type="button" class="button secondary" (click)="backToFundsForm()" [disabled]="submitting()">
           Back
         </button>
-        <button type="button" class="button primary" [disabled]="!depositsEnabled" (click)="confirmAddFunds()">
-          Confirm Deposit
+        <button
+          type="button"
+          class="button primary"
+          [disabled]="submitting() || !account()"
+          (click)="confirmFunds()"
+        >
+          @if (submitting()) {
+            Processing…
+          } @else {
+            {{ fundsMode() === 'deposit' ? 'Confirm Deposit' : 'Confirm Withdrawal' }}
+          }
         </button>
       </div>
     }
 
-    @if (addFundsStep() === 'success') {
+    @if (fundsStep() === 'success') {
       <div class="modal-header">
-        <h2 id="modal-title">Funds Added Successfully</h2>
+        <h2 id="modal-title">{{ fundsMode() === 'deposit' ? 'Funds Added Successfully' : 'Withdrawal Successful' }}</h2>
       </div>
 
       <div class="modal-body success-body">
@@ -383,8 +417,11 @@
         </div>
 
         <div class="success-message">
-          <strong>Deposit Complete</strong>
-          <p>{{ formatCurrency(getReviewAmount()) }} has been added to your account.</p>
+          <strong>{{ fundsMode() === 'deposit' ? 'Deposit Complete' : 'Withdrawal Complete' }}</strong>
+          <p>
+            {{ formatCurrency(getReviewAmount()) }}
+            {{ fundsMode() === 'deposit' ? 'has been added to your account.' : 'has been withdrawn from your account.' }}
+          </p>
         </div>
 
         <div class="success-details">
@@ -393,18 +430,18 @@
             <strong>{{ formatCurrency(getReviewAmount()) }}</strong>
           </div>
           <div class="detail-row">
-            <span>Funding Method</span>
-            <strong>{{ fundingMethods.find(m => m.id === addFundsFundingMethod)?.label }}</strong>
+            <span>{{ fundsMode() === 'deposit' ? 'Funding Method' : 'Sent To' }}</span>
+            <strong>{{ fundingMethodLabel() }}</strong>
           </div>
           <div class="detail-row">
             <span>New Available Cash</span>
-            <strong class="accent">{{ formatCurrency(availableCash) }}</strong>
+            <strong class="accent new-balance">{{ formatCurrency(balanceAfterTransfer() ?? 0) }}</strong>
           </div>
         </div>
       </div>
 
       <div class="modal-footer">
-        <button type="button" class="button primary" (click)="finishAddFunds()">
+        <button type="button" class="button primary" (click)="closeFundsModal()">
           Done
         </button>
       </div>

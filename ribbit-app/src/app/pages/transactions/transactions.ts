@@ -2,12 +2,14 @@ import { CommonModule } from '@angular/common';
 import { Component, DestroyRef, afterNextRender, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
-import { EMPTY, catchError, of, switchMap } from 'rxjs';
+import { HttpErrorResponse } from '@angular/common/http';
+import { ActivatedRoute, Router } from '@angular/router';
+import { EMPTY, catchError, finalize, of, switchMap } from 'rxjs';
 import { describeHttpError } from '../../shared/http-error';
 import { CurrentAccountService } from '../../shared/services/current-account.service';
 import {
   AccountDto,
+  FundingMethod,
   OrderEventDto,
   Transaction,
   TransactionStatus
@@ -19,7 +21,12 @@ import {
   splitLocalDateTime
 } from '../../shared/services/transactions.service';
 
-type AddFundsStep = 'form' | 'review' | 'success';
+type FundsStep = 'form' | 'review' | 'success';
+export type FundsMode = 'deposit' | 'withdraw';
+
+export const MAX_TRANSFER_AMOUNT = 100000;
+// Matches the backend: digits with at most 2 decimal places.
+const AMOUNT_PATTERN = /^\d+(\.\d{1,2})?$/;
 
 interface OrderHistoryState {
   loading: boolean;
@@ -27,8 +34,6 @@ interface OrderHistoryState {
   events: OrderEventDto[];
 }
 
-
-const DEPOSITS_ENABLED = false;
 
 @Component({
   selector: 'app-transactions',
@@ -39,14 +44,13 @@ const DEPOSITS_ENABLED = false;
 })
 export class Transactions {
   private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
   private readonly destroyRef = inject(DestroyRef);
   private readonly transactionsService = inject(TransactionsService);
   private readonly currentAccount = inject(CurrentAccountService);
 
-  readonly depositsEnabled = DEPOSITS_ENABLED;
-
-  // Funding methods for Add Funds
-  readonly fundingMethods = [
+  // Funding methods for deposits and withdrawals
+  readonly fundingMethods: { id: FundingMethod; label: string }[] = [
     { id: 'bank', label: 'Bank Account' },
     { id: 'debit', label: 'Debit Card' }
   ];
@@ -68,14 +72,17 @@ export class Transactions {
   readonly orderHistory = signal<Record<number, OrderHistoryState>>({});
 
   // UI state
-  readonly showAddFundsModal = signal(false);
-  readonly addFundsStep = signal<AddFundsStep>('form');
   readonly expandedTransactionId = signal<string | null>(null);
 
-  // Form state
-  addFundsAmount = '';
-  addFundsFundingMethod = 'bank';
-  addFundsError = '';
+  // Deposit / withdraw modal state
+  readonly showFundsModal = signal(false);
+  readonly fundsMode = signal<FundsMode>('deposit');
+  readonly fundsStep = signal<FundsStep>('form');
+  readonly fundsError = signal('');
+  readonly submitting = signal(false);
+  readonly balanceAfterTransfer = signal<number | null>(null);
+  fundsAmount = '';
+  fundsMethod: FundingMethod = 'bank';
 
   // Filter state
   readonly searchQuery = signal('');
@@ -133,7 +140,24 @@ export class Transactions {
 
   constructor() {
     // Browser only: the route is prerendered and there is no token on the server.
-    afterNextRender(() => this.load());
+    afterNextRender(() => {
+      this.load();
+      this.openModalFromQueryParam();
+    });
+  }
+
+  // The dashboard links here with ?action=deposit (or withdraw) to open the modal.
+  private openModalFromQueryParam(): void {
+    const action = this.route.snapshot.queryParamMap.get('action');
+    if (action === 'deposit' || action === 'withdraw') {
+      this.openFundsModal(action);
+      void this.router.navigate([], {
+        relativeTo: this.route,
+        queryParams: { action: null },
+        queryParamsHandling: 'merge',
+        replaceUrl: true
+      });
+    }
   }
 
   load(refreshAccount = false): void {
@@ -244,12 +268,24 @@ export class Transactions {
     this.statusFilter.set('all');
   }
 
-  getReviewAmount(): number {
-    return window.parseFloat(this.addFundsAmount) || 0;
+  // Strictly parsed amount, or null when the input isn't a plain number with at most 2 decimals.
+  parseAmount(value: string): number | null {
+    const trimmed = value.trim();
+    return AMOUNT_PATTERN.test(trimmed) ? Number(trimmed) : null;
   }
 
-  getNewCashBalance(): number {
-    return this.availableCash + this.getReviewAmount();
+  getReviewAmount(): number {
+    return this.parseAmount(this.fundsAmount) ?? 0;
+  }
+
+  // Estimate shown before confirming; the success step uses the backend's balance.
+  getEstimatedBalance(): number {
+    const amount = this.getReviewAmount();
+    return this.fundsMode() === 'deposit' ? this.availableCash + amount : this.availableCash - amount;
+  }
+
+  fundingMethodLabel(): string {
+    return this.fundingMethods.find(m => m.id === this.fundsMethod)?.label ?? 'Bank Account';
   }
 
   // Transaction details
@@ -297,64 +333,155 @@ export class Transactions {
     this.orderHistory.update(current => ({ ...current, [orderId]: state }));
   }
 
-  // Add Funds modal
-  openAddFundsModal(): void {
-    this.addFundsStep.set('form');
-    this.addFundsAmount = '';
-    this.addFundsFundingMethod = 'bank';
-    this.addFundsError = '';
-    this.showAddFundsModal.set(true);
+  // Deposit / withdraw modal
+  openFundsModal(mode: FundsMode = 'deposit'): void {
+    this.fundsMode.set(mode);
+    this.fundsStep.set('form');
+    this.fundsAmount = '';
+    this.fundsMethod = 'bank';
+    this.fundsError.set('');
+    this.balanceAfterTransfer.set(null);
+    this.showFundsModal.set(true);
   }
 
-  closeAddFundsModal(): void {
-    this.showAddFundsModal.set(false);
-    this.addFundsError = '';
+  setFundsMode(mode: FundsMode): void {
+    if (this.fundsStep() === 'form') {
+      this.fundsMode.set(mode);
+      this.fundsError.set('');
+    }
   }
 
-  validateAddFundsForm(): boolean {
-    this.addFundsError = '';
+  closeFundsModal(): void {
+    // Keep the modal open until an in-flight request settles.
+    if (this.submitting()) {
+      return;
+    }
+    this.showFundsModal.set(false);
+    this.fundsError.set('');
+  }
 
-    if (!this.addFundsAmount.trim()) {
-      this.addFundsError = 'Amount is required.';
+  validateFundsForm(): boolean {
+    this.fundsError.set('');
+    const raw = this.fundsAmount.trim();
+
+    if (!raw) {
+      this.fundsError.set('Amount is required.');
       return false;
     }
 
-    const amount = parseFloat(this.addFundsAmount);
+    const amount = this.parseAmount(raw);
 
-    if (isNaN(amount) || amount <= 0) {
-      this.addFundsError = 'Amount must be greater than $0.00.';
+    if (amount === null) {
+      this.fundsError.set(
+        /^\d*\.\d{3,}$/.test(raw)
+          ? 'Amount can have at most 2 decimal places.'
+          : 'Enter a valid amount, like 250 or 250.50.'
+      );
       return false;
     }
 
-    if (amount > 100000) {
-      this.addFundsError = 'Amount cannot exceed $100,000.';
+    if (amount <= 0) {
+      this.fundsError.set('Amount must be greater than $0.00.');
+      return false;
+    }
+
+    if (amount > MAX_TRANSFER_AMOUNT) {
+      this.fundsError.set('Amount cannot exceed $100,000.');
+      return false;
+    }
+
+    // The balance can change after loading, so the backend's check is still handled on submit.
+    if (this.fundsMode() === 'withdraw' && this.account() && amount > this.availableCash) {
+      this.fundsError.set(this.insufficientFundsMessage(this.availableCash));
       return false;
     }
 
     return true;
   }
 
-  reviewAddFunds(): void {
-    if (this.validateAddFundsForm()) {
-      this.addFundsStep.set('review');
+  reviewFunds(): void {
+    if (this.validateFundsForm()) {
+      this.fundsStep.set('review');
     }
   }
 
-  cancelAddFunds(): void {
-    this.addFundsStep.set('form');
-    this.addFundsError = '';
+  backToFundsForm(): void {
+    this.fundsStep.set('form');
+    this.fundsError.set('');
   }
 
-  confirmAddFunds(): void {
-    if (!this.depositsEnabled) {
+  confirmFunds(): void {
+    const account = this.account();
+    if (this.submitting() || !account) {
       return;
     }
-    // TODO(backend): POST to the deposit endpoint once it exists, then
-    // this.load(true) to refresh the balance and activity before showing success.
+    if (!this.validateFundsForm()) {
+      this.fundsStep.set('form');
+      return;
+    }
+
+    const mode = this.fundsMode();
+    const request = { amount: this.getReviewAmount(), fundingMethod: this.fundsMethod };
+    const transfer$ =
+      mode === 'deposit'
+        ? this.transactionsService.deposit(account.accountId, request)
+        : this.transactionsService.withdraw(account.accountId, request);
+
+    this.submitting.set(true);
+    this.fundsError.set('');
+    transfer$
+      .pipe(
+        finalize(() => this.submitting.set(false)),
+        takeUntilDestroyed(this.destroyRef)
+      )
+      .subscribe({
+        next: response => {
+          this.balanceAfterTransfer.set(response.balance);
+          this.currentAccount.updateBalance(account.accountId, response.balance);
+          this.fundsStep.set('success');
+          this.load(true);
+        },
+        error: error => this.handleFundsError(error, mode)
+      });
   }
 
-  finishAddFunds(): void {
-    this.closeAddFundsModal();
+  private handleFundsError(error: unknown, mode: FundsMode): void {
+    this.fundsStep.set('form');
+
+    if (!(error instanceof HttpErrorResponse)) {
+      this.fundsError.set(describeHttpError(error));
+      return;
+    }
+
+    if (error.status === 404) {
+      this.fundsError.set('This account is no longer available. Reload the page and try again.');
+      return;
+    }
+
+    // Insufficient funds: the balance changed since the page loaded, so show the current one.
+    if (error.status === 400 && error.error?.fieldName === 'balance') {
+      this.fundsError.set('Insufficient funds.');
+      this.currentAccount
+        .load(true)
+        .pipe(
+          catchError(() => EMPTY),
+          takeUntilDestroyed(this.destroyRef)
+        )
+        .subscribe(account => {
+          if (account) {
+            this.account.set(account);
+            this.fundsError.set(this.insufficientFundsMessage(account.balance));
+          }
+        });
+      return;
+    }
+
+    const action = mode === 'deposit' ? 'deposit' : 'withdrawal';
+    this.fundsError.set(describeHttpError(error, `Unable to complete the ${action}. Please try again.`));
+  }
+
+  private insufficientFundsMessage(balance: number): string {
+    return `Insufficient funds. You have ${this.formatCurrency(balance)} available.`;
   }
 
   navigate(destination: string): void {

@@ -340,8 +340,9 @@ export class Dashboard implements OnInit {
     }
   }
 
+  // The deposit modal lives on the Transactions page; ?action=deposit opens it.
   addFunds(): void {
-    console.log('Add funds requested');
+    this.router.navigate(['/transactions'], { queryParams: { action: 'deposit' } });
   }
 
   support(): void {

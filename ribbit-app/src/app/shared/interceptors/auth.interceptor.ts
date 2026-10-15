@@ -23,6 +23,16 @@ export function clearToken(): void {
   }
 }
 
+// True when the JWT's own `exp` claim has passed, or the token can't be read.
+export function isTokenExpired(token: string, nowMs = Date.now()): boolean {
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+    return typeof payload.exp !== 'number' || payload.exp * 1000 <= nowMs;
+  } catch {
+    return true;
+  }
+}
+
 function needsToken(url: string): boolean {
   return (
     url.startsWith(environment.springUrl) ||
@@ -42,10 +52,14 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
   return next(request).pipe(
     catchError((error: unknown) => {
 
+      // Only end the session when the token itself is gone or expired. A 401 from
+      // one endpoint while the token is still valid is left for the page to handle,
+      // so a single misbehaving endpoint can't log the user out.
       if (
         error instanceof HttpErrorResponse &&
         error.status === 401 &&
-        req.url !== `${environment.authUrl}/auth/login`
+        req.url !== `${environment.authUrl}/auth/login` &&
+        (!token || isTokenExpired(token))
       ) {
         clearToken();
         router.navigate(['/login']);
