@@ -26,7 +26,7 @@ h1, h2, p { margin: 0; }
 h1 { font-size: 29px; font-weight: 500; letter-spacing: -.8px; }
 h1:focus { outline: none; }
 h2 { font-size: 17px; font-weight: 500; line-height: 1.5; }
-small { display: block; font-size: 10px; color: var(--subtle); line-height: 1.6; }
+small { display: block; font-size: 12px; color: var(--subtle); line-height: 1.6; }
 .accent { color: var(--accent); }
 .muted { color: var(--muted); }
 
@@ -34,7 +34,10 @@ small { display: block; font-size: 10px; color: var(--subtle); line-height: 1.6;
 .available-cash { font-size: 12px; color: var(--muted); white-space: nowrap; }
 .available-cash strong { margin-left: 8px; font-family: "IBM Plex Mono", monospace; font-size: 16px; font-weight: 400; color: var(--text); }
 .ticker-line { display: flex; align-items: baseline; flex-wrap: wrap; gap: 14px; }
-.ticker-line .quote { font-size: 20px; font-weight: 600; }
+.ticker-quote { display: flex; align-items: flex-start; flex-wrap: wrap; gap: 24px; margin-top: 6px; color: var(--subtle); }
+.quote-item { display: flex; flex-direction: row; align-items: baseline; gap: 8px; }
+.quote-item small { margin: 0; }
+.ticker-quote .quote { font-size: 14px; font-weight: 600; }
 .negative { color: var(--error); }
 
 .badge {
@@ -74,12 +77,11 @@ small { display: block; font-size: 10px; color: var(--subtle); line-height: 1.6;
 .progress .current > span { border-color: var(--accent); color: var(--accent); background: #c1ff3912; }
 
 .trade-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1.6fr) minmax(300px, 1fr);
-  align-items: start;
+  display: flex;
+  flex-direction: column;
   gap: 24px;
 }
-.order-column { min-width: 0; }
+.order-column { flex: 1 1 100%; min-width: 0; width: 100%; }
 .panel { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; }
 .order-ticket { padding: 24px; display: flex; flex-direction: column; gap: 24px; }
 .panel-heading { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
@@ -272,33 +274,6 @@ dd {
 .error-notice p { color: var(--error); }
 .error-notice ul { padding-left: 18px; margin-bottom: 0; font-size: 11px; line-height: 1.8; }
 .fine-print { color: var(--subtle); font-size: 11px; line-height: 1.7; }
-
-.context-column { display: grid; gap: 24px; }
-.instruments-panel { overflow: hidden; }
-.instruments-panel .panel-heading { padding: 24px; }
-.instruments-panel h2 { font-size: 15px; }
-.instruments-panel .panel-heading small { font-family: "IBM Plex Mono", monospace; font-size: 9px; }
-.instrument-option {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
-  width: 100%;
-  padding: 18px 24px;
-  border: 0;
-  border-top: 1px solid var(--border);
-  background: transparent;
-  color: var(--text);
-  text-align: left;
-}
-.instrument-option strong { font-family: "IBM Plex Mono", monospace; font-size: 12px; font-weight: 400; }
-.instrument-option small { margin-top: 6px; font-size: 9px; }
-.instrument-option.selected { background: #c1ff3912; }
-.instrument-option.selected > span:first-child strong { color: var(--accent); }
-.instrument-option:hover { background: var(--raised); }
-.context-note { padding: 24px; }
-.context-note h2 { font-size: 15px; }
-.context-note p { margin-top: 16px; color: var(--muted); font-size: 12px; line-height: 1.8; }
 
 .review-instrument { display: flex; align-items: center; gap: 16px; }
 .instrument-mark {
@@ -593,18 +568,13 @@ dd {
   :host { justify-self: center; }
 }
 
-@media (max-width: 1250px) {
-  .trade-layout { grid-template-columns: minmax(0, 1fr); }
-  .context-column { grid-template-columns: 1fr 1fr; align-items: start; }
-}
-
 @media (max-width: 760px) {
   .page-intro { flex-direction: column; align-items: flex-start; gap: 14px; }
   h1 { font-size: 26px; }
   .progress { justify-content: space-between; gap: 12px; padding: 14px 12px; }
   .progress li { flex-direction: column; gap: 8px; font-size: 10px; }
   .order-ticket { padding: 20px; }
-  .form-row, .context-column { grid-template-columns: 1fr; }
+  .form-row { grid-template-columns: 1fr; }
   .instrument-summary { align-items: flex-start; }
   .instrument-summary .quote strong { font-size: 17px; }
   .instrument-summary strong { font-size: 12px; }

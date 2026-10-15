@@ -2,10 +2,19 @@
   <div>
     @if (selectedInstrument; as instrument) {
       <h1 id="trade-heading" tabindex="-1" class="ticker-line">
-        <span>{{ instrument.symbol }}</span>
-        <span class="quote">{{ money(instrument.priceCents) }}</span>
-        <span class="quote" [class.accent]="instrument.changePct >= 0" [class.negative]="instrument.changePct < 0">{{ formatChange(instrument.changePct) }}</span>
+        <span>({{ instrument.symbol }})</span>
+        <span class="instrument-name">{{ instrument.name }}</span>
       </h1>
+      <div class="ticker-quote">
+        <div class="quote-item">
+          <small>Current Price</small>
+          <span class="quote">{{ money(instrument.priceCents) }}</span>
+        </div>
+        <div class="quote-item">
+          <small>Day % Change</small>
+          <span class="quote" [class.accent]="instrument.changePct >= 0" [class.negative]="instrument.changePct < 0">{{ formatChange(instrument.changePct) }}</span>
+        </div>
+      </div>
     } @else {
       <h1 id="trade-heading" tabindex="-1">Select an instrument to trade</h1>
     }
@@ -387,43 +396,6 @@
       }
     }
   </div>
-
-  <aside class="context-column" aria-label="Account and instrument information">
-    @if (step() === 'entry') {
-      <section class="panel instruments-panel">
-        <div class="panel-heading">
-          <h2>Your instruments</h2>
-          <small>5 POSITIONS</small>
-        </div>
-        @for (instrument of instruments; track instrument.symbol) {
-          <button
-            class="instrument-option"
-            type="button"
-            [class.selected]="selectedInstrument?.symbol === instrument.symbol"
-            [attr.aria-pressed]="selectedInstrument?.symbol === instrument.symbol"
-            (click)="selectInstrument(instrument.symbol)"
-          >
-            <span>
-              <strong>{{ instrument.symbol }}</strong>
-              <small>{{ instrument.name }}</small>
-            </span>
-            <span class="quote">
-              <strong>{{ money(instrument.priceCents) }}</strong>
-              <small>{{ instrument.owned }} shares owned</small>
-            </span>
-          </button>
-        }
-      </section>
-    }
-
-    <section class="panel context-note">
-      <h2>{{ step() === 'success' ? 'Your account is unchanged' : 'Trade with clarity' }}</h2>
-      <p>
-        Buy within your available cash. Sell only shares you own.
-        Whole shares only; short selling is not supported.
-      </p>
-    </section>
-  </aside>
 </div>
 
 <footer class="page-footer">
