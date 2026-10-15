@@ -10,6 +10,21 @@ import { environment } from '../../environments/environment';
 export class InstrumentsApiService {
   private readonly http = inject(HttpClient);
 
+  getByTicker(ticker: string): Observable<InstrumentApiResponse> {
+    return this.http.get<InstrumentApiResponse>(
+      `${environment.springUrl}/instruments/${encodeURIComponent(ticker)}`,
+      { headers: this.createAuthHeaders() }
+    );
+  }
+
+  getForexPrice(currencyPair: string): Observable<InstrumentApiResponse> {
+    return this.http.post<InstrumentApiResponse>(
+      `${environment.springUrl}/instruments/forex/price`,
+      { currencyPair },
+      { headers: this.createAuthHeaders() }
+    );
+  }
+
   getBarNumbers(
     symbol: string,
     timeframe: string,
@@ -41,6 +56,21 @@ export class InstrumentsApiService {
       return null;
     }
 
-    return window.localStorage.getItem('token');
+    const storedToken = window.localStorage.getItem('token')
+      ?? window.localStorage.getItem('authToken')
+      ?? window.localStorage.getItem('jwtToken')
+      ?? window.localStorage.getItem('jwt');
+
+    return storedToken?.trim().replace(/^Bearer\s+/i, '').replace(/^"|"$/g, '') || null;
   }
+}
+
+export interface InstrumentApiResponse {
+  instrument_id: number;
+  ticker: string;
+  asset_type: string;
+  asset_name: string;
+  currency: string;
+  price: number;
+  quote_time: string;
 }

@@ -1,12 +1,16 @@
 import { CommonModule } from '@angular/common';
-import { Component, inject, signal } from '@angular/core';
+import { ChangeDetectorRef, Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
+import { finalize, timeout } from 'rxjs';
 import { AuthService } from '../../shared/services/auth.service';
+import { InstrumentsApiService } from '../../shared/services/instruments-api.service';
+import { TransactionsApiService } from '../../shared/services/transactions-api.service';
 
 type TransactionType = 'Deposit' | 'Withdrawal' | 'Buy' | 'Sell';
 type TransactionStatus = 'Completed' | 'Pending' | 'Failed';
 type AddFundsStep = 'form' | 'review' | 'success';
+type Currency = 'USD' | 'CAD' | 'EUR' | 'GBP' | 'INR' | 'JPY';
 
 interface Transaction {
   id: string;
@@ -33,6 +37,9 @@ interface MockTransaction extends Transaction {}
 export class Transactions {
   private readonly router = inject(Router);
   private readonly authService = inject(AuthService);
+  private readonly instrumentsApi = inject(InstrumentsApiService);
+  private readonly transactionsApi = inject(TransactionsApiService);
+  private readonly changeDetector = inject(ChangeDetectorRef);
 
   // Account data
   readonly user = {
@@ -165,6 +172,7 @@ export class Transactions {
 
   // UI state
   readonly showAddFundsModal = signal(false);
+  readonly showCurrencyExchangeModal = signal(false);
   readonly addFundsStep = signal<AddFundsStep>('form');
   readonly transactions = signal<Transaction[]>(this.mockTransactions);
   readonly filteredTransactions = signal<Transaction[]>(this.mockTransactions);
@@ -174,6 +182,18 @@ export class Transactions {
   addFundsAmount = '';
   addFundsFundingMethod = 'bank';
   addFundsError = '';
+
+  readonly currencies: Currency[] = ['USD', 'CAD', 'EUR', 'GBP', 'INR', 'JPY'];
+  exchangeFrom: Currency = 'USD';
+  exchangeTo: Currency = 'CAD';
+  exchangeAmount = '';
+  exchangeRate: number | null = null;
+  exchangeRateLoading = false;
+  exchangeSubmitting = false;
+  exchangeError = '';
+  exchangeSuccess = '';
+  private readonly forexPriceCache = new Map<string, { price: number; expiresAt: number }>();
+  private readonly forexCacheDurationMs = 5 * 60 * 1000;
 
   // Filter state
   searchQuery = '';
@@ -385,6 +405,125 @@ export class Transactions {
 
   finishAddFunds(): void {
     this.closeAddFundsModal();
+  }
+
+  openCurrencyExchangeModal(): void {
+    this.exchangeFrom = 'USD';
+    this.exchangeTo = 'CAD';
+    this.exchangeAmount = '';
+    this.exchangeError = '';
+    this.exchangeSuccess = '';
+    this.exchangeRate = null;
+    this.showCurrencyExchangeModal.set(true);
+    this.loadExchangeRate();
+  }
+
+  closeCurrencyExchangeModal(): void {
+    if (this.exchangeSubmitting) return;
+    this.showCurrencyExchangeModal.set(false);
+    this.exchangeError = '';
+    this.exchangeSuccess = '';
+  }
+
+  onExchangeCurrencyChange(): void {
+    this.exchangeError = '';
+    this.exchangeSuccess = '';
+    this.exchangeRate = null;
+    this.loadExchangeRate();
+  }
+
+  loadExchangeRate(): void {
+    if (this.exchangeFrom === this.exchangeTo) {
+      this.exchangeError = 'Choose two different currencies.';
+      return;
+    }
+
+    const lookupCurrency = this.exchangeFrom === 'USD' ? this.exchangeTo : this.exchangeFrom;
+    const currencyPair = `USD/${lookupCurrency}`;
+    const cachedPrice = this.forexPriceCache.get(currencyPair);
+    if (cachedPrice && cachedPrice.expiresAt > Date.now()) {
+      this.exchangeRate = this.exchangeFrom === 'USD' ? cachedPrice.price : 1 / cachedPrice.price;
+      return;
+    }
+
+    this.exchangeRateLoading = true;
+    this.instrumentsApi.getForexPrice(currencyPair).pipe(
+      timeout(10000),
+      finalize(() => {
+        this.exchangeRateLoading = false;
+        this.changeDetector.markForCheck();
+      })
+    ).subscribe({
+      next: instrument => {
+        const price = Number(instrument.price);
+        if (!Number.isFinite(price) || price <= 0) {
+          this.exchangeRate = null;
+          this.exchangeError = 'The exchange rate is unavailable right now.';
+          return;
+        }
+
+        this.forexPriceCache.set(currencyPair, {
+          price,
+          expiresAt: Date.now() + this.forexCacheDurationMs
+        });
+        this.exchangeRate = this.exchangeFrom === 'USD' ? price : 1 / price;
+        if (!Number.isFinite(this.exchangeRate)) {
+          this.exchangeRate = null;
+          this.exchangeError = 'The exchange rate is unavailable right now.';
+        }
+      },
+      error: () => {
+        this.exchangeRateLoading = false;
+        this.exchangeError = 'Unable to load the exchange rate. Please try again.';
+      }
+    });
+  }
+
+  get convertedExchangeAmount(): number | null {
+    const amount = Number(this.exchangeAmount);
+    return this.exchangeRate !== null && Number.isFinite(amount) ? amount * this.exchangeRate : null;
+  }
+
+  formatExchangeRate(): string {
+    return this.exchangeRate === null ? '--' : this.exchangeRate.toLocaleString('en-US', {
+      minimumFractionDigits: 4,
+      maximumFractionDigits: 8
+    });
+  }
+
+  submitCurrencyExchange(): void {
+    this.exchangeError = '';
+    this.exchangeSuccess = '';
+    const amount = Number(this.exchangeAmount);
+    const accountId = Number(typeof localStorage === 'undefined' ? null : localStorage.getItem('accountId'));
+
+    if (this.exchangeFrom === this.exchangeTo) {
+      this.exchangeError = 'Choose two different currencies.';
+    } else if (!Number.isFinite(amount) || amount <= 0) {
+      this.exchangeError = 'Enter an amount greater than 0.';
+    } else if (this.exchangeRate === null) {
+      this.exchangeError = 'Wait for the exchange rate to load before submitting.';
+    } else if (!Number.isInteger(accountId) || accountId <= 0) {
+      this.exchangeError = 'Select an account before exchanging currency.';
+    } else {
+      this.exchangeSubmitting = true;
+      this.transactionsApi.exchangeCurrency({
+        baseAndExchange: `${this.exchangeFrom}/${this.exchangeTo}`,
+        amount,
+        side: 'EXCHANGE',
+        accountId,
+        transactionType: 'CURRENCY EXCHANGE'
+      }).subscribe({
+        next: () => {
+          this.exchangeSubmitting = false;
+          this.exchangeSuccess = 'Currency exchange submitted successfully.';
+        },
+        error: () => {
+          this.exchangeSubmitting = false;
+          this.exchangeError = 'Unable to complete the currency exchange. Please try again.';
+        }
+      });
+    }
   }
 
   navigate(destination: string): void {

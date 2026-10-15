@@ -73,6 +73,12 @@ small { display: block; font-size: 10px; color: var(--subtle); line-height: 1.6;
   }
 }
 
+.welcome-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
 @keyframes pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.5; }
@@ -588,6 +594,46 @@ th.numeric, td.numeric {
   font-size: 12px;
 }
 
+.modal-success {
+  padding: 12px 14px;
+  border: 1px solid rgba(193, 255, 57, 0.3);
+  border-radius: 6px;
+  background: rgba(193, 255, 57, 0.08);
+  color: var(--accent);
+  font-size: 12px;
+}
+
+.exchange-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.exchange-rate,
+.exchange-result {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--background);
+  font-size: 12px;
+
+  strong {
+    color: var(--accent);
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 13px;
+    font-weight: 500;
+    text-align: right;
+  }
+}
+
+.exchange-result {
+  border-color: rgba(193, 255, 57, 0.25);
+}
+
 .review-section {
   text-align: center;
   padding: 20px 0;
@@ -737,10 +783,15 @@ th.numeric, td.numeric {
     flex-direction: column;
     align-items: flex-start;
 
+    .welcome-actions,
     .button {
       width: 100%;
     }
+
+    .welcome-actions { flex-direction: column; }
   }
+
+  .exchange-fields { grid-template-columns: 1fr; }
 
   .summary-grid {
     grid-template-columns: 1fr;
