@@ -1,3 +1,7 @@
+:host {
+  --error: #ff9b9b;
+}
+
 * { box-sizing: border-box; }
 button, input, select { font: inherit; }
 button { cursor: pointer; }
@@ -96,7 +100,7 @@ small { display: block; font-size: 12px; color: var(--subtle); line-height: 1.6;
 }
 .segments button {
   flex: 1;
-  min-height: 40px;
+  height: 42px;
   padding: 8px 12px;
   border: 0;
   border-radius: 5px;
@@ -136,12 +140,12 @@ small { display: block; font-size: 12px; color: var(--subtle); line-height: 1.6;
   border-radius: 8px;
   background: #0e120f;
 }
-.instrument-summary strong { font-size: 13px; font-weight: 500; }
-.instrument-summary small { margin-top: 6px; }
+.instrument-summary strong { font-size: 14px; font-weight: 500; }
+.instrument-summary small { margin-top: 4px; }
 .quote { text-align: right; flex-shrink: 0; }
 .quote strong { font-family: "IBM Plex Mono", monospace; font-weight: 400; }
-.instrument-summary .quote strong { font-size: 20px; }
-.instrument-summary .quote small { font-family: "IBM Plex Mono", monospace; font-size: 8px; }
+.instrument-summary .quote strong { font-size: 14px; }
+.instrument-summary .quote small { font-family: "IBM Plex Mono", monospace; font-size: 12px; }
 
 .instrument-list {
   display: flex;
@@ -192,12 +196,12 @@ small { display: block; font-size: 12px; color: var(--subtle); line-height: 1.6;
 
 .instrument-info strong {
   font-family: "IBM Plex Mono", monospace;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 400;
 }
 
 .instrument-info small {
-  font-size: 10px;
+  font-size: 12px;
   margin-top: 0;
 }
 
@@ -211,12 +215,12 @@ small { display: block; font-size: 12px; color: var(--subtle); line-height: 1.6;
 
 .instrument-details strong {
   font-family: "IBM Plex Mono", monospace;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 400;
 }
 
 .instrument-details small {
-  font-size: 10px;
+  font-size: 12px;
   margin-top: 0;
 }
 
@@ -230,13 +234,13 @@ small { display: block; font-size: 12px; color: var(--subtle); line-height: 1.6;
   background: #0e120f;
 }
 .total-line { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
-.total-line > span { font-size: 13px; }
+.total-line > span { font-size: 14px; }
 .total-line strong { font-family: "IBM Plex Mono", monospace; font-size: 23px; font-weight: 400; white-space: nowrap; }
 .totals dl { border-top: 1px solid var(--border); padding-top: 16px; }
 
 dl { display: flex; flex-direction: column; gap: 16px; margin: 0; }
 dl > div { display: flex; justify-content: space-between; align-items: flex-start; gap: 18px; }
-dt { color: var(--muted); font-size: 11px; line-height: 1.6; }
+dt { color: var(--muted); font-size: 12px; line-height: 1.6; }
 dd {
   margin: 0;
   font-family: "IBM Plex Mono", monospace;

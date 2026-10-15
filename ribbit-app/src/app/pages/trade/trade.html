@@ -54,22 +54,6 @@
       >
         <div class="panel-heading">
           <h2>Order details</h2>
-          <span class="badge">{{ side | uppercase }} ORDER</span>
-        </div>
-
-        <div class="segments" role="group" aria-label="Buy or Sell">
-          <button
-            type="button"
-            [class.selected]="side === 'Buy'"
-            [attr.aria-pressed]="side === 'Buy'"
-            (click)="selectSide('Buy')"
-          >Buy</button>
-          <button
-            type="button"
-            [class.selected]="side === 'Sell'"
-            [attr.aria-pressed]="side === 'Sell'"
-            (click)="selectSide('Sell')"
-          >Sell</button>
         </div>
 
         @if (attempted() && form.invalid) {
@@ -187,24 +171,21 @@
           </div>
 
           <div class="field">
-            <span id="order-type-label" class="field-label">Order type *</span>
-            <div class="segments" role="group" aria-labelledby="order-type-label">
+            <span id="side-label" class="field-label">Order Type</span>
+            <div class="segments" role="group" aria-labelledby="side-label">
               <button
                 type="button"
-                [class.selected]="!isLimit"
-                [attr.aria-pressed]="!isLimit"
-                (click)="selectType('Market')"
-              >Market</button>
+                [class.selected]="side === 'Buy'"
+                [attr.aria-pressed]="side === 'Buy'"
+                (click)="selectSide('Buy')"
+              >Buy</button>
               <button
                 type="button"
-                [class.selected]="isLimit"
-                [attr.aria-pressed]="isLimit"
-                (click)="selectType('Limit')"
-              >Limit</button>
+                [class.selected]="side === 'Sell'"
+                [attr.aria-pressed]="side === 'Sell'"
+                (click)="selectSide('Sell')"
+              >Sell</button>
             </div>
-            <small>
-              {{ isLimit ? 'Set your price threshold' : 'Uses an estimated market price' }}
-            </small>
           </div>
         </div>
 
@@ -264,7 +245,6 @@
               </dt>
               <dd class="accent">{{ money(cashAfterCents) }}</dd>
             </div>
-            <div><dt>Time in force</dt><dd>Day</dd></div>
           </dl>
         </div>
 
@@ -338,7 +318,6 @@
               <dt>{{ order.type === 'Limit' ? 'Limit price' : 'Estimated price' }}</dt>
               <dd>{{ money(order.priceCents) }}</dd>
             </div>
-            <div><dt>Time in force</dt><dd>{{ order.timeInForce }}</dd></div>
           </dl>
 
           <div class="totals">
