@@ -150,7 +150,7 @@
                   preserveAspectRatio="xMidYMid meet"
                 >
                   <line [attr.x1]="chartGeometry.left" y1="0" [attr.x2]="chartGeometry.left" [attr.y2]="chartGeometry.height" stroke="var(--border)" stroke-width="1"/>
-                  <line x1="0" [attr.y1]="chartGeometry.height - 0.5" [attr.x2]="chartGeometry.width" [attr.y2]="chartGeometry.height - 0.5" stroke="var(--border)" stroke-width="1"/>
+                  <line x1="0" [attr.y1]="chartGeometry.bottom" [attr.x2]="chartGeometry.width" [attr.y2]="chartGeometry.bottom" stroke="var(--border)" stroke-width="1"/>
                   <polyline
                     [attr.points]="chartPoints"
                     fill="none"
@@ -159,9 +159,12 @@
                     stroke-linecap="round"
                     stroke-linejoin="round"
                   />
-                  <text class="chart-axis-label" [attr.x]="chartGeometry.left - 6" [attr.y]="chartGeometry.bottom + 3" font-size="10" text-anchor="end">{{ money(chartMin * 100) }}</text>
-                  <text class="chart-axis-label" [attr.x]="chartGeometry.left - 6" [attr.y]="chartGeometry.midY + 3" font-size="10" text-anchor="end">{{ money(((chartMin + chartMax) / 2) * 100) }}</text>
+                  <text class="chart-axis-label" [attr.x]="chartGeometry.left - 6" [attr.y]="chartGeometry.bottom + 3" font-size="10" text-anchor="end">                  {{ money(chartAxisMin * 100) }}</text>
+                                    <text class="chart-axis-label" [attr.x]="chartGeometry.left - 6" [attr.y]="chartGeometry.midY + 3" font-size="10" text-anchor="end">{{ money(((chartAxisMin + chartMax) / 2) * 100) }}</text>
                   <text class="chart-axis-label" [attr.x]="chartGeometry.left - 6" [attr.y]="chartGeometry.top + 3" font-size="10" text-anchor="end">{{ money(chartMax * 100) }}</text>
+                  @for (label of chartXLabels; track label.x) {
+                    <text class="chart-axis-label" [attr.x]="label.x" [attr.y]="chartGeometry.bottom + 13" font-size="10" [attr.text-anchor]="label.anchor">{{ label.label }}</text>
+                  }
                 </svg>
               }
             </div>
@@ -295,11 +298,6 @@
         >
           @if (step() === 'success') {
             <div class="panel-heading">
-              <span class="success-icon">
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path [attr.d]="icons['check']"/>
-                </svg>
-              </span>
               <span class="badge">SUBMITTED</span>
             </div>
 

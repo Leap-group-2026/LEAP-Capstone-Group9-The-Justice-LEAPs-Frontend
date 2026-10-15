@@ -155,6 +155,7 @@ export class Trade {
   readonly dropdownOpen = signal(false);
   readonly activeIndex = signal(-1);
   readonly chartPrices = signal<readonly number[]>([]);
+  readonly chartDates = signal<readonly Date[]>([]);
   readonly chartLoading = signal(false);
   readonly chartError = signal(false);
   readonly chartSize = signal({ width: 400, height: 200 });
@@ -262,7 +263,7 @@ export class Trade {
     const left = 44;
     const right = width - 8;
     const top = 8;
-    const bottom = height - 12;
+    const bottom = height - 24;
     return {
       width,
       height,
@@ -279,7 +280,7 @@ export class Trade {
     if (!prices.length) return '';
 
     const { left, right, top, bottom } = this.chartGeometry;
-    const min = Math.min(...prices);
+    const min = this.chartAxisMin;
     const max = Math.max(...prices);
     const range = max - min || 1;
     const plotWidth = right - left;
@@ -294,12 +295,29 @@ export class Trade {
       .join(' ');
   }
 
-  get chartMin(): number {
-    return Math.min(...this.chartPrices());
+  get chartAxisMin(): number {
+    const prices = this.chartPrices();
+    return prices.length ? Math.min(...prices) : 0;
   }
 
   get chartMax(): number {
     return Math.max(...this.chartPrices());
+  }
+
+  get chartXLabels(): { x: number; label: string; anchor: 'start' | 'middle' | 'end' }[] {
+    const dates = this.chartDates();
+    const count = dates.length;
+    if (count < 2) return [];
+
+    const { left, right } = this.chartGeometry;
+    const formatter = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' });
+    const indexes = [...new Set([0, Math.round((count - 1) / 3), Math.round((2 * (count - 1)) / 3), count - 1])];
+
+    return indexes.map(index => ({
+      x: left + (index / (count - 1)) * (right - left) + (index === 0 ? 6 : 0),
+      label: formatter.format(dates[index]),
+      anchor: index === 0 ? 'start' : index === count - 1 ? 'end' : 'middle'
+    }));
   }
 
   get chartChangePercent(): number | null {
@@ -512,12 +530,14 @@ export class Trade {
 
   private resetChart(): void {
     this.chartPrices.set([]);
+    this.chartDates.set([]);
     this.chartLoading.set(false);
     this.chartError.set(false);
   }
 
   private loadChart(symbol: string): void {
     this.chartPrices.set([]);
+    this.chartDates.set([]);
     this.chartError.set(false);
     this.chartLoading.set(true);
 
@@ -537,10 +557,12 @@ export class Trade {
         next: prices => {
           if (this.selectedInstrument?.symbol !== symbol) return;
 
-          const validPrices = prices.filter(
-            price => typeof price === 'number' && Number.isFinite(price)
-          );
-          this.chartPrices.set(validPrices);
+          const dates = this.estimateBarDates(prices.length);
+          const validBars = prices
+            .map((price, index) => ({ price, date: dates[index] }))
+            .filter(bar => typeof bar.price === 'number' && Number.isFinite(bar.price));
+          this.chartPrices.set(validBars.map(bar => bar.price));
+          this.chartDates.set(validBars.map(bar => bar.date));
           this.chartLoading.set(false);
         },
         error: () => {
@@ -550,6 +572,22 @@ export class Trade {
           this.chartError.set(true);
         }
       });
+  }
+
+  private estimateBarDates(count: number): Date[] {
+    const isWeekend = (date: Date) => date.getDay() === 0 || date.getDay() === 6;
+    const cursor = new Date();
+    cursor.setHours(0, 0, 0, 0);
+    while (isWeekend(cursor)) cursor.setDate(cursor.getDate() - 1);
+
+    const dates: Date[] = [];
+    for (let i = 0; i < count; i++) {
+      dates.push(new Date(cursor));
+      do {
+        cursor.setDate(cursor.getDate() - 1);
+      } while (isWeekend(cursor));
+    }
+    return dates.reverse();
   }
 
   private formatDate(date: Date): string {
