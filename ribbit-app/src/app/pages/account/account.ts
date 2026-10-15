@@ -295,12 +295,8 @@ export class Account implements OnInit {
 
   // Change Password methods
   openChangePasswordModal(): void {
-    this.currentPassword = '';
-    this.newPassword = '';
-    this.confirmPassword = '';
-    this.passwordFormError = '';
-    this.changePasswordStep.set('form');
-    this.showChangePasswordModal.set(true);
+    this.authService.logout();
+    this.router.navigate(['/forgot-password']);
   }
 
   closeChangePasswordModal(): void {
