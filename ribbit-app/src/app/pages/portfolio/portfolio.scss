@@ -19,6 +19,30 @@
   -webkit-font-smoothing: antialiased;
 }
 
+:host-context(.light-theme) {
+  --background: #f5f8f3;
+  --surface: #ffffff;
+  --surface-raised: #eaf1e8;
+  --border: #c8d5c5;
+  --text: #18351f;
+  --muted: #52705a;
+  --subtle: #6f8975;
+  --accent: #287a3c;
+  --negative: #c6534d;
+
+  .app-shell,
+  .panel,
+  .summary-card,
+  .summary-grid {
+    background: #ffffff;
+    border-color: #c8d5c5;
+  }
+
+  .summary-grid { background: #edf4eb; }
+  .summary-card.portfolio-card { background: linear-gradient(120deg, #e7f1e4, #ffffff); }
+  .nav-item.active { background: #dcebd7; }
+}
+
 * { box-sizing: border-box; }
 button, input, select { font: inherit; }
 button { cursor: pointer; }

@@ -70,6 +70,13 @@ export class AccountContextService {
     });
   }
 
+  closeAccount(accountId: number): Observable<string> {
+    return this.http.patch(`${environment.springUrl}/accounts/close/${accountId}`, {}, {
+      headers: this.createAuthHeaders(),
+      responseType: 'text'
+    });
+  }
+
   private setSelectedAccount(account: AccountContextItem, refreshPage: boolean): void {
     this.selectedAccount.set(account);
     if (typeof window !== 'undefined') {

@@ -458,3 +458,21 @@ footer {
   .preferences { font-size: 12px; }
   footer .copyright { gap: 8px; }
 }
+
+:host-context(.light-theme) {
+  --background: #f5f8f3;
+  --surface: #ffffff;
+  --accent: #287a3c;
+  --text: #18351f;
+  --muted: #52705a;
+  --subtle: #6f8975;
+  --border: #c8d5c5;
+
+  .market-panel {
+    background: radial-gradient(ellipse at 70% 55%, #dcebd7, transparent 70%), #e7f1e4;
+  }
+
+  .chart-svg .grid {
+    stroke: #287a3c22;
+  }
+}

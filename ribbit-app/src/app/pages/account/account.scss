@@ -17,6 +17,33 @@
   -webkit-font-smoothing: antialiased;
 }
 
+:host-context(.light-theme) {
+  --background: #f5f8f3;
+  --surface: #ffffff;
+  --border: #c8d5c5;
+  --text: #18351f;
+  --muted: #52705a;
+  --subtle: #6f8975;
+  --accent: #287a3c;
+  --positive: #287a3c;
+  --negative: #c6534d;
+
+  .app-shell,
+  .main-content,
+  .panel,
+  .modal { background: #ffffff; border-color: #c8d5c5; }
+  .nav-item.active { background: #dcebd7; }
+}
+
+:host-context(.light-theme) .app-shell,
+:host-context(.light-theme) .main-content,
+:host-context(.light-theme) .panel,
+:host-context(.light-theme) .account-info-content,
+:host-context(.light-theme) .modal {
+  background: #ffffff !important;
+  border-color: #c8d5c5 !important;
+}
+
 * { box-sizing: border-box; }
 button, input, select { font: inherit; }
 button { cursor: pointer; }
@@ -413,6 +440,34 @@ small { display: block; font-size: 10px; color: var(--subtle); line-height: 1.6;
 
 .status-active {
   color: var(--positive);
+}
+
+.status-closed {
+  color: var(--negative);
+}
+
+.danger-button {
+  margin-top: 20px;
+  border-color: var(--negative);
+  color: var(--negative);
+
+  &:hover:not(:disabled) {
+    background: rgba(240, 142, 133, 0.1);
+  }
+}
+
+.blocked-close-button {
+  border-color: var(--border);
+  color: var(--subtle);
+  cursor: pointer;
+  opacity: 0.55;
+}
+
+.blocked-close-reason {
+  margin: 16px 0;
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.6;
 }
 
 /* Security Panel */
