@@ -5,6 +5,7 @@ import { Subject } from 'rxjs';
 import { takeUntil, filter } from 'rxjs/operators';
 import { AuthService, StoredUser } from '../../services/auth.service';
 import { AccountContextService } from '../../services/account-context.service';
+import { ThemeService } from '../../services/theme.service';
 
 interface NavigationItem {
   id: string;
@@ -25,6 +26,7 @@ export class MainLayout implements OnInit, OnDestroy {
   private readonly router = inject(Router);
   private readonly authService = inject(AuthService);
   readonly accountContext = inject(AccountContextService);
+  readonly theme = inject(ThemeService);
   private readonly destroy$ = new Subject<void>();
 
   @Input() pageTitle = '';
@@ -91,6 +93,10 @@ export class MainLayout implements OnInit, OnDestroy {
     if (Number.isInteger(accountId)) {
       this.accountContext.selectAccount(accountId);
     }
+  }
+
+  toggleTheme(): void {
+    this.theme.toggle();
   }
 
   ngOnDestroy(): void {

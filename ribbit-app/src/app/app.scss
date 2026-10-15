@@ -237,3 +237,105 @@ app-root {
     transition-duration: 0.01ms !important;
   }
 }
+
+:root.light-theme {
+  --background: #f5f8f3;
+  --surface: #ffffff;
+  --surface-raised: #eaf1e8;
+  --border: #c8d5c5;
+  --text: #18351f;
+  --muted: #52705a;
+  --subtle: #6f8975;
+  --accent: #287a3c;
+  --accent-light: #1f632f;
+  --negative: #c6534d;
+  --error: #c6534d;
+}
+
+:root.light-theme app-main-layout,
+:root.light-theme app-dashboard,
+:root.light-theme app-portfolio,
+:root.light-theme app-trade,
+:root.light-theme app-orders,
+:root.light-theme app-transactions,
+:root.light-theme app-account,
+:root.light-theme app-positions,
+:root.light-theme app-admin {
+  --background: #f5f8f3 !important;
+  --surface: #ffffff !important;
+  --surface-raised: #eaf1e8 !important;
+  --border: #c8d5c5 !important;
+  --text: #18351f !important;
+  --muted: #52705a !important;
+  --subtle: #6f8975 !important;
+  --accent: #287a3c !important;
+  --accent-light: #1f632f !important;
+  --positive: #287a3c !important;
+  --negative: #c6534d !important;
+}
+
+:root.light-theme app-login,
+:root.light-theme app-signup,
+:root.light-theme app-reset-password {
+  --background: #f5f8f3 !important;
+  --surface: #ffffff !important;
+  --border: #c8d5c5 !important;
+  --text: #18351f !important;
+  --muted: #52705a !important;
+  --subtle: #6f8975 !important;
+  --accent: #287a3c !important;
+}
+
+:root.light-theme app-dashboard .summary-card.portfolio-card,
+:root.light-theme app-portfolio .summary-card.portfolio-card {
+  background: linear-gradient(120deg, #e7f1e4, #ffffff) !important;
+  border-color: #a9c5a8 !important;
+}
+
+:root.light-theme app-login .market-panel {
+  background: radial-gradient(ellipse at 70% 55%, #dcebd7, transparent 70%), #e7f1e4 !important;
+}
+
+:root.light-theme app-dashboard .chart-grid,
+:root.light-theme app-portfolio .chart-grid {
+  stroke: #287a3c33 !important;
+}
+
+:root.light-theme app-portfolio,
+:root.light-theme app-orders,
+:root.light-theme app-transactions,
+:root.light-theme app-account {
+  background: #f5f8f3 !important;
+}
+
+:root.light-theme app-portfolio .panel,
+:root.light-theme app-orders .panel,
+:root.light-theme app-transactions .panel,
+:root.light-theme app-account .panel,
+:root.light-theme app-portfolio .summary-card,
+:root.light-theme app-orders .summary-card,
+:root.light-theme app-transactions .summary-card {
+  background: #ffffff !important;
+  border-color: #c8d5c5 !important;
+  color: #18351f !important;
+}
+
+:root.light-theme app-portfolio .summary-grid,
+:root.light-theme app-orders .summary-grid,
+:root.light-theme app-transactions .summary-grid {
+  background: #edf4eb !important;
+  border-color: #c8d5c5 !important;
+}
+
+:root.light-theme app-portfolio table,
+:root.light-theme app-orders table,
+:root.light-theme app-transactions table {
+  background: #ffffff !important;
+}
+
+:root.light-theme app-portfolio .table-scroll,
+:root.light-theme app-orders .table-scroll,
+:root.light-theme app-transactions .table-scroll,
+:root.light-theme app-account .account-info-content {
+  background: #ffffff !important;
+}
