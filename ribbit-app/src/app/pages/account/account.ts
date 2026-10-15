@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Router } from '@angular/router';
-import { finalize } from 'rxjs';
+import { catchError, finalize, forkJoin, of } from 'rxjs';
 import { AuthService } from '../../shared/services/auth.service';
 import { AccountContextService, CreateAccountRequest } from '../../shared/services/account-context.service';
 import { environment } from '../../environments/environment';
@@ -68,6 +68,10 @@ export class Account implements OnInit {
   readonly portfolioProfile = this.readStorage('portfolioSize');
   readonly accounts = signal<AccountInfo[]>([]);
   readonly accountLoadError = signal('');
+  readonly positionCounts = signal<Record<number, number>>({});
+  readonly closingAccountId = signal<number | null>(null);
+  readonly closeAccountError = signal('');
+  readonly blockedCloseAccount = signal<AccountInfo | null>(null);
   readonly showAddAccountModal = signal(false);
   readonly isAddingAccount = signal(false);
   readonly addAccountError = signal('');
@@ -120,8 +124,33 @@ export class Account implements OnInit {
       `${environment.springUrl}/accounts/user/${userId}`,
       { headers: new HttpHeaders({ Authorization: `Bearer ${token}` }) }
     ).subscribe({
-      next: (accounts) => this.accounts.set(accounts.filter(account => account.accountActive)),
+      next: (accounts) => {
+        const activeAccounts = accounts.filter(account => account.accountActive);
+        this.accounts.set(activeAccounts);
+        this.loadPositionCounts(activeAccounts);
+      },
       error: () => this.accountLoadError.set('Unable to load your accounts right now.')
+    });
+  }
+
+  private loadPositionCounts(accounts: AccountInfo[]): void {
+    if (!accounts.length) {
+      this.positionCounts.set({});
+      return;
+    }
+
+    const token = typeof localStorage === 'undefined' ? null : localStorage.getItem('token');
+    if (!token) return;
+
+    const positionRequests = accounts.map(account => this.http.get<unknown[]>(
+      `${environment.springUrl}/positions/account/${account.accountId}`,
+      { headers: new HttpHeaders({ Authorization: `Bearer ${token}` }) }
+    ).pipe(catchError(() => of([] as unknown[]))));
+
+    forkJoin(positionRequests).subscribe(positionLists => {
+      const counts: Record<number, number> = {};
+      accounts.forEach((account, index) => counts[account.accountId] = positionLists[index].length);
+      this.positionCounts.set(counts);
     });
   }
 
@@ -136,6 +165,59 @@ export class Account implements OnInit {
     } catch {
       return null;
     }
+  }
+
+  closeAccount(account: AccountInfo): void {
+    if (!this.canCloseAccount(account) || !window.confirm(`Close account #${account.accountId}?`)) {
+      return;
+    }
+
+    this.closingAccountId.set(account.accountId);
+    this.closeAccountError.set('');
+
+    this.accountContext.closeAccount(account.accountId).pipe(
+      finalize(() => this.closingAccountId.set(null))
+    ).subscribe({
+      next: () => {
+        this.accounts.update(accounts => accounts.map(item => item.accountId === account.accountId
+          ? { ...item, balance: 0, accountActive: false }
+          : item));
+        this.accountContext.accounts.update(accounts => accounts.filter(item => item.accountId !== account.accountId));
+      },
+      error: (error) => {
+        const message = typeof error.error === 'string' ? error.error : error.error?.message;
+        this.closeAccountError.set(message || 'Unable to close the account.');
+      }
+    });
+  }
+
+  explainCloseBlocked(account: AccountInfo): void {
+    if (this.canCloseAccount(account)) return;
+    this.blockedCloseAccount.set(account);
+  }
+
+  closeBlockedExplanation(): void {
+    this.blockedCloseAccount.set(null);
+  }
+
+  getCloseBlockedReason(account: AccountInfo): string {
+    const reasons: string[] = [];
+    if (account.balance !== 0) {
+      reasons.push(`Withdraw the remaining ${this.formatCurrency(account.balance)} first.`);
+    }
+    const positionCount = this.positionCounts()[account.accountId] ?? 0;
+    if (positionCount > 0) {
+      reasons.push(`Sell your ${positionCount} open position${positionCount === 1 ? '' : 's'} first.`);
+    }
+    return reasons.join(' ');
+  }
+
+  canCloseAccount(account: AccountInfo): boolean {
+    return account.balance === 0 && (this.positionCounts()[account.accountId] ?? 0) === 0;
+  }
+
+  formatCurrency(value: number): string {
+    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value);
   }
 
   openAddAccount(): void {

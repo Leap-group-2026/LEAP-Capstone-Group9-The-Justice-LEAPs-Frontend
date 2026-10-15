@@ -415,6 +415,34 @@ small { display: block; font-size: 10px; color: var(--subtle); line-height: 1.6;
   color: var(--positive);
 }
 
+.status-closed {
+  color: var(--negative);
+}
+
+.danger-button {
+  margin-top: 20px;
+  border-color: var(--negative);
+  color: var(--negative);
+
+  &:hover:not(:disabled) {
+    background: rgba(240, 142, 133, 0.1);
+  }
+}
+
+.blocked-close-button {
+  border-color: var(--border);
+  color: var(--subtle);
+  cursor: pointer;
+  opacity: 0.55;
+}
+
+.blocked-close-reason {
+  margin: 16px 0;
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
 /* Security Panel */
 .security-content {
   padding: 24px;
