@@ -189,34 +189,6 @@
           </div>
         </div>
 
-        @if (isLimit) {
-          <div class="field">
-            <label for="trade-limit">Entry / limit price (USD) *</label>
-            <input
-              id="trade-limit"
-              type="text"
-              inputmode="decimal"
-              formControlName="limitPrice"
-              placeholder="Enter limit price"
-              autocomplete="off"
-              required
-              [class.invalid]="fieldError('limitPrice')"
-              [attr.aria-invalid]="!!fieldError('limitPrice')"
-              [attr.aria-describedby]="
-                fieldError('limitPrice') ? 'price-help price-error' : 'price-help'
-              "
-            />
-            @if (fieldError('limitPrice')) {
-              <small id="price-error" class="field-error">
-                {{ fieldError('limitPrice') }}
-              </small>
-            }
-            <small id="price-help">
-              Greater than zero · Up to 2 decimal places
-            </small>
-          </div>
-        }
-
         @if (
           form.hasError('insufficientFunds') &&
           (attempted() || form.controls.quantity.touched)
@@ -238,11 +210,7 @@
           <dl>
             <div><dt>Available cash</dt><dd>{{ money(cashCents) }}</dd></div>
             <div>
-              <dt>
-                {{ isLimit && side === 'Buy'
-                  ? 'Cash after reservation (est.)'
-                  : 'Estimated cash after order' }}
-              </dt>
+              <dt>Estimated cash after order</dt>
               <dd class="accent">{{ money(cashAfterCents) }}</dd>
             </div>
           </dl>
@@ -256,12 +224,7 @@
         </button>
 
         <p class="fine-print">
-          @if (isLimit) {
-            Limit orders may remain unfilled. Buy cash-after reflects a
-            hypothetical reservation, not a completed purchase.
-          } @else {
-            Market prices and totals are estimates. Execution price is not guaranteed.
-          }
+          Market prices and totals are estimates. Execution price is not guaranteed.
           Sell proceeds are hypothetical and may require settlement.
         </p>
         <small>* Required fields · Whole shares only · No short sales</small>
@@ -289,14 +252,13 @@
           } @else {
             <div class="panel-heading">
               <h2>Review Order</h2>
-              <span class="badge">{{ order.side | uppercase }} · {{ order.type | uppercase }}</span>
-            </div>
-            <div class="review-instrument">
-              <span class="instrument-mark">{{ order.instrument.symbol[0] }}</span>
-              <div>
-                <strong>{{ order.instrument.symbol }}</strong>
-                <p>{{ order.instrument.name }}</p>
-              </div>
+               <div class="review-instrument">
+                <span class="instrument-mark">{{ order.instrument.symbol[0] }}</span>
+                  <div>
+                    <strong>{{ order.instrument.symbol }}</strong>
+                    <p>{{ order.instrument.name }}</p>
+                  </div>
+                </div>
             </div>
           }
 
@@ -313,9 +275,9 @@
             <div><dt>Instrument</dt><dd>{{ order.instrument.symbol }}</dd></div>
             <div><dt>Instrument name</dt><dd>{{ order.instrument.name }}</dd></div>
             <div><dt>Quantity</dt><dd>{{ order.quantity }} shares</dd></div>
-            <div><dt>Order type</dt><dd>{{ order.type }}</dd></div>
+            <div><dt>Asset type</dt><dd>{{ order.type }}</dd></div>
             <div>
-              <dt>{{ order.type === 'Limit' ? 'Limit price' : 'Estimated price' }}</dt>
+              <dt>Estimated price</dt>
               <dd>{{ money(order.priceCents) }}</dd>
             </div>
           </dl>
@@ -328,22 +290,18 @@
             <dl>
               <div><dt>Available cash</dt><dd>{{ money(cashCents) }}</dd></div>
               <div>
-                <dt>{{ order.type === 'Limit' && order.side === 'Buy'
-                  ? 'Cash after reservation (est.)'
-                  : 'Estimated cash after order' }}</dt>
+                <dt>Estimated cash after order</dt>
                 <dd class="accent">{{ money(order.cashAfterCents) }}</dd>
               </div>
             </dl>
             <small>
               {{ order.quantity }} shares × {{ money(order.priceCents) }}
-              · Hypothetical, not an executed value
+              · Approximate, not an executed value
             </small>
           </div>
 
           <p class="fine-print">
-            {{ order.type === 'Market'
-              ? 'Market execution price and final total are not guaranteed.'
-              : 'Limit orders may remain unfilled. Buy cash-after reflects hypothetical reservation.' }}
+            Market execution price and final total are not guaranteed.
             Sell proceeds may require settlement.
           </p>
 
