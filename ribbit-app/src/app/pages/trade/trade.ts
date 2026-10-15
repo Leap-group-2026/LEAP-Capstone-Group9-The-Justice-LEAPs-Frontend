@@ -1,8 +1,11 @@
 import {
   Component,
   DestroyRef,
+  ElementRef,
+  HostListener,
   inject,
-  signal
+  signal,
+  ViewChild
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import {
@@ -30,6 +33,7 @@ export interface Instrument {
   readonly changePct: number;
   readonly owned: number;
   readonly exchange: string;
+  readonly assetType: string;
 }
 
 export interface OrderSnapshot {
@@ -93,6 +97,7 @@ export class Trade {
   readonly instruments: readonly Instrument[] = Object.freeze([
     Object.freeze({
       symbol: 'AAPL',
+      assetType: 'Stock',
       name: 'Apple Inc.',
       priceCents: 22_842,
       changePct: 0.84,
@@ -101,6 +106,7 @@ export class Trade {
     }),
     Object.freeze({
       symbol: 'NVDA',
+      assetType: 'Stock',
       name: 'NVIDIA Corporation',
       priceCents: 14_287,
       changePct: 2.45,
@@ -109,6 +115,7 @@ export class Trade {
     }),
     Object.freeze({
       symbol: 'MSFT',
+      assetType: 'Stock',
       name: 'Microsoft Corporation',
       priceCents: 42_560,
       changePct: -0.37,
@@ -117,6 +124,7 @@ export class Trade {
     }),
     Object.freeze({
       symbol: 'SPY',
+      assetType: 'ETF',
       name: 'SPDR S&P 500 ETF Trust',
       priceCents: 58_921,
       changePct: 0.12,
@@ -125,6 +133,7 @@ export class Trade {
     }),
     Object.freeze({
       symbol: 'TSLA',
+      assetType: 'Stock',
       name: 'Tesla, Inc.',
       priceCents: 24_850,
       changePct: -1.92,
@@ -143,8 +152,8 @@ export class Trade {
   readonly reviewSnapshot = signal<OrderSnapshot | null>(null);
   readonly submission = signal<MockSubmission | null>(null);
   readonly searchQuery = signal('');
-  readonly showInstrumentModal = signal(false);
-  readonly selectedInstrumentForModal = signal<Instrument | null>(null);
+  readonly dropdownOpen = signal(false);
+  readonly activeIndex = signal(-1);
   readonly chartPrices = signal<readonly number[]>([]);
   readonly chartLoading = signal(false);
   readonly chartError = signal(false);
@@ -191,7 +200,19 @@ export class Trade {
     { validators: [control => this.validateOrder(control)] }
   );
 
+  @ViewChild('searchField') searchField?: ElementRef<HTMLElement>;
+
   constructor() {
+    this.form.controls.symbol.valueChanges
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(symbol => {
+        if (symbol) {
+          this.loadChart(symbol);
+        } else {
+          this.resetChart();
+        }
+      });
+
     this.form.valueChanges
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe(() => {
@@ -391,7 +412,6 @@ export class Trade {
 
   selectInstrument(symbol: string): void {
     this.form.controls.symbol.setValue(symbol);
-    this.searchQuery.set('');
 
     const instrument = this.instruments.find(item => item.symbol === symbol);
     if (instrument && Number(this.form.controls.limitPrice.value) === 0) {
@@ -399,21 +419,63 @@ export class Trade {
         (instrument.priceCents / 100).toFixed(2)
       );
     }
+
+    this.closeDropdown();
+  }
+
+  openDropdown(): void {
+    this.dropdownOpen.set(true);
   }
 
   updateSearch(query: string): void {
     this.searchQuery.set(query);
+    this.dropdownOpen.set(true);
+    this.activeIndex.set(-1);
   }
 
-  openInstrumentModal(instrument: Instrument): void {
-    this.selectedInstrumentForModal.set(instrument);
-    this.showInstrumentModal.set(true);
-    this.loadChart(instrument.symbol);
+  onSearchKeydown(event: KeyboardEvent): void {
+    if (event.key === 'Escape') {
+      this.closeDropdown();
+      return;
+    }
+
+    if (!this.dropdownOpen()) return;
+
+    const items = this.filteredInstruments;
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      event.preventDefault();
+      if (!items.length) return;
+
+      const current = this.activeIndex();
+      const step = event.key === 'ArrowDown' ? 1 : -1;
+      const next =
+        current < 0
+          ? (step > 0 ? 0 : items.length - 1)
+          : (current + step + items.length) % items.length;
+      this.activeIndex.set(next);
+    } else if (event.key === 'Enter') {
+      const item = items[this.activeIndex()];
+      if (item) {
+        event.preventDefault();
+        this.selectInstrument(item.symbol);
+      }
+    }
   }
 
-  closeInstrumentModal(): void {
-    this.showInstrumentModal.set(false);
-    this.selectedInstrumentForModal.set(null);
+  @HostListener('document:mousedown', ['$event'])
+  onDocumentMouseDown(event: MouseEvent): void {
+    const container = this.searchField?.nativeElement;
+    if (container && !container.contains(event.target as Node)) {
+      this.closeDropdown();
+    }
+  }
+
+  private closeDropdown(): void {
+    this.dropdownOpen.set(false);
+    this.activeIndex.set(-1);
+  }
+
+  private resetChart(): void {
     this.chartPrices.set([]);
     this.chartLoading.set(false);
     this.chartError.set(false);
@@ -438,7 +500,7 @@ export class Trade {
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: prices => {
-          if (this.selectedInstrumentForModal()?.symbol !== symbol) return;
+          if (this.selectedInstrument?.symbol !== symbol) return;
 
           const validPrices = prices.filter(
             price => typeof price === 'number' && Number.isFinite(price)
@@ -447,7 +509,7 @@ export class Trade {
           this.chartLoading.set(false);
         },
         error: () => {
-          if (this.selectedInstrumentForModal()?.symbol !== symbol) return;
+          if (this.selectedInstrument?.symbol !== symbol) return;
 
           this.chartLoading.set(false);
           this.chartError.set(true);
@@ -460,14 +522,6 @@ export class Trade {
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const day = String(date.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
-  }
-
-  selectFromModal(): void {
-    const instrument = this.selectedInstrumentForModal();
-    if (instrument) {
-      this.selectInstrument(instrument.symbol);
-      this.closeInstrumentModal();
-    }
   }
 
   reviewOrder(): void {
@@ -535,6 +589,7 @@ export class Trade {
     this.reviewSnapshot.set(null);
     this.submission.set(null);
     this.attempted.set(false);
+    this.searchQuery.set('');
 
     this.form.reset({
       side: 'Buy',

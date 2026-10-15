@@ -69,14 +69,55 @@
 
         <div class="field">
           <label for="trade-search">Search instruments *</label>
-          <input
-            id="trade-search"
-            type="text"
-            placeholder="Search by symbol or name (e.g., AAPL or Apple)"
-            [value]="searchQuery()"
-            (input)="updateSearch($event.target.value)"
-            autocomplete="off"
-          />
+          <div class="search-field" #searchField>
+            <input
+              id="trade-search"
+              type="text"
+              role="combobox"
+              aria-autocomplete="list"
+              aria-controls="trade-search-listbox"
+              [attr.aria-expanded]="dropdownOpen()"
+              [attr.aria-activedescendant]="activeIndex() >= 0 ? 'trade-option-' + activeIndex() : null"
+              placeholder="Search by symbol or name (e.g., AAPL or Apple)"
+              [value]="searchQuery()"
+              (focus)="openDropdown()"
+              (click)="openDropdown()"
+              (input)="updateSearch($event.target.value)"
+              (keydown)="onSearchKeydown($event)"
+              autocomplete="off"
+            />
+            @if (dropdownOpen()) {
+              <ul class="instrument-dropdown" id="trade-search-listbox" role="listbox">
+                @for (instrument of filteredInstruments; track instrument.symbol; let i = $index) {
+                  <li
+                    role="option"
+                    [id]="'trade-option-' + i"
+                    [attr.aria-selected]="selectedInstrument?.symbol === instrument.symbol"
+                  >
+                    <button
+                      type="button"
+                      class="instrument-option"
+                      [class.active]="i === activeIndex()"
+                      [class.selected]="selectedInstrument?.symbol === instrument.symbol"
+                      tabindex="-1"
+                      (click)="selectInstrument(instrument.symbol)"
+                    >
+                      <span class="instrument-info">
+                        <strong>{{ instrument.symbol }}</strong>
+                        <small>{{ instrument.name }}</small>
+                      </span>
+                      <span class="instrument-details">
+                        <strong>{{ money(instrument.priceCents) }}</strong>
+                        <small>{{ instrument.assetType }}</small>
+                      </span>
+                    </button>
+                  </li>
+                } @empty {
+                  <li class="instrument-dropdown-empty">No instruments match your search. Try a different term.</li>
+                }
+              </ul>
+            }
+          </div>
           <small>
             {{ filteredInstruments.length }} 
             {{ filteredInstruments.length === 1 ? 'result' : 'results' }}
@@ -86,57 +127,69 @@
           </small>
         </div>
 
-        @if (filteredInstruments.length > 0) {
-          <div class="instrument-list">
-            @for (instrument of filteredInstruments; track instrument.symbol) {
-              <div class="instrument-item" [class.selected]="selectedInstrument?.symbol === instrument.symbol">
-                <button
-                  type="button"
-                  class="instrument-select-btn"
-                  (click)="selectInstrument(instrument.symbol)"
-                >
-                  <span class="instrument-info">
-                    <strong>{{ instrument.symbol }}</strong>
-                    <small>{{ instrument.name }}</small>
-                  </span>
-                  <span class="instrument-details">
-                    <strong>{{ money(instrument.priceCents) }}</strong>
-                    <small>{{ instrument.owned }} owned</small>
-                  </span>
-                </button>
-                <button
-                  type="button"
-                  class="view-info-btn"
-                  aria-label="View more information for {{ instrument.symbol }}"
-                  (click)="openInstrumentModal(instrument)"
-                >
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M12 5v14 M5 12h14"/>
-                  </svg>
-                </button>
-              </div>
-            }
-          </div>
-        } @else {
-          <div class="notice">
-            <p>No instruments match your search. Try a different term.</p>
-          </div>
-        }
+        <section class="instrument-panel" aria-live="polite">
+          @if (selectedInstrument; as instrument) {
+            <div class="instrument-panel-header">
+              <h2>{{ instrument.name }}</h2>
+              <span class="instrument-panel-symbol">({{ instrument.symbol }})</span>
+            </div>
 
-        @if (selectedInstrument; as instrument) {
-          <div class="instrument-summary">
-            <div>
-              <strong>{{ instrument.name }}</strong>
-              <small>
-                {{ instrument.exchange }} · {{ instrument.owned }} shares owned
-              </small>
+            <div class="chart-container">
+              <h3 class="chart-title">Past 6 months performance</h3>
+              @if (chartLoading()) {
+                <p class="chart-message">Loading price history...</p>
+              } @else if (chartError()) {
+                <p class="chart-message error">Unable to load price history.</p>
+              } @else if (chartPrices().length === 0) {
+                <p class="chart-message">No price history is available.</p>
+              } @else {
+                <svg class="price-chart" viewBox="0 0 400 200" preserveAspectRatio="xMidYMid meet">
+                  <line x1="40" y1="20" x2="40" y2="180" stroke="var(--border)" stroke-width="1"/>
+                  <line x1="40" y1="180" x2="400" y2="180" stroke="var(--border)" stroke-width="1"/>
+                  <polyline
+                    [attr.points]="chartPoints"
+                    fill="none"
+                    stroke="var(--accent)"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                  <text class="chart-axis-label" x="35" y="185" font-size="10" text-anchor="end">{{ money(chartMin * 100) }}</text>
+                  <text class="chart-axis-label" x="35" y="105" font-size="10" text-anchor="end">{{ money(((chartMin + chartMax) / 2) * 100) }}</text>
+                  <text class="chart-axis-label" x="35" y="25" font-size="10" text-anchor="end">{{ money(chartMax * 100) }}</text>
+                </svg>
+              }
             </div>
-            <div class="quote">
-              <strong>{{ money(instrument.priceCents) }}</strong>
-              <small>CURRENT PRICE</small>
+
+            <div class="modal-info">
+              <div class="info-row">
+                <span>Current price</span>
+                <strong>{{ money(instrument.priceCents) }}</strong>
+              </div>
+              <div class="info-row">
+                <span>24h change</span>
+                <strong [class.accent]="instrument.changePct >= 0" [class.negative]="instrument.changePct < 0">{{ formatChange(instrument.changePct) }}</strong>
+              </div>
+              <div class="info-row">
+                <span>Exchange</span>
+                <strong>{{ instrument.exchange }}</strong>
+              </div>
+              <div class="info-row">
+                <span>Your position</span>
+                <strong>{{ instrument.owned }} shares</strong>
+              </div>
             </div>
-          </div>
-        }
+
+            <div class="modal-description">
+              <h3>About this company</h3>
+              <p>{{ instrument.name }} is a leading technology company traded on {{ instrument.exchange }}.</p>
+            </div>
+          } @else {
+            <div class="notice instrument-panel-empty">
+              <p>Select an instrument to view its details</p>
+            </div>
+          }
+        </section>
 
         <div class="form-row">
           <div class="field">
@@ -339,93 +392,3 @@
   ALL VALUES IN USD · INVESTING INVOLVES RISK
 </footer>
 
-@if (showInstrumentModal() && selectedInstrumentForModal(); as instrument) {
-  <div class="modal-backdrop" (click)="closeInstrumentModal()"></div>
-  <div class="instrument-modal" role="dialog" aria-labelledby="modal-title">
-    <div class="modal-header">
-      <h2 id="modal-title">{{ instrument.name }}</h2>
-      <button
-        type="button"
-        class="modal-close"
-        aria-label="Close"
-        (click)="closeInstrumentModal()"
-      >
-        ×
-      </button>
-    </div>
-
-    <div class="modal-body">
-      <div class="chart-container">
-        <h3 class="chart-title">Past 6 months performance</h3>
-        @if (chartLoading()) {
-          <p class="chart-message">Loading price history...</p>
-        } @else if (chartError()) {
-          <p class="chart-message error">Unable to load price history.</p>
-        } @else if (chartPrices().length === 0) {
-          <p class="chart-message">No price history is available.</p>
-        } @else {
-          <svg class="price-chart" viewBox="0 0 400 200" preserveAspectRatio="xMidYMid meet">
-          <!-- Grid lines -->
-          <line x1="40" y1="20" x2="40" y2="180" stroke="var(--border)" stroke-width="1"/>
-          <line x1="40" y1="180" x2="400" y2="180" stroke="var(--border)" stroke-width="1"/>
-          <polyline
-            [attr.points]="chartPoints"
-            fill="none"
-            stroke="var(--accent)"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          />
-          
-          <!-- Y-axis labels -->
-          <text class="chart-axis-label" x="35" y="185" font-size="10" text-anchor="end">{{ money(chartMin * 100) }}</text>
-          <text class="chart-axis-label" x="35" y="105" font-size="10" text-anchor="end">{{ money(((chartMin + chartMax) / 2) * 100) }}</text>
-          <text class="chart-axis-label" x="35" y="25" font-size="10" text-anchor="end">{{ money(chartMax * 100) }}</text>
-          </svg>
-        }
-      </div>
-
-      <div class="modal-info">
-        <div class="info-row">
-          <span>Current price</span>
-          <strong>{{ money(instrument.priceCents) }}</strong>
-        </div>
-        <div class="info-row">
-          <span>24h change</span>
-          <strong [class.accent]="instrument.changePct >= 0" [class.negative]="instrument.changePct < 0">{{ formatChange(instrument.changePct) }}</strong>
-        </div>
-        <div class="info-row">
-          <span>Exchange</span>
-          <strong>{{ instrument.exchange }}</strong>
-        </div>
-        <div class="info-row">
-          <span>Your position</span>
-          <strong>{{ instrument.owned }} shares</strong>
-        </div>
-      </div>
-
-      <div class="modal-description">
-        <h3>About this company</h3>
-        <p>{{ instrument.name }} is a leading technology company traded on {{ instrument.exchange }}. 
-        </p>
-      </div>
-    </div>
-
-    <div class="modal-footer">
-      <button
-        type="button"
-        class="button secondary"
-        (click)="closeInstrumentModal()"
-      >
-        Close
-      </button>
-      <button
-        type="button"
-        class="button primary"
-        (click)="selectFromModal()"
-      >
-        Select this instrument
-      </button>
-    </div>
-  </div>
-}
