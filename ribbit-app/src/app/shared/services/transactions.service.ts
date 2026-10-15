@@ -6,6 +6,8 @@ import {
   AccountDetailDto,
   AccountDto,
   AccountSummary,
+  FundsTransferRequest,
+  FundsTransferResponse,
   OrderDto,
   OrderEventDto,
   OrderStatus,
@@ -140,7 +142,22 @@ export class TransactionsService {
     return this.http.get<PositionDto[]>(`${this.baseUrl}/positions/account/${accountId}`);
   }
 
-  // TODO(backend): nothing writes transaction rows yet, so Buy/Sell activity comes from orders.
+  // Not idempotent: a repeated deposit credits twice, so callers must block double submits.
+  deposit(accountId: number, body: FundsTransferRequest): Observable<FundsTransferResponse> {
+    return this.http.post<FundsTransferResponse>(
+      `${this.baseUrl}/transactions/account/${accountId}/deposit`,
+      body
+    );
+  }
+
+  withdraw(accountId: number, body: FundsTransferRequest): Observable<FundsTransferResponse> {
+    return this.http.post<FundsTransferResponse>(
+      `${this.baseUrl}/transactions/account/${accountId}/withdraw`,
+      body
+    );
+  }
+
+  // Deposits and withdrawals are transaction rows; trades aren't, so Buy/Sell activity comes from orders.
   getActivity(accountId: number): Observable<Transaction[]> {
     return forkJoin({
       transactions: this.getTransactions(accountId),

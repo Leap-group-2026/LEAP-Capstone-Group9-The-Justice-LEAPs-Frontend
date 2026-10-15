@@ -2,6 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
+import { AuthService } from '../../shared/services/auth.service';
 
 export type PortfolioState = 'ready' | 'loading' | 'error';
 
@@ -42,9 +43,10 @@ interface AllocationItem {
 })
 export class Portfolio {
   private readonly router = inject(Router);
+  private readonly authService = inject(AuthService);
 
   state: PortfolioState = 'ready';
-  availableCash = 12500;
+  availableCash = this.readStoredBalance();
 
   holdings: Holding[] = [
     {
@@ -89,11 +91,12 @@ export class Portfolio {
     }
   ];
 
-  readonly user = {
-    name: 'Jordan Lee',
-    initials: 'JL',
-    accountEnding: '4821'
-  };
+  readonly user = this.authService.getUserProfile();
+
+  private readStoredBalance(): number {
+    const balance = Number(typeof localStorage === 'undefined' ? null : localStorage.getItem('balance'));
+    return Number.isFinite(balance) ? balance : 0;
+  }
 
   readonly snapshotLabel = 'Oct 7, 2026, 2:32 PM ET';
   readonly skeletonRows = [1, 2, 3, 4, 5];

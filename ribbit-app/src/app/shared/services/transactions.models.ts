@@ -62,6 +62,21 @@ export interface OrderDto {
   executedAt: string | null;
 }
 
+export type FundingMethod = 'bank' | 'debit';
+
+// POST /transactions/account/{accountId}/deposit and /withdraw.
+// amount: > 0, <= 100000, at most 2 decimal places, sent as a JSON number.
+export interface FundsTransferRequest {
+  amount: number;
+  fundingMethod?: FundingMethod;
+}
+
+// `balance` is the account's new balance after the transfer.
+export interface FundsTransferResponse {
+  transaction: TransactionDto;
+  balance: number;
+}
+
 // GET /orders/{orderId}/history
 export interface OrderEventDto {
   event_id: number;

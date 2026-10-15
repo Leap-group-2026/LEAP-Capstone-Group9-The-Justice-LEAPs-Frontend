@@ -6,6 +6,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { finalize } from 'rxjs';
 import { OrdersApiService, OrderHistoryApiResponse } from '../../shared/services/orders-api.service';
 import { environment } from '../../environments/environment';
+import { AuthService } from '../../shared/services/auth.service';
 
 type OrderStatus = 'Pending' | 'Filled' | 'Cancelled' | 'Rejected';
 type OrderSide = 'Buy' | 'Sell';
@@ -43,13 +44,9 @@ export class Orders implements OnInit {
   private readonly router = inject(Router);
   private readonly platformId = inject(PLATFORM_ID);
   private readonly ordersApiService = inject(OrdersApiService);
+  private readonly authService = inject(AuthService);
 
-  readonly user = {
-    name: 'Jordan Lee',
-    firstName: 'Jordan',
-    initials: 'JL',
-    accountEnding: '4821'
-  };
+  readonly user = this.authService.getUserProfile();
 
   readonly mockOrders: Order[] = [
     {
@@ -451,7 +448,7 @@ export class Orders implements OnInit {
       return null;
     }
 
-    const response = await fetch(environment.springapi, {
+    const response = await fetch(`${environment.springUrl}/user`, {
       headers: { Authorization: `Bearer ${token}` }
     });
 
