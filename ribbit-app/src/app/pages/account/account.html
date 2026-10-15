@@ -151,6 +151,9 @@
   </div>
 
   <div class="account-info-content">
+    @if (closeAccountError()) {
+      <div class="form-error" role="alert">{{ closeAccountError() }}</div>
+    }
     @if (accountLoadError()) {
       <div class="form-error" role="alert">{{ accountLoadError() }}</div>
     } @else if (!accounts().length) {
@@ -160,7 +163,9 @@
         <div class="account-record">
           <div class="account-record-heading">
             <h3>Account #{{ account.accountId }}</h3>
-            <strong class="status-active">{{ account.accountActive ? 'Active' : 'Inactive' }}</strong>
+            <strong [class.status-active]="account.accountActive" [class.status-closed]="!account.accountActive">
+              {{ account.accountActive ? 'Active' : 'Closed' }}
+            </strong>
           </div>
           <div class="info-grid">
             <div class="info-item">
@@ -180,11 +185,49 @@
               <strong>{{ account.portfolioSize }}</strong>
             </div>
           </div>
+          @if (canCloseAccount(account)) {
+            <button
+              type="button"
+              class="button danger-button"
+              [disabled]="closingAccountId() === account.accountId"
+              (click)="closeAccount(account)"
+            >
+              @if (closingAccountId() === account.accountId) {
+                Closing...
+              } @else {
+                Close account
+              }
+            </button>
+          } @else {
+            <button
+              type="button"
+              class="button danger-button blocked-close-button"
+              (click)="explainCloseBlocked(account)"
+              [attr.aria-label]="'Why account ' + account.accountId + ' cannot be closed'"
+            >
+              Close Account
+            </button>
+          }
         </div>
       }
     }
   </div>
 </section>
+
+@if (blockedCloseAccount(); as account) {
+  <div class="modal-backdrop" (click)="closeBlockedExplanation()"></div>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="blocked-close-title">
+    <div class="modal-header">
+      <h2 id="blocked-close-title">Account cannot be closed yet</h2>
+      <button type="button" class="modal-close" (click)="closeBlockedExplanation()" aria-label="Close">×</button>
+    </div>
+    <div class="modal-body">
+      <p class="muted">Account #{{ account.accountId }}</p>
+      <p class="blocked-close-reason">{{ getCloseBlockedReason(account) }}</p>
+      <p class="muted">Use the Transactions page to withdraw funds and sell all positions before closing this account.</p>
+    </div>
+  </div>
+}
 
 <section class="panel security-panel" aria-labelledby="security-title">
   <div class="panel-heading">
