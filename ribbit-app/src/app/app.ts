@@ -18,7 +18,7 @@ export class App {
 
   protected showNavigation(): boolean {
     const currentPath = this.router.url.split('?')[0].replace(/\/$/, '');
-    const isPublicPage = ['/login', '/admin-login', '/signup'].includes(currentPath);
+    const isPublicPage = ['/login', '/admin-login', '/signup', '/forgot-password'].includes(currentPath);
     return this.isLoggedIn() && !isPublicPage;
   }
 

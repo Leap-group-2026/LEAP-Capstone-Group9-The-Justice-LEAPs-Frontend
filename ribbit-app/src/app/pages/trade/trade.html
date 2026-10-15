@@ -451,12 +451,20 @@
 
     <div class="modal-body">
       <div class="chart-container">
-        <svg class="price-chart" viewBox="0 0 400 200" preserveAspectRatio="xMidYMid meet">
+        <h3 class="chart-title">Past 6 months performance</h3>
+        @if (chartLoading()) {
+          <p class="chart-message">Loading price history...</p>
+        } @else if (chartError()) {
+          <p class="chart-message error">Unable to load price history.</p>
+        } @else if (chartPrices().length === 0) {
+          <p class="chart-message">No price history is available.</p>
+        } @else {
+          <svg class="price-chart" viewBox="0 0 400 200" preserveAspectRatio="xMidYMid meet">
           <!-- Grid lines -->
           <line x1="40" y1="20" x2="40" y2="180" stroke="var(--border)" stroke-width="1"/>
           <line x1="40" y1="180" x2="400" y2="180" stroke="var(--border)" stroke-width="1"/>
           <polyline
-            points="50,120 80,110 110,115 140,95 170,100 200,85 230,90 260,75 290,80 320,70 350,75 380,60"
+            [attr.points]="chartPoints"
             fill="none"
             stroke="var(--accent)"
             stroke-width="2"
@@ -465,10 +473,11 @@
           />
           
           <!-- Y-axis labels -->
-          <text x="20" y="185" font-size="10" fill="var(--subtle)" text-anchor="end">$0</text>
-          <text x="20" y="105" font-size="10" fill="var(--subtle)" text-anchor="end">$300</text>
-          <text x="20" y="25" font-size="10" fill="var(--subtle)" text-anchor="end">$600</text>
-        </svg>
+          <text class="chart-axis-label" x="35" y="185" font-size="10" text-anchor="end">{{ money(chartMin * 100) }}</text>
+          <text class="chart-axis-label" x="35" y="105" font-size="10" text-anchor="end">{{ money(((chartMin + chartMax) / 2) * 100) }}</text>
+          <text class="chart-axis-label" x="35" y="25" font-size="10" text-anchor="end">{{ money(chartMax * 100) }}</text>
+          </svg>
+        }
       </div>
 
       <div class="modal-info">
@@ -478,7 +487,13 @@
         </div>
         <div class="info-row">
           <span>24h change</span>
-          <strong class="accent">+2.45%</strong>
+          <strong [class.accent]="(chartChangePercent ?? 0) >= 0" [class.negative-change]="(chartChangePercent ?? 0) < 0">
+            @if (chartChangePercent === null) {
+              —
+            } @else {
+              {{ chartChangePercent! >= 0 ? '+' : '' }}{{ chartChangePercent! | number:'1.2-2' }}%
+            }
+          </strong>
         </div>
         <div class="info-row">
           <span>Exchange</span>

@@ -48,6 +48,10 @@ export class AuthService {
   }
 
   logout(): void {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.removeItem('token');
+    }
+
     this.authState.set({
       isLoggedIn: false,
       user: null
@@ -56,6 +60,24 @@ export class AuthService {
 
   getUser() {
     return this.authState().user;
+  }
+
+  hasValidAccessToken(): boolean {
+    if (typeof window === 'undefined') {
+      return false;
+    }
+
+    const token = window.localStorage.getItem('token');
+    if (!token) {
+      return false;
+    }
+
+    try {
+      const payload = JSON.parse(this.decodeTokenPayload(token)) as { exp?: number };
+      return typeof payload.exp === 'number' && payload.exp > Math.floor(Date.now() / 1000);
+    } catch {
+      return false;
+    }
   }
 
 

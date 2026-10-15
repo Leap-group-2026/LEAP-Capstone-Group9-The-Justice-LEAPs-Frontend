@@ -220,7 +220,7 @@ export class Dashboard implements OnInit {
   }
 
   get portfolioValue(): number {
-    return this.apiPortfolioValue();
+    return this.apiPortfolioValue() + this.availableCash;
   }
 
   get totalCostBasis(): number {
