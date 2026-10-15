@@ -157,7 +157,9 @@ export class Trade {
   readonly chartPrices = signal<readonly number[]>([]);
   readonly chartLoading = signal(false);
   readonly chartError = signal(false);
+  readonly chartSize = signal({ width: 400, height: 200 });
 
+  private chartResizeObserver?: ResizeObserver;
   private submissionCount = 0;
 
   private readStoredBalance(): number {
@@ -202,7 +204,22 @@ export class Trade {
 
   @ViewChild('searchField') searchField?: ElementRef<HTMLElement>;
 
+  @ViewChild('priceChart') set priceChart(ref: ElementRef<SVGSVGElement> | undefined) {
+    this.chartResizeObserver?.disconnect();
+    if (!ref) return;
+
+    this.chartResizeObserver ??= new ResizeObserver(entries => {
+      const { width, height } = entries[0].contentRect;
+      if (width > 0 && height > 0) {
+        this.chartSize.set({ width: Math.round(width), height: Math.round(height) });
+      }
+    });
+    this.chartResizeObserver.observe(ref.nativeElement);
+  }
+
   constructor() {
+    this.destroyRef.onDestroy(() => this.chartResizeObserver?.disconnect());
+
     this.form.controls.symbol.valueChanges
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe(symbol => {
@@ -240,20 +257,38 @@ export class Trade {
     );
   }
 
+  get chartGeometry() {
+    const { width, height } = this.chartSize();
+    const left = 44;
+    const right = width - 8;
+    const top = 8;
+    const bottom = height - 12;
+    return {
+      width,
+      height,
+      left,
+      right,
+      top,
+      bottom,
+      midY: (top + bottom) / 2
+    };
+  }
+
   get chartPoints(): string {
     const prices = this.chartPrices();
     if (!prices.length) return '';
 
+    const { left, right, top, bottom } = this.chartGeometry;
     const min = Math.min(...prices);
     const max = Math.max(...prices);
     const range = max - min || 1;
-    const width = 350;
-    const height = 155;
+    const plotWidth = right - left;
+    const plotHeight = bottom - top;
 
     return prices
       .map((price, index) => {
-        const x = 45 + (index / Math.max(prices.length - 1, 1)) * width;
-        const y = 180 - ((price - min) / range) * height;
+        const x = left + (index / Math.max(prices.length - 1, 1)) * plotWidth;
+        const y = bottom - ((price - min) / range) * plotHeight;
         return `${x.toFixed(2)},${y.toFixed(2)}`;
       })
       .join(' ');
