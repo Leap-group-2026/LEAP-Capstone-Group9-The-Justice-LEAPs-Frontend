@@ -16,6 +16,7 @@ import {
 } from '@angular/forms';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router } from '@angular/router';
+import { InstrumentsApiService } from '../../shared/services/instruments-api.service';
 
 type Side = 'Buy' | 'Sell';
 type OrderType = 'Market' | 'Limit';
@@ -84,6 +85,7 @@ function parseUsdCents(input: string): number | null {
 export class Trade {
   private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly instrumentsApi = inject(InstrumentsApiService);
 
   readonly cashCents = this.readStoredBalance() * 100;
   readonly snapshotLabel = 'Oct 8, 2026';
@@ -138,6 +140,9 @@ export class Trade {
   readonly searchQuery = signal('');
   readonly showInstrumentModal = signal(false);
   readonly selectedInstrumentForModal = signal<Instrument | null>(null);
+  readonly chartPrices = signal<readonly number[]>([]);
+  readonly chartLoading = signal(false);
+  readonly chartError = signal(false);
 
   private submissionCount = 0;
 
@@ -207,6 +212,40 @@ export class Trade {
         instrument.symbol.toLowerCase().includes(query) ||
         instrument.name.toLowerCase().includes(query)
     );
+  }
+
+  get chartPoints(): string {
+    const prices = this.chartPrices();
+    if (!prices.length) return '';
+
+    const min = Math.min(...prices);
+    const max = Math.max(...prices);
+    const range = max - min || 1;
+    const width = 350;
+    const height = 155;
+
+    return prices
+      .map((price, index) => {
+        const x = 45 + (index / Math.max(prices.length - 1, 1)) * width;
+        const y = 180 - ((price - min) / range) * height;
+        return `${x.toFixed(2)},${y.toFixed(2)}`;
+      })
+      .join(' ');
+  }
+
+  get chartMin(): number {
+    return Math.min(...this.chartPrices());
+  }
+
+  get chartMax(): number {
+    return Math.max(...this.chartPrices());
+  }
+
+  get chartChangePercent(): number | null {
+    const prices = this.chartPrices();
+    if (prices.length < 2 || prices[0] === 0) return null;
+
+    return ((prices[prices.length - 1] - prices[0]) / prices[0]) * 100;
   }
 
   get side(): Side {
@@ -352,11 +391,58 @@ export class Trade {
   openInstrumentModal(instrument: Instrument): void {
     this.selectedInstrumentForModal.set(instrument);
     this.showInstrumentModal.set(true);
+    this.loadChart(instrument.symbol);
   }
 
   closeInstrumentModal(): void {
     this.showInstrumentModal.set(false);
     this.selectedInstrumentForModal.set(null);
+    this.chartPrices.set([]);
+    this.chartLoading.set(false);
+    this.chartError.set(false);
+  }
+
+  private loadChart(symbol: string): void {
+    this.chartPrices.set([]);
+    this.chartError.set(false);
+    this.chartLoading.set(true);
+
+    const endDate = new Date();
+    const startDate = new Date(endDate);
+    startDate.setMonth(startDate.getMonth() - 6);
+
+    this.instrumentsApi
+      .getBarNumbers(
+        symbol,
+        '1Day',
+        this.formatDate(startDate),
+        this.formatDate(endDate)
+      )
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: prices => {
+          if (this.selectedInstrumentForModal()?.symbol !== symbol) return;
+
+          const validPrices = prices.filter(
+            price => typeof price === 'number' && Number.isFinite(price)
+          );
+          this.chartPrices.set(validPrices);
+          this.chartLoading.set(false);
+        },
+        error: () => {
+          if (this.selectedInstrumentForModal()?.symbol !== symbol) return;
+
+          this.chartLoading.set(false);
+          this.chartError.set(true);
+        }
+      });
+  }
+
+  private formatDate(date: Date): string {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
   }
 
   selectFromModal(): void {
