@@ -15,6 +15,21 @@
   -webkit-font-smoothing: antialiased;
 }
 
+:host-context(.light-theme) {
+  --background: #f5f8f3;
+  --surface: #ffffff;
+  --accent: #287a3c;
+  --text: #18351f;
+  --muted: #52705a;
+  --subtle: #6f8975;
+  --border: #c8d5c5;
+
+  .signup-page,
+  .signup-card { background: #f5f8f3; }
+  .field input { background: #ffffff; border-color: #c8d5c5; }
+  .success { background: #e7f1e4; border-color: #a9c5a8; }
+}
+
 * { box-sizing: border-box; }
 a { color: inherit; text-decoration: none; }
 a:hover { text-decoration: underline; }
@@ -77,4 +92,11 @@ form { margin-top: 32px; }
   h1 { font-size: 36px; }
   .form-grid { grid-template-columns: 1fr; }
   .field-wide { grid-column: auto; }
+}
+
+:host-context(.light-theme) .signup-page,
+:host-context(.light-theme) .signup-card,
+:host-context(.light-theme) .field input {
+  background: #ffffff !important;
+  border-color: #c8d5c5 !important;
 }
