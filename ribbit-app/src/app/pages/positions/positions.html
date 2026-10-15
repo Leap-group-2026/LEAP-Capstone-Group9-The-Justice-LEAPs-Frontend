@@ -1,10 +1,21 @@
 <app-page-container title="Positions" description="View and manage your current positions">
   <div class="positions-container">
+    @if (state === 'loading') {
+      <p role="status">Loading your positions...</p>
+    } @else if (state === 'error') {
+      <div role="alert">
+        <p>{{ errorMessage }}</p>
+        <button type="button" class="action-btn" (click)="loadPositions()">Try again</button>
+      </div>
+    } @else if (positions.length === 0) {
+      <p>No positions found for account {{ accountId }}.</p>
+    } @else {
     <div class="positions-table-placeholder">
       <table class="positions-table">
         <thead>
           <tr>
             <th>Symbol</th>
+            <th>Instrument</th>
             <th>Quantity</th>
             <th>Entry Price</th>
             <th>Current Price</th>
@@ -14,6 +25,8 @@
           </tr>
         </thead>
         <tbody>
+          
+          Mock rows retained for reference:
           <tr class="position-row">
             <td class="symbol">AAPL</td>
             <td>100</td>
@@ -41,8 +54,26 @@
             <td class="positive">+3.95%</td>
             <td><button class="action-btn">Sell</button></td>
           </tr>
+          
+          @for (position of positions; track position.positionId) {
+            <tr class="position-row">
+              <td class="symbol">{{ position.symbol }}</td>
+              <td>{{ position.assetName }}</td>
+              <td>{{ position.quantity | number:'1.0-4' }}</td>
+              <td>{{ position.entryPrice | currency }}</td>
+              <td>{{ position.currentPrice | currency }}</td>
+              <td [class.positive]="position.pnl !== null && position.pnl >= 0" [class.negative]="position.pnl !== null && position.pnl < 0">
+                {{ position.pnl === null ? '—' : (position.pnl | currency) }}
+              </td>
+              <td [class.positive]="position.pnlPercent !== null && position.pnlPercent >= 0" [class.negative]="position.pnlPercent !== null && position.pnlPercent < 0">
+                {{ position.pnlPercent === null ? '—' : (position.pnlPercent | percent:'1.2-2') }}
+              </td>
+              <td><button type="button" class="action-btn">Sell</button></td>
+            </tr>
+          }
         </tbody>
       </table>
     </div>
+    }
   </div>
 </app-page-container>

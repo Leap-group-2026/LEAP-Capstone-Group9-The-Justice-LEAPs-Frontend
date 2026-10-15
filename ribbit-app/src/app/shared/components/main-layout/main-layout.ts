@@ -4,6 +4,7 @@ import { Router, NavigationEnd } from '@angular/router';
 import { Subject } from 'rxjs';
 import { takeUntil, filter } from 'rxjs/operators';
 import { AuthService, StoredUser } from '../../services/auth.service';
+import { AccountContextService } from '../../services/account-context.service';
 
 interface NavigationItem {
   id: string;
@@ -11,7 +12,7 @@ interface NavigationItem {
   icon: string;
 }
 
-type Destination = 'dashboard' | 'portfolio' | 'trade' | 'orders' | 'transactions' | 'account' | 'logout';
+type Destination = 'dashboard' | 'portfolio' | 'trade' | 'orders' | 'transactions' | 'account' | 'admin' | 'logout';
 
 @Component({
   selector: 'app-main-layout',
@@ -23,6 +24,7 @@ type Destination = 'dashboard' | 'portfolio' | 'trade' | 'orders' | 'transaction
 export class MainLayout implements OnInit, OnDestroy {
   private readonly router = inject(Router);
   private readonly authService = inject(AuthService);
+  readonly accountContext = inject(AccountContextService);
   private readonly destroy$ = new Subject<void>();
 
   @Input() pageTitle = '';
@@ -38,8 +40,21 @@ export class MainLayout implements OnInit, OnDestroy {
     { id: 'trade', label: 'Trade', icon: 'trade' },
     { id: 'orders', label: 'Orders', icon: 'orders' },
     { id: 'transactions', label: 'Transactions', icon: 'history' },
-    { id: 'account', label: 'Account', icon: 'account' }
+    { id: 'account', label: 'Account', icon: 'account' },
+    { id: 'admin', label: 'Admin', icon: 'admin' }
   ];
+
+  get visibleNavigation(): NavigationItem[] {
+    if (this.authService.isAdmin()) {
+      return this.navigation.filter(item => item.id === 'admin');
+    }
+
+    return this.navigation.filter(item => item.id !== 'admin');
+  }
+
+  get isAdminUser(): boolean {
+    return this.authService.isAdmin();
+  }
 
   readonly icons: Record<string, string> = {
     dashboard: 'M3 3h7v7H3z M14 3h7v7h-7z M3 14h7v7H3z M14 14h7v7h-7z',
@@ -48,6 +63,7 @@ export class MainLayout implements OnInit, OnDestroy {
     orders: 'M8 4H5v17h14V4h-3 M8 3h8v4H8z M8 11h8 M8 15h5',
     history: 'M3 11a9 9 0 1 1 2 7 M3 4v7h7 M12 7v5l3 2',
     account: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8 M4 21v-2a8 8 0 0 1 16 0v2',
+    admin: 'M12 3 20 6v5c0 5-3.4 8.7-8 10-4.6-1.3-8-5-8-10V6z M9 12l2 2 4-4',
     logout: 'M9 3H4v18h5 M10 12h11 M17 8l4 4-4 4',
     support: 'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20 M9 8a3 3 0 0 1 6 0c0 2-3 2-3 5 M12 17h.01',
     arrow: 'M5 12h14 M13 6l6 6-6 6',
@@ -59,6 +75,7 @@ export class MainLayout implements OnInit, OnDestroy {
   };
 
   ngOnInit(): void {
+    this.accountContext.loadAccounts();
     this.updateCurrentPage();
     
     this.router.events
@@ -69,6 +86,13 @@ export class MainLayout implements OnInit, OnDestroy {
       .subscribe(() => this.updateCurrentPage());
   }
 
+  selectAccount(event: Event): void {
+    const accountId = Number((event.target as HTMLSelectElement).value);
+    if (Number.isInteger(accountId)) {
+      this.accountContext.selectAccount(accountId);
+    }
+  }
+
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
@@ -77,12 +101,15 @@ export class MainLayout implements OnInit, OnDestroy {
   private updateCurrentPage(): void {
     const path = this.router.url.split('/')[1] || 'dashboard';
     this.currentPage = path;
+    this.user = this.authService.getUserProfile();
   }
 
   navigate(destination: string): void {
     this.sidebarOpen = false;
     if (destination === 'logout') {
       this.router.navigate(['/login']);
+    } else if (destination === 'account' && this.authService.isAdmin()) {
+      this.router.navigate(['/admin']);
     } else {
       this.router.navigate([`/${destination}`]);
     }

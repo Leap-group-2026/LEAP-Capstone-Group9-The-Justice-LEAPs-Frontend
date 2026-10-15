@@ -95,6 +95,38 @@ svg {
   font-size: 9px;
 }
 
+.account-selector {
+  display: grid;
+  gap: 4px;
+  margin-left: 24px;
+  padding: 0 20px;
+  border-left: 1px solid var(--border);
+
+  label {
+    color: var(--subtle);
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 8px;
+    letter-spacing: 0.5px;
+  }
+
+  select {
+    min-width: 92px;
+    padding: 4px 22px 4px 0;
+    border: 0;
+    background: transparent;
+    color: var(--text);
+    color-scheme: dark;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 12px;
+    cursor: pointer;
+
+    option {
+      background: var(--surface-raised);
+      color: var(--text);
+    }
+  }
+}
+
 .profile {
   display: flex;
   align-items: center;

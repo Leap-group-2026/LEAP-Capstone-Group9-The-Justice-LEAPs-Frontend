@@ -1,7 +1,8 @@
 import { CommonModule } from '@angular/common';
-import { Component, inject } from '@angular/core';
+import { Component, inject, OnInit, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { AuthService } from '../../shared/services/auth.service';
+import { PortfolioValueService } from '../../shared/services/portfolio-value.service';
 
 type Period = '1D' | '1W' | '1M' | '3M' | '1Y' | 'ALL';
 type Destination =
@@ -45,9 +46,10 @@ interface PerformancePoint {
   templateUrl: './dashboard.html',
   styleUrls: ['./dashboard.scss']
 })
-export class Dashboard {
+export class Dashboard implements OnInit {
   private readonly router = inject(Router);
   private readonly authService = inject(AuthService);
+  private readonly portfolioValueService = inject(PortfolioValueService);
 
   selectedPeriod: Period = '1M';
 
@@ -56,6 +58,18 @@ export class Dashboard {
   readonly snapshotLabel = 'Oct 7, 2026, 2:32 PM ET';
   readonly availableCash = this.readStoredBalance();
   readonly todayGain = 864.20;
+  private readonly apiPortfolioValue = signal(0);
+
+  ngOnInit(): void {
+    const accountId = this.readAccountId();
+
+    if (accountId === null) return;
+
+    this.portfolioValueService.getPortfolioValue(accountId).subscribe({
+      next: value => this.apiPortfolioValue.set(value),
+      error: error => console.error('Unable to load portfolio value', error)
+    });
+  }
 
   private createUser() {
     const user = this.authService.getUserProfile();
@@ -206,7 +220,7 @@ export class Dashboard {
   }
 
   get portfolioValue(): number {
-    return this.round(this.holdingsValue + this.availableCash);
+    return this.apiPortfolioValue();
   }
 
   get totalCostBasis(): number {
@@ -365,5 +379,10 @@ export class Dashboard {
 
   private round(value: number): number {
     return Math.round(value * 100) / 100;
+  }
+
+  private readAccountId(): number | null {
+    const accountId = Number(typeof localStorage === 'undefined' ? null : localStorage.getItem('accountId'));
+    return Number.isInteger(accountId) && accountId > 0 ? accountId : null;
   }
 }
