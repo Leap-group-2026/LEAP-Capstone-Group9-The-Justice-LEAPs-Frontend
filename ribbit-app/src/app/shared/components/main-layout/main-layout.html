@@ -30,6 +30,22 @@
       <small>INDIVIDUAL ACCOUNT</small>
     </div>
 
+    @if (!isAdminUser && accountContext.accounts().length) {
+      <div class="account-selector">
+        <label for="header-account-selector">ACCOUNT</label>
+        <select
+          id="header-account-selector"
+          [value]="accountContext.selectedAccount()?.accountId"
+          (change)="selectAccount($event)"
+          aria-label="Select account"
+        >
+          @for (account of accountContext.accounts(); track account.accountId) {
+            <option [value]="account.accountId">#{{ account.accountId }}</option>
+          }
+        </select>
+      </div>
+    }
+
     @if (!isAdminUser) {
       <button
         class="profile"
@@ -45,7 +61,6 @@
         <span aria-hidden="true">⌄</span>
       </button>
     }
-
   </header>
 
   @if (sidebarOpen) {
