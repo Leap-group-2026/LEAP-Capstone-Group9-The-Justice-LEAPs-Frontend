@@ -4,6 +4,7 @@ import { Router, NavigationEnd } from '@angular/router';
 import { Subject } from 'rxjs';
 import { takeUntil, filter } from 'rxjs/operators';
 import { AuthService, StoredUser } from '../../services/auth.service';
+import { AccountContextService } from '../../services/account-context.service';
 
 interface NavigationItem {
   id: string;
@@ -23,6 +24,7 @@ type Destination = 'dashboard' | 'portfolio' | 'trade' | 'orders' | 'transaction
 export class MainLayout implements OnInit, OnDestroy {
   private readonly router = inject(Router);
   private readonly authService = inject(AuthService);
+  readonly accountContext = inject(AccountContextService);
   private readonly destroy$ = new Subject<void>();
 
   @Input() pageTitle = '';
@@ -73,6 +75,7 @@ export class MainLayout implements OnInit, OnDestroy {
   };
 
   ngOnInit(): void {
+    this.accountContext.loadAccounts();
     this.updateCurrentPage();
     
     this.router.events
@@ -81,6 +84,13 @@ export class MainLayout implements OnInit, OnDestroy {
         takeUntil(this.destroy$)
       )
       .subscribe(() => this.updateCurrentPage());
+  }
+
+  selectAccount(event: Event): void {
+    const accountId = Number((event.target as HTMLSelectElement).value);
+    if (Number.isInteger(accountId)) {
+      this.accountContext.selectAccount(accountId);
+    }
   }
 
   ngOnDestroy(): void {

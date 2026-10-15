@@ -1,8 +1,12 @@
-import { Component, signal, computed, inject } from '@angular/core';
+import { Component, signal, computed, inject, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Router } from '@angular/router';
+import { finalize } from 'rxjs';
 import { AuthService } from '../../shared/services/auth.service';
+import { AccountContextService, CreateAccountRequest } from '../../shared/services/account-context.service';
+import { environment } from '../../environments/environment';
 
 type EditProfileStep = 'view' | 'edit' | 'success';
 type ChangePasswordStep = 'form' | 'success';
@@ -21,6 +25,15 @@ interface PreferenceSettings {
   accountNotifications: boolean;
 }
 
+interface AccountInfo {
+  accountId: number;
+  balance: number;
+  portfolioSize: string;
+  tradeType: string;
+  createdAt: string;
+  accountActive: boolean;
+}
+
 @Component({
   selector: 'app-account',
   standalone: true,
@@ -28,9 +41,11 @@ interface PreferenceSettings {
   templateUrl: './account.html',
   styleUrls: ['./account.scss']
 })
-export class Account {
+export class Account implements OnInit {
+  private readonly http = inject(HttpClient);
   private readonly router = inject(Router);
   private readonly authService = inject(AuthService);
+  private readonly accountContext = inject(AccountContextService);
   readonly accessToken = typeof localStorage === 'undefined'
     ? null
     : localStorage.getItem('token');
@@ -51,6 +66,16 @@ export class Account {
   readonly accountStatus = this.readStorage('accountActive') === 'true' ? 'Active' : 'Inactive';
   readonly accountCreated = this.formatAccountDate(this.readStorage('createdAt'));
   readonly portfolioProfile = this.readStorage('portfolioSize');
+  readonly accounts = signal<AccountInfo[]>([]);
+  readonly accountLoadError = signal('');
+  readonly showAddAccountModal = signal(false);
+  readonly isAddingAccount = signal(false);
+  readonly addAccountError = signal('');
+  readonly addedAccountId = signal<number | null>(null);
+
+  newAccountBalance = '0';
+  newAccountPortfolioSize = 'BALANCED';
+  newAccountTradeType = 'Passive';
 
   // State signals
   readonly profileData = signal<UserProfile>(this.readProfile());
@@ -75,6 +100,90 @@ export class Account {
   newPassword = '';
   confirmPassword = '';
   passwordFormError = '';
+
+  ngOnInit(): void {
+    this.loadAccounts();
+  }
+
+  private loadAccounts(): void {
+    const token = typeof localStorage === 'undefined'
+      ? null
+      : localStorage.getItem('token');
+    const userId = this.resolveUserId(token);
+
+    if (!token || userId === null) {
+      this.accountLoadError.set('Unable to identify the signed-in user.');
+      return;
+    }
+
+    this.http.get<AccountInfo[]>(
+      `${environment.springUrl}/accounts/user/${userId}`,
+      { headers: new HttpHeaders({ Authorization: `Bearer ${token}` }) }
+    ).subscribe({
+      next: (accounts) => this.accounts.set(accounts.filter(account => account.accountActive)),
+      error: () => this.accountLoadError.set('Unable to load your accounts right now.')
+    });
+  }
+
+  private resolveUserId(token: string | null): number | null {
+    if (!token) return null;
+
+    try {
+      const encodedPayload = token.split('.')[1];
+      const payload = JSON.parse(atob(encodedPayload.replace(/-/g, '+').replace(/_/g, '/')));
+      const userId = Number(payload.sub);
+      return Number.isInteger(userId) && userId > 0 ? userId : null;
+    } catch {
+      return null;
+    }
+  }
+
+  openAddAccount(): void {
+    this.newAccountBalance = '0';
+    this.newAccountPortfolioSize = 'BALANCED';
+    this.newAccountTradeType = 'Passive';
+    this.addAccountError.set('');
+    this.addedAccountId.set(null);
+    this.showAddAccountModal.set(true);
+  }
+
+  closeAddAccount(): void {
+    if (!this.isAddingAccount()) this.showAddAccountModal.set(false);
+  }
+
+  addAccount(): void {
+    const balance = Number(this.newAccountBalance);
+    const tradeType = this.newAccountTradeType.trim();
+    if (!Number.isFinite(balance) || balance < 0) {
+      this.addAccountError.set('Enter a balance of $0 or more.');
+      return;
+    }
+    if (!tradeType) {
+      this.addAccountError.set('Choose a trading style.');
+      return;
+    }
+
+    const request: CreateAccountRequest = {
+      balance,
+      portfolioSize: this.newAccountPortfolioSize,
+      tradeType
+    };
+    this.isAddingAccount.set(true);
+    this.addAccountError.set('');
+    this.accountContext.createAccount(request)
+      .pipe(finalize(() => this.isAddingAccount.set(false)))
+      .subscribe({
+        next: (account) => {
+          this.accountContext.accounts.update((accounts) => [...accounts, account]);
+          this.accounts.update((accounts) => [...accounts, account]);
+          this.addedAccountId.set(account.accountId);
+        },
+        error: (error) => {
+          const message = typeof error.error === 'string' ? error.error : error.error?.message;
+          this.addAccountError.set(message || 'Unable to add the account. Please try again.');
+        }
+      });
+  }
 
   // Getters for display
   get userDisplayName(): string {

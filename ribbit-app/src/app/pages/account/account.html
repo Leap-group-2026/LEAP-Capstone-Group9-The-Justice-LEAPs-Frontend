@@ -3,6 +3,12 @@
     <h1 id="welcome-heading">Account</h1>
     <p>Manage your profile, account information, and preferences.</p>
   </div>
+  <button type="button" class="button primary" (click)="openAddAccount()">
+    Add account
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path [attr.d]="icons['plus']"/>
+    </svg>
+  </button>
 </section>
 
 @if (editProfileStep() === 'view') {
@@ -145,28 +151,38 @@
   </div>
 
   <div class="account-info-content">
-    <div class="info-grid">
-      <div class="info-item">
-        <span class="info-label">Account ID</span>
-        <strong class="account-id">{{ accountId }}</strong>
-      </div>
-      <div class="info-item">
-        <span class="info-label">Account Type</span>
-        <strong>{{ accountType }}</strong>
-      </div>
-      <div class="info-item">
-        <span class="info-label">Account Status</span>
-        <strong [class.status-active]="accountStatus === 'Active'">{{ accountStatus }}</strong>
-      </div>
-      <div class="info-item">
-        <span class="info-label">Account Created</span>
-        <strong>{{ accountCreated }}</strong>
-      </div>
-      <div class="info-item">
-        <span class="info-label">Portfolio Profile</span>
-        <strong>{{ portfolioProfile }}</strong>
-      </div>
-    </div>
+    @if (accountLoadError()) {
+      <div class="form-error" role="alert">{{ accountLoadError() }}</div>
+    } @else if (!accounts().length) {
+      <p class="muted">No active accounts found.</p>
+    } @else {
+      @for (account of accounts(); track account.accountId) {
+        <div class="account-record">
+          <div class="account-record-heading">
+            <h3>Account #{{ account.accountId }}</h3>
+            <strong class="status-active">{{ account.accountActive ? 'Active' : 'Inactive' }}</strong>
+          </div>
+          <div class="info-grid">
+            <div class="info-item">
+              <span class="info-label">Balance</span>
+              <strong>{{ account.balance | currency }}</strong>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Trading Style</span>
+              <strong>{{ account.tradeType }}</strong>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Account Created</span>
+              <strong>{{ formatAccountDate(account.createdAt) }}</strong>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Portfolio Profile</span>
+              <strong>{{ account.portfolioSize }}</strong>
+            </div>
+          </div>
+        </div>
+      }
+    }
   </div>
 </section>
 
@@ -174,7 +190,6 @@
   <div class="panel-heading">
     <h2 id="security-title">Security</h2>
   </div>
-
   <div class="security-content">
     <div class="security-item">
       <div class="security-info">
@@ -386,5 +401,60 @@
         </div>
       </div>
     }
+  </div>
+}
+
+@if (showAddAccountModal()) {
+  <div class="modal-backdrop" (click)="closeAddAccount()"></div>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="add-account-title">
+    <div class="modal-header">
+      <h2 id="add-account-title">Add an account</h2>
+      <button type="button" class="modal-close" (click)="closeAddAccount()" aria-label="Close">×</button>
+    </div>
+    <div class="modal-body">
+      @if (addedAccountId(); as accountId) {
+        <div class="success-content">
+          <div class="success-icon">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path [attr.d]="icons['check']"/>
+            </svg>
+          </div>
+          <h3>Account added</h3>
+          <p>Account #{{ accountId }} is now available!</p>
+          <button type="button" class="button primary" (click)="closeAddAccount()">Done</button>
+        </div>
+      } @else {
+        @if (addAccountError()) {
+          <div class="form-error" role="alert">{{ addAccountError() }}</div>
+        }
+        <form (ngSubmit)="addAccount()" class="password-form">
+          <div class="form-field">
+            <label for="add-account-balance">Opening balance *</label>
+            <input id="add-account-balance" type="number" min="0" step="0.01" [(ngModel)]="newAccountBalance" name="balance" class="form-input" required />
+          </div>
+          <div class="form-field">
+            <label for="add-account-profile">Portfolio profile *</label>
+            <select id="add-account-profile" [(ngModel)]="newAccountPortfolioSize" name="portfolioSize" class="form-input">
+              <option value="LOW">Low</option>
+              <option value="BALANCED">Balanced</option>
+              <option value="HIGH">High</option>
+            </select>
+          </div>
+          <div class="form-field">
+            <label for="add-account-style">Trading style *</label>
+            <select id="add-account-style" [(ngModel)]="newAccountTradeType" name="tradeType" class="form-input">
+              <option value="Passive">Passive</option>
+              <option value="Active">Active</option>
+            </select>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="button secondary" (click)="closeAddAccount()">Cancel</button>
+            <button type="submit" class="button primary" [disabled]="isAddingAccount()">
+              {{ isAddingAccount() ? 'Adding...' : 'Add account' }}
+            </button>
+          </div>
+        </form>
+      }
+    </div>
   </div>
 }
