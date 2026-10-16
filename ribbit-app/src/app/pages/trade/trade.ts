@@ -1,8 +1,11 @@
 import {
   Component,
   DestroyRef,
+  ElementRef,
+  HostListener,
   inject,
-  signal
+  signal,
+  ViewChild
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import {
@@ -27,8 +30,10 @@ export interface Instrument {
   readonly symbol: string;
   readonly name: string;
   readonly priceCents: number;
+  readonly changePct: number;
   readonly owned: number;
   readonly exchange: string;
+  readonly assetType: string;
 }
 
 export interface OrderSnapshot {
@@ -88,41 +93,50 @@ export class Trade {
   private readonly instrumentsApi = inject(InstrumentsApiService);
 
   readonly cashCents = this.readStoredBalance() * 100;
-  readonly snapshotLabel = 'Oct 8, 2026';
 
   readonly instruments: readonly Instrument[] = Object.freeze([
     Object.freeze({
       symbol: 'AAPL',
+      assetType: 'Stock',
       name: 'Apple Inc.',
       priceCents: 22_842,
+      changePct: 0.84,
       owned: 80,
       exchange: 'NASDAQ'
     }),
     Object.freeze({
       symbol: 'NVDA',
+      assetType: 'Stock',
       name: 'NVIDIA Corporation',
       priceCents: 14_287,
+      changePct: 2.45,
       owned: 120,
       exchange: 'NASDAQ'
     }),
     Object.freeze({
       symbol: 'MSFT',
+      assetType: 'Stock',
       name: 'Microsoft Corporation',
       priceCents: 42_560,
+      changePct: -0.37,
       owned: 40,
       exchange: 'NASDAQ'
     }),
     Object.freeze({
       symbol: 'SPY',
+      assetType: 'ETF',
       name: 'SPDR S&P 500 ETF Trust',
       priceCents: 58_921,
+      changePct: 0.12,
       owned: 60,
       exchange: 'NYSE ARCA'
     }),
     Object.freeze({
       symbol: 'TSLA',
+      assetType: 'Stock',
       name: 'Tesla, Inc.',
       priceCents: 24_850,
+      changePct: -1.92,
       owned: 30,
       exchange: 'NASDAQ'
     })
@@ -138,12 +152,15 @@ export class Trade {
   readonly reviewSnapshot = signal<OrderSnapshot | null>(null);
   readonly submission = signal<MockSubmission | null>(null);
   readonly searchQuery = signal('');
-  readonly showInstrumentModal = signal(false);
-  readonly selectedInstrumentForModal = signal<Instrument | null>(null);
+  readonly dropdownOpen = signal(false);
+  readonly activeIndex = signal(-1);
   readonly chartPrices = signal<readonly number[]>([]);
+  readonly chartDates = signal<readonly Date[]>([]);
   readonly chartLoading = signal(false);
   readonly chartError = signal(false);
+  readonly chartSize = signal({ width: 400, height: 200 });
 
+  private chartResizeObserver?: ResizeObserver;
   private submissionCount = 0;
 
   private readStoredBalance(): number {
@@ -162,7 +179,7 @@ export class Trade {
         nonNullable: true,
         validators: [Validators.required]
       }),
-      symbol: new FormControl('NVDA', {
+      symbol: new FormControl('', {
         nonNullable: true,
         validators: [
           Validators.required,
@@ -173,7 +190,7 @@ export class Trade {
               : { unknownInstrument: true }
         ]
       }),
-      quantity: new FormControl('20', {
+      quantity: new FormControl('', {
         nonNullable: true,
         validators: [Validators.required, wholeShares]
       }),
@@ -181,12 +198,39 @@ export class Trade {
         nonNullable: true,
         validators: [Validators.required]
       }),
-      limitPrice: new FormControl('140.00', { nonNullable: true })
+      limitPrice: new FormControl('0.00', { nonNullable: true })
     },
     { validators: [control => this.validateOrder(control)] }
   );
 
+  @ViewChild('searchField') searchField?: ElementRef<HTMLElement>;
+
+  @ViewChild('priceChart') set priceChart(ref: ElementRef<SVGSVGElement> | undefined) {
+    this.chartResizeObserver?.disconnect();
+    if (!ref) return;
+
+    this.chartResizeObserver ??= new ResizeObserver(entries => {
+      const { width, height } = entries[0].contentRect;
+      if (width > 0 && height > 0) {
+        this.chartSize.set({ width: Math.round(width), height: Math.round(height) });
+      }
+    });
+    this.chartResizeObserver.observe(ref.nativeElement);
+  }
+
   constructor() {
+    this.destroyRef.onDestroy(() => this.chartResizeObserver?.disconnect());
+
+    this.form.controls.symbol.valueChanges
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(symbol => {
+        if (symbol) {
+          this.loadChart(symbol);
+        } else {
+          this.resetChart();
+        }
+      });
+
     this.form.valueChanges
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe(() => {
@@ -214,31 +258,66 @@ export class Trade {
     );
   }
 
+  get chartGeometry() {
+    const { width, height } = this.chartSize();
+    const left = 44;
+    const right = width - 8;
+    const top = 8;
+    const bottom = height - 24;
+    return {
+      width,
+      height,
+      left,
+      right,
+      top,
+      bottom,
+      midY: (top + bottom) / 2
+    };
+  }
+
   get chartPoints(): string {
     const prices = this.chartPrices();
     if (!prices.length) return '';
 
-    const min = Math.min(...prices);
+    const { left, right, top, bottom } = this.chartGeometry;
+    const min = this.chartAxisMin;
     const max = Math.max(...prices);
     const range = max - min || 1;
-    const width = 350;
-    const height = 155;
+    const plotWidth = right - left;
+    const plotHeight = bottom - top;
 
     return prices
       .map((price, index) => {
-        const x = 45 + (index / Math.max(prices.length - 1, 1)) * width;
-        const y = 180 - ((price - min) / range) * height;
+        const x = left + (index / Math.max(prices.length - 1, 1)) * plotWidth;
+        const y = bottom - ((price - min) / range) * plotHeight;
         return `${x.toFixed(2)},${y.toFixed(2)}`;
       })
       .join(' ');
   }
 
-  get chartMin(): number {
-    return Math.min(...this.chartPrices());
+  get chartAxisMin(): number {
+    const prices = this.chartPrices();
+    return prices.length ? Math.min(...prices) : 0;
   }
 
   get chartMax(): number {
     return Math.max(...this.chartPrices());
+  }
+
+  get chartXLabels(): { x: number; label: string; anchor: 'start' | 'middle' | 'end' }[] {
+    const dates = this.chartDates();
+    const count = dates.length;
+    if (count < 2) return [];
+
+    const { left, right } = this.chartGeometry;
+    const formatter = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' });
+    const indexes = [...new Set([0, Math.round((count - 1) / 3), Math.round((2 * (count - 1)) / 3), count - 1])];
+
+    return indexes.map(index => ({
+      x: left + (index / (count - 1)) * (right - left) + (index === 0 ? 6 : 0),
+      label: formatter.format(dates[index]),
+      anchor: index === 0 ? 'start' : index === count - 1 ? 'end' : 'middle'
+    }));
   }
 
   get chartChangePercent(): number | null {
@@ -371,6 +450,11 @@ export class Trade {
       : this.currencyFormatter.format(cents / 100);
   }
 
+  formatChange(pct: number): string {
+    const sign = pct > 0 ? '+' : '';
+    return `${sign}${pct.toFixed(2)}%`;
+  }
+
   selectSide(side: Side): void {
     this.form.controls.side.setValue(side);
   }
@@ -381,29 +465,79 @@ export class Trade {
 
   selectInstrument(symbol: string): void {
     this.form.controls.symbol.setValue(symbol);
-    this.searchQuery.set('');
+
+    const instrument = this.instruments.find(item => item.symbol === symbol);
+    if (instrument && Number(this.form.controls.limitPrice.value) === 0) {
+      this.form.controls.limitPrice.setValue(
+        (instrument.priceCents / 100).toFixed(2)
+      );
+    }
+
+    this.closeDropdown();
+  }
+
+  openDropdown(): void {
+    this.dropdownOpen.set(true);
   }
 
   updateSearch(query: string): void {
     this.searchQuery.set(query);
+    this.dropdownOpen.set(true);
+    this.activeIndex.set(-1);
   }
 
-  openInstrumentModal(instrument: Instrument): void {
-    this.selectedInstrumentForModal.set(instrument);
-    this.showInstrumentModal.set(true);
-    this.loadChart(instrument.symbol);
+  onSearchKeydown(event: KeyboardEvent): void {
+    if (event.key === 'Escape') {
+      this.closeDropdown();
+      return;
+    }
+
+    if (!this.dropdownOpen()) return;
+
+    const items = this.filteredInstruments;
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      event.preventDefault();
+      if (!items.length) return;
+
+      const current = this.activeIndex();
+      const step = event.key === 'ArrowDown' ? 1 : -1;
+      const next =
+        current < 0
+          ? (step > 0 ? 0 : items.length - 1)
+          : (current + step + items.length) % items.length;
+      this.activeIndex.set(next);
+    } else if (event.key === 'Enter') {
+      const item = items[this.activeIndex()];
+      if (item) {
+        event.preventDefault();
+        this.selectInstrument(item.symbol);
+      }
+    }
   }
 
-  closeInstrumentModal(): void {
-    this.showInstrumentModal.set(false);
-    this.selectedInstrumentForModal.set(null);
+  @HostListener('document:mousedown', ['$event'])
+  onDocumentMouseDown(event: MouseEvent): void {
+    const container = this.searchField?.nativeElement;
+    if (container && !container.contains(event.target as Node)) {
+      this.closeDropdown();
+    }
+  }
+
+  private closeDropdown(): void {
+    this.dropdownOpen.set(false);
+    this.activeIndex.set(-1);
+  }
+
+  private resetChart(): void {
     this.chartPrices.set([]);
+    this.chartDates.set([]);
     this.chartLoading.set(false);
     this.chartError.set(false);
   }
 
   private loadChart(symbol: string): void {
     this.chartPrices.set([]);
+    this.chartDates.set([]);
     this.chartError.set(false);
     this.chartLoading.set(true);
 
@@ -421,16 +555,18 @@ export class Trade {
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: prices => {
-          if (this.selectedInstrumentForModal()?.symbol !== symbol) return;
+          if (this.selectedInstrument?.symbol !== symbol) return;
 
-          const validPrices = prices.filter(
-            price => typeof price === 'number' && Number.isFinite(price)
-          );
-          this.chartPrices.set(validPrices);
+          const dates = this.estimateBarDates(prices.length);
+          const validBars = prices
+            .map((price, index) => ({ price, date: dates[index] }))
+            .filter(bar => typeof bar.price === 'number' && Number.isFinite(bar.price));
+          this.chartPrices.set(validBars.map(bar => bar.price));
+          this.chartDates.set(validBars.map(bar => bar.date));
           this.chartLoading.set(false);
         },
         error: () => {
-          if (this.selectedInstrumentForModal()?.symbol !== symbol) return;
+          if (this.selectedInstrument?.symbol !== symbol) return;
 
           this.chartLoading.set(false);
           this.chartError.set(true);
@@ -438,19 +574,27 @@ export class Trade {
       });
   }
 
+  private estimateBarDates(count: number): Date[] {
+    const isWeekend = (date: Date) => date.getDay() === 0 || date.getDay() === 6;
+    const cursor = new Date();
+    cursor.setHours(0, 0, 0, 0);
+    while (isWeekend(cursor)) cursor.setDate(cursor.getDate() - 1);
+
+    const dates: Date[] = [];
+    for (let i = 0; i < count; i++) {
+      dates.push(new Date(cursor));
+      do {
+        cursor.setDate(cursor.getDate() - 1);
+      } while (isWeekend(cursor));
+    }
+    return dates.reverse();
+  }
+
   private formatDate(date: Date): string {
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const day = String(date.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
-  }
-
-  selectFromModal(): void {
-    const instrument = this.selectedInstrumentForModal();
-    if (instrument) {
-      this.selectInstrument(instrument.symbol);
-      this.closeInstrumentModal();
-    }
   }
 
   reviewOrder(): void {
@@ -518,13 +662,14 @@ export class Trade {
     this.reviewSnapshot.set(null);
     this.submission.set(null);
     this.attempted.set(false);
+    this.searchQuery.set('');
 
     this.form.reset({
       side: 'Buy',
-      symbol: 'NVDA',
-      quantity: '20',
+      symbol: '',
+      quantity: '',
       orderType: 'Market',
-      limitPrice: '140.00'
+      limitPrice: '0.00'
     });
 
     this.focusHeading();

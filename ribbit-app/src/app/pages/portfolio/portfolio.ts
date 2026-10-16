@@ -1,12 +1,14 @@
 import { CommonModule } from '@angular/common';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { isPlatformBrowser } from '@angular/common';
-import { Component, inject, OnInit, PLATFORM_ID, signal } from '@angular/core';
+import { Component, DestroyRef, inject, OnInit, PLATFORM_ID, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { environment } from '../../environments/environment';
 import { AuthService } from '../../shared/services/auth.service';
 import { PortfolioValueService } from '../../shared/services/portfolio-value.service';
+import { AccountContextService } from '../../shared/services/account-context.service';
 
 export type PortfolioState = 'ready' | 'loading' | 'error';
 
@@ -65,6 +67,8 @@ export class Portfolio implements OnInit {
   private readonly router = inject(Router);
   private readonly authService = inject(AuthService);
   private readonly portfolioValueService = inject(PortfolioValueService);
+  private readonly accountContext = inject(AccountContextService);
+  private readonly destroyRef = inject(DestroyRef);
 
   state: PortfolioState = 'ready';
   availableCash = this.readStoredBalance();
@@ -72,6 +76,14 @@ export class Portfolio implements OnInit {
 
   ngOnInit(): void {
     if (isPlatformBrowser(this.platformId)) {
+      this.accountContext.accountUpdated
+        .pipe(takeUntilDestroyed(this.destroyRef))
+        .subscribe(account => {
+          if (account.accountId !== this.readAccountId()) return;
+          this.availableCash = account.balance;
+          this.loadPositions();
+          this.loadPortfolioValue();
+        });
       this.loadPositions();
       this.loadPortfolioValue();
     }
@@ -92,6 +104,8 @@ export class Portfolio implements OnInit {
   search = '';
   filter: HoldingFilter = 'all';
   selectedSymbol: string | null = null;
+  currentPage = 1;
+  readonly pageSize = 5;
 
   readonly icons: Record<string, string> = {
     external:
@@ -162,6 +176,20 @@ export class Portfolio implements OnInit {
 
       return matchesSearch && matchesFilter;
     });
+  }
+
+  get totalPages(): number {
+    return Math.max(1, Math.ceil(this.filteredHoldings.length / this.pageSize));
+  }
+
+  get paginatedHoldings(): Holding[] {
+    const page = Math.min(this.currentPage, this.totalPages);
+    const start = (page - 1) * this.pageSize;
+    return this.filteredHoldings.slice(start, start + this.pageSize);
+  }
+
+  setPage(page: number): void {
+    this.currentPage = Math.min(Math.max(page, 1), this.totalPages);
   }
 
   get selectedHolding(): Holding | undefined {
@@ -246,6 +274,7 @@ export class Portfolio implements OnInit {
   clearFilters(): void {
     this.search = '';
     this.filter = 'all';
+    this.currentPage = 1;
   }
 
   navigate(destination: PortfolioDestination): void {
@@ -298,7 +327,7 @@ export class Portfolio implements OnInit {
       )
       .subscribe({
         next: positions => {
-          this.holdings = positions.map(position => ({
+          this.holdings = positions.map((position): Holding => ({
             symbol: position.ticker,
             name: position.asset_name,
             type: position.asset_type.toUpperCase().includes('ETF')
@@ -309,7 +338,10 @@ export class Portfolio implements OnInit {
             currentPrice: position.quantity > 0
               ? position.total_price / position.quantity
               : position.average_price
-          }));
+          }))
+            .sort((first, second) =>
+              this.marketValue(second) - this.marketValue(first)
+            );
           console.log('Positions loaded:', this.holdings.length);
         },
         error: error => {

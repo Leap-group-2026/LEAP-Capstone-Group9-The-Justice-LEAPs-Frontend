@@ -1,7 +1,7 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Router } from '@angular/router';
-import { Observable } from 'rxjs';
+import { map, Observable, Subject, tap } from 'rxjs';
 import { environment } from '../../environments/environment';
 
 export interface AccountContextItem {
@@ -20,6 +20,20 @@ export interface CreateAccountRequest {
   tradeType: string;
 }
 
+interface AccountApiResponse {
+  accountId: number;
+  userId?: number;
+  balance: number;
+  portfolioSize?: string;
+  portfolio_size?: string;
+  tradeType?: string;
+  trade_type?: string;
+  createdAt?: string;
+  created_at?: string;
+  accountActive?: boolean;
+  account_active?: boolean;
+}
+
 @Injectable({ providedIn: 'root' })
 export class AccountContextService {
   private readonly http = inject(HttpClient);
@@ -29,6 +43,7 @@ export class AccountContextService {
   readonly selectedAccount = signal<AccountContextItem | null>(null);
   readonly isLoading = signal(false);
   readonly loadError = signal('');
+  readonly accountUpdated = new Subject<AccountContextItem>();
 
   loadAccounts(): void {
     const token = typeof window === 'undefined' ? null : window.localStorage.getItem('token');
@@ -70,16 +85,34 @@ export class AccountContextService {
     });
   }
 
+  refreshAccount(accountId: number): Observable<AccountContextItem> {
+    return this.http.get<AccountApiResponse>(`${environment.springUrl}/accounts/${accountId}`, {
+      headers: this.createAuthHeaders()
+    }).pipe(
+      map(response => this.normalizeAccount(response)),
+      tap(account => {
+        this.persistAccount(account);
+        this.accounts.update(accounts => accounts.map(item =>
+          item.accountId === account.accountId ? account : item
+        ));
+        if (this.selectedAccount()?.accountId === account.accountId) {
+          this.selectedAccount.set(account);
+        }
+        this.accountUpdated.next(account);
+      })
+    );
+  }
+
+  closeAccount(accountId: number): Observable<string> {
+    return this.http.patch(`${environment.springUrl}/accounts/close/${accountId}`, {}, {
+      headers: this.createAuthHeaders(),
+      responseType: 'text'
+    });
+  }
+
   private setSelectedAccount(account: AccountContextItem, refreshPage: boolean): void {
     this.selectedAccount.set(account);
-    if (typeof window !== 'undefined') {
-      window.localStorage.setItem('accountId', String(account.accountId));
-      window.localStorage.setItem('tradeType', account.tradeType ?? '');
-      window.localStorage.setItem('balance', String(account.balance));
-      window.localStorage.setItem('portfolioSize', account.portfolioSize ?? '');
-      window.localStorage.setItem('createdAt', account.createdAt ?? '');
-      window.localStorage.setItem('accountActive', String(account.accountActive));
-    }
+    this.persistAccount(account);
 
     if (refreshPage) {
       const currentUrl = this.router.url;
@@ -87,6 +120,29 @@ export class AccountContextService {
         void this.router.navigateByUrl(currentUrl);
       });
     }
+  }
+
+  private persistAccount(account: AccountContextItem): void {
+    if (typeof window === 'undefined') return;
+
+    window.localStorage.setItem('accountId', String(account.accountId));
+    window.localStorage.setItem('tradeType', account.tradeType ?? '');
+    window.localStorage.setItem('balance', String(account.balance));
+    window.localStorage.setItem('portfolioSize', account.portfolioSize ?? '');
+    window.localStorage.setItem('createdAt', account.createdAt ?? '');
+    window.localStorage.setItem('accountActive', String(account.accountActive));
+  }
+
+  private normalizeAccount(response: AccountApiResponse): AccountContextItem {
+    return {
+      accountId: response.accountId,
+      userId: response.userId ?? 0,
+      balance: response.balance,
+      portfolioSize: response.portfolioSize ?? response.portfolio_size ?? '',
+      tradeType: response.tradeType ?? response.trade_type ?? '',
+      createdAt: response.createdAt ?? response.created_at ?? '',
+      accountActive: response.accountActive ?? response.account_active ?? true
+    };
   }
 
   private readStoredAccountId(): number | null {

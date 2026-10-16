@@ -1,7 +1,8 @@
-import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { Injectable, inject } from '@angular/core';
 import { forkJoin, map, Observable, switchMap } from 'rxjs';
 import { environment } from '../../environments/environment';
+import { InstrumentsApiService } from './instruments-api.service';
 
 interface PositionApiResponse {
   ticker: string;
@@ -18,6 +19,7 @@ interface InstrumentApiResponse {
 })
 export class PortfolioValueService {
   private readonly http = inject(HttpClient);
+  private readonly instrumentsApi = inject(InstrumentsApiService);
 
   getPortfolioValue(accountId: number): Observable<number> {
     return this.http
@@ -33,10 +35,7 @@ export class PortfolioValueService {
           }
 
           const priceRequests = positions.map(position =>
-            this.http.get<InstrumentApiResponse>(
-              `${environment.springUrl}/instruments/${encodeURIComponent(position.ticker)}`,
-              { headers: this.createAuthHeaders() }
-            ).pipe(
+            this.getInstrument(position.ticker).pipe(
               map(instrument => instrument.price * position.quantity)
             )
           );
@@ -46,6 +45,12 @@ export class PortfolioValueService {
           );
         })
       );
+  }
+
+  private getInstrument(ticker: string): Observable<InstrumentApiResponse> {
+    return ticker.includes('/')
+      ? this.instrumentsApi.getForexPrice(ticker)
+      : this.instrumentsApi.getByTicker(ticker);
   }
 
   private createAuthHeaders(): HttpHeaders {

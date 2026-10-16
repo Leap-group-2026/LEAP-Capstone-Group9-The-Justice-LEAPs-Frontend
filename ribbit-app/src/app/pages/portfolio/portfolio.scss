@@ -19,6 +19,30 @@
   -webkit-font-smoothing: antialiased;
 }
 
+:host-context(.light-theme) {
+  --background: #f5f8f3;
+  --surface: #ffffff;
+  --surface-raised: #eaf1e8;
+  --border: #c8d5c5;
+  --text: #18351f;
+  --muted: #52705a;
+  --subtle: #6f8975;
+  --accent: #287a3c;
+  --negative: #c6534d;
+
+  .app-shell,
+  .panel,
+  .summary-card,
+  .summary-grid {
+    background: #ffffff;
+    border-color: #c8d5c5;
+  }
+
+  .summary-grid { background: #edf4eb; }
+  .summary-card.portfolio-card { background: linear-gradient(120deg, #e7f1e4, #ffffff); }
+  .nav-item.active { background: #dcebd7; }
+}
+
 * { box-sizing: border-box; }
 button, input, select { font: inherit; }
 button { cursor: pointer; }
@@ -484,6 +508,20 @@ tbody .selected-row th:first-child { box-shadow: inset 3px 0 var(--accent); }
   color: var(--text);
   font-family: "IBM Plex Mono", monospace;
   font-weight: 400;
+}
+
+.holdings-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 16px 24px 0;
+  color: var(--subtle);
+  font-size: 12px;
+}
+.holdings-pagination .button:disabled {
+  cursor: not-allowed;
+  opacity: .45;
 }
 
 .selection-panel {

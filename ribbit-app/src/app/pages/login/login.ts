@@ -11,6 +11,7 @@ import { Router, RouterLink } from '@angular/router';
 import { finalize, map, Observable, of, switchMap, tap, throwError, timeout } from 'rxjs';
 import { environment } from '../../environments/environment';
 import { AuthService } from '../../shared/services/auth.service';
+import { ThemeService } from '../../shared/services/theme.service';
 
 export interface LoginCredentials {
   email: string;
@@ -54,6 +55,7 @@ interface AccountResponse {
 export class Login {
   private readonly http = inject(HttpClient);
   private readonly router = inject(Router);
+  readonly theme = inject(ThemeService);
   private readonly authService = inject(AuthService);
 
   @Input() loading = false;
@@ -65,6 +67,10 @@ export class Login {
   showPassword = false;
   readonly isSubmitting = signal(false);
   readonly loginError = signal('');
+
+  toggleTheme(): void {
+    this.theme.toggle();
+  }
   readonly isAdminLogin = this.router.url.startsWith('/admin-login');
 
   readonly form = new FormGroup({
