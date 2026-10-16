@@ -216,6 +216,7 @@
                 placeholder="Search by symbol or instrument"
                 autocomplete="off"
                 aria-controls="holdings-table"
+                (input)="currentPage = 1"
               />
             </div>
 
@@ -225,6 +226,7 @@
                 id="holding-filter"
                 [(ngModel)]="filter"
                 aria-controls="holdings-table"
+                (change)="currentPage = 1"
               >
                 <option value="all">All holdings</option>
                 <option value="gainers">Gainers</option>
@@ -277,7 +279,7 @@
                 </thead>
 
                 <tbody>
-                  @for (holding of filteredHoldings; track holding.symbol) {
+                  @for (holding of paginatedHoldings; track holding.symbol) {
                     <tr [class.selected-row]="selectedSymbol === holding.symbol">
                       <th scope="row">
                         <button
@@ -329,6 +331,28 @@
                 <strong>{{ holdingsValue | currency }}</strong>
               </span>
             </div>
+
+            @if (totalPages > 1) {
+              <nav class="holdings-pagination" aria-label="Holdings pages">
+                <button
+                  class="button secondary"
+                  type="button"
+                  [disabled]="currentPage === 1"
+                  (click)="setPage(currentPage - 1)"
+                >
+                  Previous
+                </button>
+                <span aria-live="polite">Page {{ currentPage }} of {{ totalPages }}</span>
+                <button
+                  class="button secondary"
+                  type="button"
+                  [disabled]="currentPage === totalPages"
+                  (click)="setPage(currentPage + 1)"
+                >
+                  Next
+                </button>
+              </nav>
+            }
 
             @if (selectedHolding; as holding) {
               <div class="selection-panel" role="region" aria-label="Selected holding">

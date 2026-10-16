@@ -510,6 +510,20 @@ tbody .selected-row th:first-child { box-shadow: inset 3px 0 var(--accent); }
   font-weight: 400;
 }
 
+.holdings-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 16px 24px 0;
+  color: var(--subtle);
+  font-size: 12px;
+}
+.holdings-pagination .button:disabled {
+  cursor: not-allowed;
+  opacity: .45;
+}
+
 .selection-panel {
   display: flex;
   align-items: center;

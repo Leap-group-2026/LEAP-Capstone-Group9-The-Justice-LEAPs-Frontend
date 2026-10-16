@@ -92,6 +92,8 @@ export class Portfolio implements OnInit {
   search = '';
   filter: HoldingFilter = 'all';
   selectedSymbol: string | null = null;
+  currentPage = 1;
+  readonly pageSize = 5;
 
   readonly icons: Record<string, string> = {
     external:
@@ -162,6 +164,20 @@ export class Portfolio implements OnInit {
 
       return matchesSearch && matchesFilter;
     });
+  }
+
+  get totalPages(): number {
+    return Math.max(1, Math.ceil(this.filteredHoldings.length / this.pageSize));
+  }
+
+  get paginatedHoldings(): Holding[] {
+    const page = Math.min(this.currentPage, this.totalPages);
+    const start = (page - 1) * this.pageSize;
+    return this.filteredHoldings.slice(start, start + this.pageSize);
+  }
+
+  setPage(page: number): void {
+    this.currentPage = Math.min(Math.max(page, 1), this.totalPages);
   }
 
   get selectedHolding(): Holding | undefined {
@@ -246,6 +262,7 @@ export class Portfolio implements OnInit {
   clearFilters(): void {
     this.search = '';
     this.filter = 'all';
+    this.currentPage = 1;
   }
 
   navigate(destination: PortfolioDestination): void {
@@ -298,7 +315,7 @@ export class Portfolio implements OnInit {
       )
       .subscribe({
         next: positions => {
-          this.holdings = positions.map(position => ({
+          this.holdings = positions.map((position): Holding => ({
             symbol: position.ticker,
             name: position.asset_name,
             type: position.asset_type.toUpperCase().includes('ETF')
@@ -309,7 +326,10 @@ export class Portfolio implements OnInit {
             currentPrice: position.quantity > 0
               ? position.total_price / position.quantity
               : position.average_price
-          }));
+          }))
+            .sort((first, second) =>
+              this.marketValue(second) - this.marketValue(first)
+            );
           console.log('Positions loaded:', this.holdings.length);
         },
         error: error => {
