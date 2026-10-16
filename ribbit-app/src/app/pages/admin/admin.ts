@@ -1,7 +1,7 @@
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { Component, OnInit, PLATFORM_ID, inject, signal } from '@angular/core';
 import { finalize } from 'rxjs';
-import { AdminApiService, AdminOrder, AdminOverview } from '../../shared/services/admin-api.service';
+import { AdminApiService, AdminOrder, AdminOverview, TopBoughtStock } from '../../shared/services/admin-api.service';
 
 @Component({
   selector: 'app-admin',
@@ -18,6 +18,7 @@ export class Admin implements OnInit {
   readonly isLoading = signal(false);
   readonly errorMessage = signal('');
   readonly showOrders = signal(false);
+  readonly topBoughtStocks = signal<TopBoughtStock[]>([]);
 
   ngOnInit(): void {
     if (isPlatformBrowser(this.platformId)) {
@@ -42,6 +43,19 @@ export class Admin implements OnInit {
           );
         }
       });
+
+    this.adminApi.getTopBoughtStocks().subscribe({
+      next: stocks => this.topBoughtStocks.set(stocks),
+      error: response => {
+        if (!this.errorMessage()) {
+          this.errorMessage.set(
+            response.status === 401 || response.status === 403
+              ? 'You do not have permission to view warehouse analytics.'
+              : 'Unable to load warehouse analytics.'
+          );
+        }
+      }
+    });
   }
 
   get orders(): AdminOrder[] {
@@ -54,6 +68,31 @@ export class Admin implements OnInit {
 
   get filledOrders(): number {
     return this.orders.filter(order => order.status === 'FILLED').length;
+  }
+
+  volumeWidth(volume: number): number {
+    const maximum = Math.max(...this.topBoughtStocks().map(stock => stock.totalVolume), 1);
+    return (volume / maximum) * 100;
+  }
+
+  get maximumVolume(): number {
+    return Math.max(...this.topBoughtStocks().map(stock => stock.totalVolume), 1);
+  }
+
+  volumeBarX(index: number): number {
+    const chartWidth = 720;
+    const barSlot = chartWidth / Math.max(this.topBoughtStocks().length, 1);
+    return index * barSlot + barSlot * 0.2;
+  }
+
+  volumeBarWidth(): number {
+    const chartWidth = 720;
+    const barSlot = chartWidth / Math.max(this.topBoughtStocks().length, 1);
+    return barSlot * 0.6;
+  }
+
+  volumeBarHeight(volume: number): number {
+    return (volume / this.maximumVolume) * 190;
   }
 
   toggleOrders(): void {
