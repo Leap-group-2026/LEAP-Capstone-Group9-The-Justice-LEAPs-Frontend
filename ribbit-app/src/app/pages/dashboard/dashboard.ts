@@ -1,4 +1,6 @@
 import { CommonModule } from '@angular/common';
+import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { environment } from '../../environments/environment';
 import { Component, inject, OnInit, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { AuthService } from '../../shared/services/auth.service';
@@ -20,6 +22,14 @@ interface Holding {
   quantity: number;
   currentPrice: number;
   averageCost: number;
+}
+
+interface AccountPosition {
+  ticker: string;
+  asset_name: string;
+  quantity: number;
+  average_price: number;
+  total_price: number;
 }
 
 interface Order {
@@ -47,6 +57,7 @@ interface PerformancePoint {
   styleUrls: ['./dashboard.scss']
 })
 export class Dashboard implements OnInit {
+  private readonly http = inject(HttpClient);
   private readonly router = inject(Router);
   private readonly authService = inject(AuthService);
   private readonly portfolioValueService = inject(PortfolioValueService);
@@ -65,10 +76,51 @@ export class Dashboard implements OnInit {
 
     if (accountId === null) return;
 
+    this.loadPositions();
+
     this.portfolioValueService.getPortfolioValue(accountId).subscribe({
       next: value => this.apiPortfolioValue.set(value),
       error: error => console.error('Unable to load portfolio value', error)
     });
+  }
+  private loadPositions(): void {
+    const accessToken = localStorage.getItem('token');
+    const accountId = this.readAccountId();
+
+    if (!accessToken || accountId === null) {
+      console.warn('Missing token or account ID; skipped positions lookup.');
+      return;
+    }
+
+    this.http
+      .get<AccountPosition[]>(
+        `${environment.springUrl}/positions/account/${accountId}`,
+        {
+          headers: new HttpHeaders({
+            Authorization: `Bearer ${accessToken}`
+          })
+        }
+      )
+      .subscribe({
+        next: positions => {
+          this.holdings = positions.map(position => ({
+            symbol: position.ticker,
+            name: position.asset_name,
+            quantity: position.quantity,
+            averageCost: position.average_price,
+            currentPrice: position.quantity > 0
+              ? position.total_price / position.quantity
+              : position.average_price
+          }))
+            .sort((first, second) =>
+              this.marketValue(second) - this.marketValue(first)
+            )
+            .slice(0, 5);
+        },
+        error: error => {
+          console.error('Positions lookup failed:', error);
+        }
+      });
   }
 
   private createUser() {
@@ -83,8 +135,10 @@ export class Dashboard implements OnInit {
     return Number.isFinite(balance) ? balance : 0;
   }
 
-  readonly holdings: Holding[] = [
-    {
+  // TODO: Replace this hardcoded list with an initially empty Holding[].
+  // Populate it from the positions API after transforming and sorting the response.
+   holdings: Holding[] = []
+    /*{
       symbol: 'AAPL',
       name: 'Apple Inc.',
       quantity: 80,
@@ -119,7 +173,12 @@ export class Dashboard implements OnInit {
       currentPrice: 248.50,
       averageCost: 260
     }
-  ];
+  ];*/
+  // TODO: Add loadPositions() near the other private helper methods.
+  // Read the token and account ID, call /positions/account/{accountId},
+  // transform each response into Holding, calculate market value, sort highest
+  // to lowest, and keep only the first five before assigning this.holdings.
+  
 
   readonly orders: Order[] = [
     {
