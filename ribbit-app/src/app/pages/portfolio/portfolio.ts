@@ -1,12 +1,14 @@
 import { CommonModule } from '@angular/common';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { isPlatformBrowser } from '@angular/common';
-import { Component, inject, OnInit, PLATFORM_ID, signal } from '@angular/core';
+import { Component, DestroyRef, inject, OnInit, PLATFORM_ID, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { environment } from '../../environments/environment';
 import { AuthService } from '../../shared/services/auth.service';
 import { PortfolioValueService } from '../../shared/services/portfolio-value.service';
+import { AccountContextService } from '../../shared/services/account-context.service';
 
 export type PortfolioState = 'ready' | 'loading' | 'error';
 
@@ -65,6 +67,8 @@ export class Portfolio implements OnInit {
   private readonly router = inject(Router);
   private readonly authService = inject(AuthService);
   private readonly portfolioValueService = inject(PortfolioValueService);
+  private readonly accountContext = inject(AccountContextService);
+  private readonly destroyRef = inject(DestroyRef);
 
   state: PortfolioState = 'ready';
   availableCash = this.readStoredBalance();
@@ -72,6 +76,14 @@ export class Portfolio implements OnInit {
 
   ngOnInit(): void {
     if (isPlatformBrowser(this.platformId)) {
+      this.accountContext.accountUpdated
+        .pipe(takeUntilDestroyed(this.destroyRef))
+        .subscribe(account => {
+          if (account.accountId !== this.readAccountId()) return;
+          this.availableCash = account.balance;
+          this.loadPositions();
+          this.loadPortfolioValue();
+        });
       this.loadPositions();
       this.loadPortfolioValue();
     }

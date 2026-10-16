@@ -4,12 +4,17 @@
     <p>View and manage your account transactions.</p>
   </div>
 
-  <button class="button primary" type="button" (click)="openAddFundsModal()">
-    Add Funds
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <path [attr.d]="icons['plus']"/>
-    </svg>
-  </button>
+  <div class="welcome-actions">
+    <button class="button secondary" type="button" (click)="openCurrencyExchangeModal()">
+      Currency Exchange
+    </button>
+    <button class="button primary" type="button" (click)="openAddFundsModal()">
+      Add Funds
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path [attr.d]="icons['plus']"/>
+      </svg>
+    </button>
+  </div>
 </section>
 
 <section class="summary-grid" aria-label="Account summary">
@@ -352,5 +357,69 @@
         </button>
       </div>
     }
+  </div>
+}
+
+@if (showCurrencyExchangeModal()) {
+  <div class="modal-backdrop" (click)="closeCurrencyExchangeModal()"></div>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="exchange-modal-title">
+    <div class="modal-header">
+      <h2 id="exchange-modal-title">Currency Exchange</h2>
+      <button type="button" class="modal-close" (click)="closeCurrencyExchangeModal()" aria-label="Close">×</button>
+    </div>
+
+    <div class="modal-body">
+      @if (exchangeError) {
+        <div class="modal-error" role="alert">{{ exchangeError }}</div>
+      }
+      @if (exchangeSuccess) {
+        <div class="modal-success" role="status">{{ exchangeSuccess }}</div>
+      }
+
+      <div class="exchange-fields">
+        <div class="form-group">
+          <label for="exchange-from">From</label>
+          <select id="exchange-from" [(ngModel)]="exchangeFrom" (ngModelChange)="onExchangeCurrencyChange()" class="form-input">
+            @for (currency of currencies; track currency) {
+              <option [value]="currency">{{ currency }}</option>
+            }
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="exchange-to">To</label>
+          <select id="exchange-to" [(ngModel)]="exchangeTo" (ngModelChange)="onExchangeCurrencyChange()" class="form-input">
+            @for (currency of currencies; track currency) {
+              <option [value]="currency">{{ currency }}</option>
+            }
+          </select>
+        </div>
+      </div>
+
+      <div class="exchange-rate">
+        <span>Exchange rate</span>
+        <strong>
+          @if (exchangeRateLoading) { Loading... } @else { 1 {{ exchangeFrom }} = {{ formatExchangeRate() }} {{ exchangeTo }} }
+        </strong>
+      </div>
+
+      <div class="form-group">
+        <label for="exchange-amount">Amount ({{ exchangeFrom }})</label>
+        <input id="exchange-amount" type="number" min="0" step="any" inputmode="decimal" placeholder="Enter amount" [(ngModel)]="exchangeAmount" class="form-input" />
+      </div>
+
+      @if (convertedExchangeAmount !== null) {
+        <div class="exchange-result">
+          <span>You receive</span>
+          <strong>{{ convertedExchangeAmount | number:'1.2-8' }} {{ exchangeTo }}</strong>
+        </div>
+      }
+    </div>
+
+    <div class="modal-footer">
+      <button type="button" class="button secondary" (click)="closeCurrencyExchangeModal()">Cancel</button>
+      <button type="button" class="button primary" (click)="submitCurrencyExchange()" [disabled]="exchangeSubmitting || exchangeRateLoading || !!exchangeSuccess">
+        {{ exchangeSubmitting ? 'Submitting...' : 'Exchange' }}
+      </button>
+    </div>
   </div>
 }
