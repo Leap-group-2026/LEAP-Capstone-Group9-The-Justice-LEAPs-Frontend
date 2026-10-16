@@ -52,6 +52,43 @@ h2 { font-size: 15px; font-weight: 500; }
 
 .button:hover { border-color: var(--accent); color: var(--accent); }
 
+.filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 20px;
+}
+
+.filter-bar label {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.filter-bar select {
+  min-height: 36px;
+  padding: 7px 32px 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface-raised);
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+}
+
+.user-lookup { overflow: hidden; }
+.lookup-form { display: flex; align-items: end; gap: 12px; padding: 18px 20px; }
+.lookup-form label { color: var(--muted); font-size: 12px; }
+.lookup-form input { min-width: 280px; min-height: 36px; padding: 7px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface-raised); color: var(--text); font: inherit; font-size: 12px; }
+.lookup-error { padding: 0 20px 18px; color: var(--negative); font-size: 12px; }
+.user-result { display: grid; grid-template-columns: 1.5fr repeat(3, 1fr); gap: 16px; padding: 18px 20px; border-top: 1px solid var(--border); }
+.user-result div, .lookup-account { display: grid; gap: 5px; }
+.user-result span, .lookup-account span { color: var(--muted); font-size: 11px; }
+.user-result strong, .lookup-account strong { font-size: 12px; font-weight: 500; }
+.lookup-accounts { padding: 0 20px 18px; }
+.lookup-accounts h3 { margin: 0 0 10px; color: var(--muted); font-size: 12px; font-weight: 500; }
+.lookup-account { grid-template-columns: 100px 1fr; padding: 10px 0; border-top: 1px solid var(--border); }
+.pagination { display: flex; align-items: center; justify-content: flex-end; gap: 12px; padding: 14px 20px; border-top: 1px solid var(--border); color: var(--muted); font-size: 12px; }
+
 .summary-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -190,4 +227,6 @@ tbody td { color: var(--muted); }
   h1 { font-size: 26px; }
   .welcome { align-items: flex-start; flex-direction: column; }
   .summary-grid { grid-template-columns: 1fr; }
+  .lookup-form, .user-result { align-items: stretch; grid-template-columns: 1fr; flex-direction: column; }
+  .lookup-form input { min-width: 0; width: 100%; }
 }
