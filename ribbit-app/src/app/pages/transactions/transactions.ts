@@ -1,32 +1,43 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectorRef, Component, inject, signal } from '@angular/core';
+import { Component, DestroyRef, afterNextRender, computed, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
-import { catchError, finalize, of, switchMap, timeout } from 'rxjs';
+import { HttpErrorResponse } from '@angular/common/http';
+import { ActivatedRoute, Router } from '@angular/router';
+import { EMPTY, catchError, finalize, of, switchMap, timeout } from 'rxjs';
+import { describeHttpError } from '../../shared/http-error';
 import { AccountContextService } from '../../shared/services/account-context.service';
-import { AuthService } from '../../shared/services/auth.service';
+import { CurrentAccountService } from '../../shared/services/current-account.service';
 import { InstrumentsApiService } from '../../shared/services/instruments-api.service';
 import { TransactionsApiService } from '../../shared/services/transactions-api.service';
+import {
+  AccountDto,
+  FundingMethod,
+  OrderEventDto,
+  Transaction,
+  TransactionStatus
+} from '../../shared/services/transactions.models';
+import {
+  TransactionsService,
+  dollarsToCents,
+  orderIdFromTransactionId,
+  splitLocalDateTime
+} from '../../shared/services/transactions.service';
 
-type TransactionType = 'Deposit' | 'Withdrawal' | 'Buy' | 'Sell';
-type TransactionStatus = 'Completed' | 'Pending' | 'Failed';
-type AddFundsStep = 'form' | 'review' | 'success';
+type FundsStep = 'form' | 'review' | 'success';
 type Currency = 'USD' | 'CAD' | 'EUR' | 'GBP' | 'INR' | 'JPY';
+export type FundsMode = 'deposit' | 'withdraw';
 
-interface Transaction {
-  id: string;
-  date: string;
-  time: string;
-  type: TransactionType;
-  description: string;
-  amount: number;
-  status: TransactionStatus;
-  instrument?: string;
-  quantity?: number;
-  price?: number;
+export const MAX_TRANSFER_AMOUNT = 100000;
+// Matches the backend: digits with at most 2 decimal places.
+const AMOUNT_PATTERN = /^\d+(\.\d{1,2})?$/;
+
+interface OrderHistoryState {
+  loading: boolean;
+  error: string | null;
+  events: OrderEventDto[];
 }
 
-interface MockTransaction extends Transaction {}
 
 @Component({
   selector: 'app-transactions',
@@ -37,130 +48,16 @@ interface MockTransaction extends Transaction {}
 })
 export class Transactions {
   private readonly router = inject(Router);
-  private readonly authService = inject(AuthService);
+  private readonly route = inject(ActivatedRoute);
+  private readonly destroyRef = inject(DestroyRef);
+  private readonly transactionsService = inject(TransactionsService);
+  private readonly currentAccount = inject(CurrentAccountService);
+  private readonly accountContext = inject(AccountContextService);
   private readonly instrumentsApi = inject(InstrumentsApiService);
   private readonly transactionsApi = inject(TransactionsApiService);
-  private readonly accountContext = inject(AccountContextService);
-  private readonly changeDetector = inject(ChangeDetectorRef);
 
-  // Account data
-  readonly user = {
-    ...this.authService.getUserProfile()
-  };
-
-  private availableCashCents = this.readStoredBalanceCents();
-
-  // Mock transaction data
-  readonly mockTransactions: MockTransaction[] = [
-    {
-      id: 'TRX-2026-1001',
-      date: '2026-10-08',
-      time: '2:45 PM ET',
-      type: 'Buy',
-      description: 'Apple Inc.',
-      amount: -2284.20,
-      status: 'Completed',
-      instrument: 'AAPL',
-      quantity: 10,
-      price: 228.42
-    },
-    {
-      id: 'TRX-2026-1000',
-      date: '2026-10-08',
-      time: '10:30 AM ET',
-      type: 'Deposit',
-      description: 'Bank transfer from Chase',
-      amount: 5000.00,
-      status: 'Completed'
-    },
-    {
-      id: 'TRX-2026-0999',
-      date: '2026-10-07',
-      time: '3:15 PM ET',
-      type: 'Sell',
-      description: 'Microsoft Corporation',
-      amount: 2128.00,
-      status: 'Completed',
-      instrument: 'MSFT',
-      quantity: 5,
-      price: 425.60
-    },
-    {
-      id: 'TRX-2026-0998',
-      date: '2026-10-07',
-      time: '11:20 AM ET',
-      type: 'Withdrawal',
-      description: 'Withdrawal to checking account',
-      amount: -1500.00,
-      status: 'Completed'
-    },
-    {
-      id: 'TRX-2026-0997',
-      date: '2026-10-06',
-      time: '4:30 PM ET',
-      type: 'Buy',
-      description: 'NVIDIA Corporation',
-      amount: -2871.40,
-      status: 'Completed',
-      instrument: 'NVDA',
-      quantity: 20,
-      price: 143.57
-    },
-    {
-      id: 'TRX-2026-0996',
-      date: '2026-10-06',
-      time: '9:00 AM ET',
-      type: 'Deposit',
-      description: 'Direct deposit salary',
-      amount: 3500.00,
-      status: 'Completed'
-    },
-    {
-      id: 'TRX-2026-0995',
-      date: '2026-10-05',
-      time: '2:10 PM ET',
-      type: 'Buy',
-      description: 'Tesla, Inc.',
-      amount: -7455.00,
-      status: 'Pending',
-      instrument: 'TSLA',
-      quantity: 30,
-      price: 248.50
-    },
-    {
-      id: 'TRX-2026-0994',
-      date: '2026-10-04',
-      time: '1:45 PM ET',
-      type: 'Withdrawal',
-      description: 'Withdrawal attempt',
-      amount: -2000.00,
-      status: 'Failed'
-    },
-    {
-      id: 'TRX-2026-0993',
-      date: '2026-10-04',
-      time: '10:15 AM ET',
-      type: 'Deposit',
-      description: 'Credit card transfer',
-      amount: 1000.00,
-      status: 'Completed'
-    },
-    {
-      id: 'TRX-2026-0992',
-      date: '2026-10-03',
-      time: '3:30 PM ET',
-      type: 'Sell',
-      description: 'Apple Inc.',
-      amount: 1827.36,
-      status: 'Completed',
-      instrument: 'AAPL',
-      quantity: 8,
-      price: 228.42
-    }
-  ];
-
-  // Funding methods for Add Funds
-  readonly fundingMethods = [
+  // Funding methods for deposits and withdrawals
+  readonly fundingMethods: { id: FundingMethod; label: string }[] = [
     { id: 'bank', label: 'Bank Account' },
     { id: 'debit', label: 'Debit Card' }
   ];
@@ -172,72 +69,161 @@ export class Transactions {
     chevron: 'M9 6l6 6-6 6'
   };
 
+  // Data state
+  readonly loading = signal(true);
+  readonly error = signal<string | null>(null);
+  readonly account = signal<AccountDto | null>(null);
+  readonly accountName = signal('');
+  readonly noAccount = signal(false);
+  readonly transactions = signal<Transaction[]>([]);
+  readonly orderHistory = signal<Record<number, OrderHistoryState>>({});
+
   // UI state
-  readonly showAddFundsModal = signal(false);
-  readonly showCurrencyExchangeModal = signal(false);
-  readonly addFundsStep = signal<AddFundsStep>('form');
-  readonly transactions = signal<Transaction[]>(this.mockTransactions);
-  readonly filteredTransactions = signal<Transaction[]>(this.mockTransactions);
   readonly expandedTransactionId = signal<string | null>(null);
 
-  // Form state
-  addFundsAmount = '';
-  addFundsFundingMethod = 'bank';
-  addFundsError = '';
+  // Deposit / withdraw modal state
+  readonly showFundsModal = signal(false);
+  readonly fundsMode = signal<FundsMode>('deposit');
+  readonly fundsStep = signal<FundsStep>('form');
+  readonly fundsError = signal('');
+  readonly submitting = signal(false);
+  readonly balanceAfterTransfer = signal<number | null>(null);
+  fundsAmount = '';
+  fundsMethod: FundingMethod = 'bank';
 
+  // Currency exchange modal state
   readonly currencies: Currency[] = ['USD', 'CAD', 'EUR', 'GBP', 'INR', 'JPY'];
+  readonly showCurrencyExchangeModal = signal(false);
+  readonly exchangeRate = signal<number | null>(null);
+  readonly exchangeRateLoading = signal(false);
+  readonly exchangeSubmitting = signal(false);
+  readonly exchangeError = signal('');
+  readonly exchangeSuccess = signal('');
   exchangeFrom: Currency = 'USD';
   exchangeTo: Currency = 'CAD';
   exchangeAmount = '';
-  exchangeRate: number | null = null;
-  exchangeRateLoading = false;
-  exchangeSubmitting = false;
-  exchangeError = '';
-  exchangeSuccess = '';
   private readonly forexPriceCache = new Map<string, { price: number; expiresAt: number }>();
   private readonly forexCacheDurationMs = 5 * 60 * 1000;
 
   // Filter state
-  searchQuery = '';
-  typeFilter = 'all';
-  statusFilter = 'all';
+  readonly searchQuery = signal('');
+  readonly typeFilter = signal('all');
+  readonly statusFilter = signal('all');
 
-  constructor() {
-    this.applyFilters();
-  }
+  readonly filteredTransactions = computed(() => {
+    const query = this.searchQuery().trim().toLowerCase();
+    const type = this.typeFilter();
+    const status = this.statusFilter();
 
-  private readStoredBalanceCents(): number {
-    const balance = Number(typeof localStorage === 'undefined' ? null : localStorage.getItem('balance'));
-    return Number.isFinite(balance) ? Math.round(balance * 100) : 0;
-  }
+    return this.transactions().filter(t =>
+      (!query ||
+        t.id.toLowerCase().includes(query) ||
+        t.description.toLowerCase().includes(query) ||
+        !!t.instrument?.toLowerCase().includes(query)) &&
+      (type === 'all' || t.type.toLowerCase() === type) &&
+      (status === 'all' || t.status.toLowerCase() === status)
+    );
+  });
 
-  // Getters for calculations
-  get availableCash(): number {
-    return this.availableCashCents / 100;
-  }
+  readonly availableCashCents = computed(() => {
+    const account = this.account();
+    return account ? dollarsToCents(account.balance) : 0;
+  });
 
-  get totalDeposits(): number {
-    return this.mockTransactions
+  readonly accountEnding = computed(() => {
+    const account = this.account();
+    return account ? String(account.accountId).slice(-4) : '';
+  });
+
+  readonly totalDeposits = computed(() =>
+    this.transactions()
       .filter(t => t.type === 'Deposit' && t.status === 'Completed')
-      .reduce((sum, t) => sum + t.amount, 0);
-  }
+      .reduce((sum, t) => sum + t.amount, 0)
+  );
 
-  get totalWithdrawals(): number {
-    return Math.abs(
-      this.mockTransactions
+  readonly totalWithdrawals = computed(() =>
+    Math.abs(
+      this.transactions()
         .filter(t => t.type === 'Withdrawal' && t.status === 'Completed')
         .reduce((sum, t) => sum + t.amount, 0)
-    );
-  }
+    )
+  );
 
-  get totalTransactionValue(): number {
-    return this.mockTransactions
+  readonly totalTransactionValue = computed(() =>
+    this.transactions()
       .filter(t => t.status === 'Completed')
-      .reduce((sum, t) => sum + Math.abs(t.amount), 0);
+      .reduce((sum, t) => sum + Math.abs(t.amount), 0)
+  );
+
+  readonly completedTransactionsCount = computed(
+    () => this.transactions().filter(t => t.status === 'Completed').length
+  );
+
+  constructor() {
+    // Browser only: the route is prerendered and there is no token on the server.
+    afterNextRender(() => {
+      this.load();
+      this.openModalFromQueryParam();
+    });
   }
 
-  get completedTransactionsCount(): number {
-    return this.mockTransactions.filter(t => t.status === 'Completed').length;
+  // The dashboard links here with ?action=deposit (or withdraw) to open the modal.
+  private openModalFromQueryParam(): void {
+    const action = this.route.snapshot.queryParamMap.get('action');
+    if (action === 'deposit' || action === 'withdraw') {
+      this.openFundsModal(action);
+      void this.router.navigate([], {
+        relativeTo: this.route,
+        queryParams: { action: null },
+        queryParamsHandling: 'merge',
+        replaceUrl: true
+      });
+    }
+  }
+
+  load(refreshAccount = false): void {
+    this.loading.set(true);
+    this.error.set(null);
+
+    this.currentAccount
+      .load(refreshAccount)
+      .pipe(
+        switchMap(account => {
+          this.account.set(account);
+          this.noAccount.set(!account);
+          if (!account) {
+            this.transactions.set([]);
+            return of([]);
+          }
+          this.loadAccountName(account.accountId);
+          return this.transactionsService.getActivity(account.accountId);
+        }),
+        catchError(error => {
+          this.error.set(describeHttpError(error, 'Unable to load your transactions.'));
+          this.loading.set(false);
+          return EMPTY;
+        }),
+        takeUntilDestroyed(this.destroyRef)
+      )
+      .subscribe(activity => {
+        this.transactions.set(activity);
+        this.loading.set(false);
+      });
+  }
+
+  // The name is a nice-to-have; a failure here shouldn't block the page.
+  private loadAccountName(accountId: number): void {
+    this.transactionsService
+      .getAccount(accountId)
+      .pipe(
+        catchError(() => EMPTY),
+        takeUntilDestroyed(this.destroyRef)
+      )
+      .subscribe(summary => this.accountName.set(summary.name));
+  }
+
+  get availableCash(): number {
+    return this.availableCashCents() / 100;
   }
 
   // Format helpers
@@ -248,13 +234,32 @@ export class Transactions {
     }).format(amount);
   }
 
+  // Dates are local calendar dates with no zone, so build the Date from parts.
   formatDate(dateStr: string): string {
-    const date = new Date(dateStr + 'T00:00:00');
-    return date.toLocaleDateString('en-US', {
+    if (!dateStr) {
+      return '—';
+    }
+    const [year, month, day] = dateStr.split('-').map(Number);
+    return new Date(year, month - 1, day).toLocaleDateString('en-US', {
       month: 'short',
       day: 'numeric',
       year: 'numeric'
     });
+  }
+
+  // "14:30" -> "2:30 PM", shown as wall-clock time.
+  formatTime(timeStr: string): string {
+    if (!timeStr) {
+      return '';
+    }
+    const [hours, minutes] = timeStr.split(':').map(Number);
+    const period = hours >= 12 ? 'PM' : 'AM';
+    return `${hours % 12 || 12}:${String(minutes).padStart(2, '0')} ${period}`;
+  }
+
+  formatDateTime(value: string): string {
+    const { date, time } = splitLocalDateTime(value);
+    return `${this.formatDate(date)} · ${this.formatTime(time)}`;
   }
 
   getAmountDisplay(amount: number): string {
@@ -266,281 +271,375 @@ export class Transactions {
   }
 
   // Filter and search
-  applyFilters(): void {
-    let filtered = [...this.mockTransactions];
-
-    // Search filter
-    if (this.searchQuery.trim()) {
-      const query = this.searchQuery.toLowerCase();
-      filtered = filtered.filter(t =>
-        t.id.toLowerCase().includes(query) ||
-        t.description.toLowerCase().includes(query) ||
-        t.instrument?.toLowerCase().includes(query)
-      );
-    }
-
-    // Type filter
-    if (this.typeFilter !== 'all') {
-      filtered = filtered.filter(t => t.type.toLowerCase() === this.typeFilter.toLowerCase());
-    }
-
-    // Status filter
-    if (this.statusFilter !== 'all') {
-      filtered = filtered.filter(t => t.status.toLowerCase() === this.statusFilter.toLowerCase());
-    }
-
-    this.filteredTransactions.set(filtered);
-  }
-
   onSearchChange(value: string): void {
-    this.searchQuery = value;
-    this.applyFilters();
+    this.searchQuery.set(value);
   }
 
   onTypeFilterChange(event: Event): void {
-    const target = event.target as HTMLSelectElement;
-    this.typeFilter = target.value;
-    this.applyFilters();
+    this.typeFilter.set((event.target as HTMLSelectElement).value);
   }
 
   onStatusFilterChange(event: Event): void {
-    const target = event.target as HTMLSelectElement;
-    this.statusFilter = target.value;
-    this.applyFilters();
+    this.statusFilter.set((event.target as HTMLSelectElement).value);
   }
 
-  parseFloat(value: string): number {
-    return window.parseFloat(value);
+  clearFilters(): void {
+    this.searchQuery.set('');
+    this.typeFilter.set('all');
+    this.statusFilter.set('all');
+  }
+
+  // Strictly parsed amount, or null when the input isn't a plain number with at most 2 decimals.
+  parseAmount(value: string): number | null {
+    const trimmed = value.trim();
+    return AMOUNT_PATTERN.test(trimmed) ? Number(trimmed) : null;
   }
 
   getReviewAmount(): number {
-    return window.parseFloat(this.addFundsAmount) || 0;
+    return this.parseAmount(this.fundsAmount) ?? 0;
   }
 
-  getNewCashBalance(): number {
-    return this.availableCash + this.getReviewAmount();
+  // Estimate shown before confirming; the success step uses the backend's balance.
+  getEstimatedBalance(): number {
+    const amount = this.getReviewAmount();
+    return this.fundsMode() === 'deposit' ? this.availableCash + amount : this.availableCash - amount;
+  }
+
+  fundingMethodLabel(): string {
+    return this.fundingMethods.find(m => m.id === this.fundsMethod)?.label ?? 'Bank Account';
   }
 
   // Transaction details
   toggleTransactionDetails(id: string): void {
-    this.expandedTransactionId.update(current => current === id ? null : id);
+    const expanding = this.expandedTransactionId() !== id;
+    this.expandedTransactionId.set(expanding ? id : null);
+
+    const orderId = orderIdFromTransactionId(id);
+    if (expanding && orderId !== null) {
+      this.loadOrderHistory(orderId);
+    }
   }
 
   isTransactionExpanded(id: string): boolean {
     return this.expandedTransactionId() === id;
   }
 
-  // Add Funds modal
-  openAddFundsModal(): void {
-    this.addFundsStep.set('form');
-    this.addFundsAmount = '';
-    this.addFundsFundingMethod = 'bank';
-    this.addFundsError = '';
-    this.showAddFundsModal.set(true);
+  historyFor(id: string): OrderHistoryState | null {
+    const orderId = orderIdFromTransactionId(id);
+    return orderId === null ? null : this.orderHistory()[orderId] ?? null;
   }
 
-  closeAddFundsModal(): void {
-    this.showAddFundsModal.set(false);
-    this.addFundsError = '';
+  private loadOrderHistory(orderId: number): void {
+    const existing = this.orderHistory()[orderId];
+    if (existing && (existing.loading || !existing.error)) {
+      return;
+    }
+
+    this.setOrderHistory(orderId, { loading: true, error: null, events: [] });
+    this.transactionsService
+      .getOrderHistory(orderId)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: events => this.setOrderHistory(orderId, { loading: false, error: null, events }),
+        error: error =>
+          this.setOrderHistory(orderId, {
+            loading: false,
+            error: describeHttpError(error, 'Unable to load order history.'),
+            events: []
+          })
+      });
   }
 
-  validateAddFundsForm(): boolean {
-    this.addFundsError = '';
+  private setOrderHistory(orderId: number, state: OrderHistoryState): void {
+    this.orderHistory.update(current => ({ ...current, [orderId]: state }));
+  }
 
-    if (!this.addFundsAmount.trim()) {
-      this.addFundsError = 'Amount is required.';
+  // Deposit / withdraw modal
+  openFundsModal(mode: FundsMode = 'deposit'): void {
+    this.fundsMode.set(mode);
+    this.fundsStep.set('form');
+    this.fundsAmount = '';
+    this.fundsMethod = 'bank';
+    this.fundsError.set('');
+    this.balanceAfterTransfer.set(null);
+    this.showFundsModal.set(true);
+  }
+
+  setFundsMode(mode: FundsMode): void {
+    if (this.fundsStep() === 'form') {
+      this.fundsMode.set(mode);
+      this.fundsError.set('');
+    }
+  }
+
+  closeFundsModal(): void {
+    // Keep the modal open until an in-flight request settles.
+    if (this.submitting()) {
+      return;
+    }
+    this.showFundsModal.set(false);
+    this.fundsError.set('');
+  }
+
+  validateFundsForm(): boolean {
+    this.fundsError.set('');
+    const raw = this.fundsAmount.trim();
+
+    if (!raw) {
+      this.fundsError.set('Amount is required.');
       return false;
     }
 
-    const amount = parseFloat(this.addFundsAmount);
+    const amount = this.parseAmount(raw);
 
-    if (isNaN(amount) || amount <= 0) {
-      this.addFundsError = 'Amount must be greater than $0.00.';
+    if (amount === null) {
+      this.fundsError.set(
+        /^\d*\.\d{3,}$/.test(raw)
+          ? 'Amount can have at most 2 decimal places.'
+          : 'Enter a valid amount, like 250 or 250.50.'
+      );
       return false;
     }
 
-    if (amount > 100000) {
-      this.addFundsError = 'Amount cannot exceed $100,000.';
+    if (amount <= 0) {
+      this.fundsError.set('Amount must be greater than $0.00.');
+      return false;
+    }
+
+    if (amount > MAX_TRANSFER_AMOUNT) {
+      this.fundsError.set('Amount cannot exceed $100,000.');
+      return false;
+    }
+
+    // The balance can change after loading, so the backend's check is still handled on submit.
+    if (this.fundsMode() === 'withdraw' && this.account() && amount > this.availableCash) {
+      this.fundsError.set(this.insufficientFundsMessage(this.availableCash));
       return false;
     }
 
     return true;
   }
 
-  reviewAddFunds(): void {
-    if (this.validateAddFundsForm()) {
-      this.addFundsStep.set('review');
+  reviewFunds(): void {
+    if (this.validateFundsForm()) {
+      this.fundsStep.set('review');
     }
   }
 
-  cancelAddFunds(): void {
-    this.addFundsStep.set('form');
-    this.addFundsError = '';
+  backToFundsForm(): void {
+    this.fundsStep.set('form');
+    this.fundsError.set('');
   }
 
-  confirmAddFunds(): void {
-    const amount = parseFloat(this.addFundsAmount);
-    const amountCents = Math.round(amount * 100);
+  confirmFunds(): void {
+    const account = this.account();
+    if (this.submitting() || !account) {
+      return;
+    }
+    if (!this.validateFundsForm()) {
+      this.fundsStep.set('form');
+      return;
+    }
 
-    // Update cash balance
-    this.availableCashCents += amountCents;
+    const mode = this.fundsMode();
+    const request = { amount: this.getReviewAmount(), fundingMethod: this.fundsMethod };
+    const transfer$ =
+      mode === 'deposit'
+        ? this.transactionsService.deposit(account.accountId, request)
+        : this.transactionsService.withdraw(account.accountId, request);
 
-    // Add transaction to history
-    const now = new Date();
-    const newTransaction: MockTransaction = {
-      id: `TRX-2026-${Math.floor(Math.random() * 10000)}`,
-      date: now.toISOString().split('T')[0],
-      time: now.toLocaleTimeString('en-US', { timeStyle: 'short' }),
-      type: 'Deposit',
-      description: this.fundingMethods.find(m => m.id === this.addFundsFundingMethod)?.label || 'Bank transfer',
-      amount: amount,
-      status: 'Completed'
-    };
-
-    this.mockTransactions.unshift(newTransaction);
-    this.transactions.set([...this.mockTransactions]);
-    this.applyFilters();
-
-    // Show success
-    this.addFundsStep.set('success');
+    this.submitting.set(true);
+    this.fundsError.set('');
+    transfer$
+      .pipe(
+        finalize(() => this.submitting.set(false)),
+        takeUntilDestroyed(this.destroyRef)
+      )
+      .subscribe({
+        next: response => {
+          this.balanceAfterTransfer.set(response.balance);
+          this.currentAccount.updateBalance(account.accountId, response.balance);
+          this.fundsStep.set('success');
+          this.load(true);
+        },
+        error: error => this.handleFundsError(error, mode)
+      });
   }
 
-  finishAddFunds(): void {
-    this.closeAddFundsModal();
+  private handleFundsError(error: unknown, mode: FundsMode): void {
+    this.fundsStep.set('form');
+
+    if (!(error instanceof HttpErrorResponse)) {
+      this.fundsError.set(describeHttpError(error));
+      return;
+    }
+
+    if (error.status === 404) {
+      this.fundsError.set('This account is no longer available. Reload the page and try again.');
+      return;
+    }
+
+    // Insufficient funds: the balance changed since the page loaded, so show the current one.
+    if (error.status === 400 && error.error?.fieldName === 'balance') {
+      this.fundsError.set('Insufficient funds.');
+      this.currentAccount
+        .load(true)
+        .pipe(
+          catchError(() => EMPTY),
+          takeUntilDestroyed(this.destroyRef)
+        )
+        .subscribe(account => {
+          if (account) {
+            this.account.set(account);
+            this.fundsError.set(this.insufficientFundsMessage(account.balance));
+          }
+        });
+      return;
+    }
+
+    const action = mode === 'deposit' ? 'deposit' : 'withdrawal';
+    this.fundsError.set(describeHttpError(error, `Unable to complete the ${action}. Please try again.`));
   }
 
+  private insufficientFundsMessage(balance: number): string {
+    return `Insufficient funds. You have ${this.formatCurrency(balance)} available.`;
+  }
+
+  // Currency exchange modal
   openCurrencyExchangeModal(): void {
     this.exchangeFrom = 'USD';
     this.exchangeTo = 'CAD';
     this.exchangeAmount = '';
-    this.exchangeError = '';
-    this.exchangeSuccess = '';
-    this.exchangeRate = null;
+    this.exchangeError.set('');
+    this.exchangeSuccess.set('');
+    this.exchangeRate.set(null);
     this.showCurrencyExchangeModal.set(true);
     this.loadExchangeRate();
   }
 
   closeCurrencyExchangeModal(): void {
-    if (this.exchangeSubmitting) return;
+    if (this.exchangeSubmitting()) return;
     this.showCurrencyExchangeModal.set(false);
-    this.exchangeError = '';
-    this.exchangeSuccess = '';
+    this.exchangeError.set('');
+    this.exchangeSuccess.set('');
   }
 
   onExchangeCurrencyChange(): void {
-    this.exchangeError = '';
-    this.exchangeSuccess = '';
-    this.exchangeRate = null;
+    this.exchangeError.set('');
+    this.exchangeSuccess.set('');
+    this.exchangeRate.set(null);
     this.loadExchangeRate();
   }
 
+  // Rates are quoted as USD/XXX, so non-USD bases use the inverse.
   loadExchangeRate(): void {
     if (this.exchangeFrom === this.exchangeTo) {
-      this.exchangeError = 'Choose two different currencies.';
+      this.exchangeError.set('Choose two different currencies.');
       return;
     }
 
-    const lookupCurrency = this.exchangeFrom === 'USD' ? this.exchangeTo : this.exchangeFrom;
-    const currencyPair = `USD/${lookupCurrency}`;
+    const fromUsd = this.exchangeFrom === 'USD';
+    const currencyPair = `USD/${fromUsd ? this.exchangeTo : this.exchangeFrom}`;
     const cachedPrice = this.forexPriceCache.get(currencyPair);
     if (cachedPrice && cachedPrice.expiresAt > Date.now()) {
-      this.exchangeRate = this.exchangeFrom === 'USD' ? cachedPrice.price : 1 / cachedPrice.price;
+      this.exchangeRate.set(fromUsd ? cachedPrice.price : 1 / cachedPrice.price);
       return;
     }
 
-    this.exchangeRateLoading = true;
-    this.instrumentsApi.getForexPrice(currencyPair).pipe(
-      timeout(10000),
-      finalize(() => {
-        this.exchangeRateLoading = false;
-        this.changeDetector.markForCheck();
-      })
-    ).subscribe({
-      next: instrument => {
-        const price = Number(instrument.price);
-        if (!Number.isFinite(price) || price <= 0) {
-          this.exchangeRate = null;
-          this.exchangeError = 'The exchange rate is unavailable right now.';
-          return;
-        }
+    this.exchangeRateLoading.set(true);
+    this.instrumentsApi
+      .getForexPrice(currencyPair)
+      .pipe(
+        timeout(10000),
+        finalize(() => this.exchangeRateLoading.set(false)),
+        takeUntilDestroyed(this.destroyRef)
+      )
+      .subscribe({
+        next: instrument => {
+          const price = Number(instrument.price);
+          const rate = fromUsd ? price : 1 / price;
+          if (!Number.isFinite(price) || price <= 0 || !Number.isFinite(rate)) {
+            this.exchangeRate.set(null);
+            this.exchangeError.set('The exchange rate is unavailable right now.');
+            return;
+          }
 
-        this.forexPriceCache.set(currencyPair, {
-          price,
-          expiresAt: Date.now() + this.forexCacheDurationMs
-        });
-        this.exchangeRate = this.exchangeFrom === 'USD' ? price : 1 / price;
-        if (!Number.isFinite(this.exchangeRate)) {
-          this.exchangeRate = null;
-          this.exchangeError = 'The exchange rate is unavailable right now.';
-        }
-      },
-      error: () => {
-        this.exchangeRateLoading = false;
-        this.exchangeError = 'Unable to load the exchange rate. Please try again.';
-      }
-    });
+          this.forexPriceCache.set(currencyPair, {
+            price,
+            expiresAt: Date.now() + this.forexCacheDurationMs
+          });
+          this.exchangeRate.set(rate);
+        },
+        error: () => this.exchangeError.set('Unable to load the exchange rate. Please try again.')
+      });
   }
 
   get convertedExchangeAmount(): number | null {
     const amount = Number(this.exchangeAmount);
-    return this.exchangeRate !== null && Number.isFinite(amount) ? amount * this.exchangeRate : null;
+    const rate = this.exchangeRate();
+    return rate !== null && Number.isFinite(amount) ? amount * rate : null;
   }
 
   formatExchangeRate(): string {
-    return this.exchangeRate === null ? '--' : this.exchangeRate.toLocaleString('en-US', {
+    const rate = this.exchangeRate();
+    return rate === null ? '--' : rate.toLocaleString('en-US', {
       minimumFractionDigits: 4,
       maximumFractionDigits: 8
     });
   }
 
   submitCurrencyExchange(): void {
-    this.exchangeError = '';
-    this.exchangeSuccess = '';
+    this.exchangeError.set('');
+    this.exchangeSuccess.set('');
     const amount = Number(this.exchangeAmount);
-    const accountId = Number(typeof localStorage === 'undefined' ? null : localStorage.getItem('accountId'));
+    const accountId = this.account()?.accountId;
 
     if (this.exchangeFrom === this.exchangeTo) {
-      this.exchangeError = 'Choose two different currencies.';
+      this.exchangeError.set('Choose two different currencies.');
     } else if (!Number.isFinite(amount) || amount <= 0) {
-      this.exchangeError = 'Enter an amount greater than 0.';
-    } else if (this.exchangeRate === null) {
-      this.exchangeError = 'Wait for the exchange rate to load before submitting.';
-    } else if (!Number.isInteger(accountId) || accountId <= 0) {
-      this.exchangeError = 'Select an account before exchanging currency.';
+      this.exchangeError.set('Enter an amount greater than 0.');
+    } else if (this.exchangeRate() === null) {
+      this.exchangeError.set('Wait for the exchange rate to load before submitting.');
+    } else if (accountId === undefined) {
+      this.exchangeError.set('Select an account before exchanging currency.');
     } else {
-      this.exchangeSubmitting = true;
-      this.transactionsApi.exchangeCurrency({
-        baseAndExchange: `${this.exchangeFrom}/${this.exchangeTo}`,
-        amount,
-        side: 'EXCHANGE',
-        accountId,
-        transactionType: 'CURRENCY EXCHANGE'
-      }).pipe(
-        timeout(15000),
-        switchMap(() => this.accountContext.refreshAccount(accountId).pipe(
-          catchError(error => {
-            console.error('Currency exchange completed but account refresh failed', error);
-            return of(null);
-          })
-        )),
-        finalize(() => {
-          this.exchangeSubmitting = false;
-          this.changeDetector.markForCheck();
+      this.exchangeSubmitting.set(true);
+      this.transactionsApi
+        .exchangeCurrency({
+          baseAndExchange: `${this.exchangeFrom}/${this.exchangeTo}`,
+          amount,
+          side: 'EXCHANGE',
+          accountId,
+          transactionType: 'CURRENCY EXCHANGE'
         })
-      ).subscribe({
-        next: account => {
-          if (account) {
-            this.availableCashCents = Math.round(account.balance * 100);
-            this.exchangeSuccess = 'Currency exchange submitted successfully. Your account balance and portfolio have been updated.';
-          } else {
-            this.exchangeSuccess = 'Currency exchange submitted successfully, but the account balance could not be refreshed.';
+        .pipe(
+          timeout(15000),
+          // Keeps the header selector and stored balance in sync for the other pages.
+          switchMap(() =>
+            this.accountContext.refreshAccount(accountId).pipe(
+              catchError(error => {
+                console.error('Currency exchange completed but account refresh failed', error);
+                return of(null);
+              })
+            )
+          ),
+          finalize(() => this.exchangeSubmitting.set(false)),
+          takeUntilDestroyed(this.destroyRef)
+        )
+        .subscribe({
+          next: account => {
+            this.exchangeSuccess.set(
+              account
+                ? 'Currency exchange submitted successfully. Your account balance and portfolio have been updated.'
+                : 'Currency exchange submitted successfully, but the account balance could not be refreshed.'
+            );
+            this.load(true);
+          },
+          error: error => {
+            console.error('Unable to complete currency exchange', error);
+            this.exchangeError.set('Unable to complete the currency exchange. Please try again.');
           }
-        },
-        error: error => {
-          console.error('Unable to complete currency exchange', error);
-          this.exchangeError = 'Unable to complete the currency exchange. Please try again.';
-        }
-      });
+        });
     }
   }
 

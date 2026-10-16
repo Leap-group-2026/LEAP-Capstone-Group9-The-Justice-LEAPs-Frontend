@@ -17,6 +17,7 @@ export class Admin implements OnInit {
   readonly overview = signal<AdminOverview>({ orders: [], accounts: [], users: [] });
   readonly isLoading = signal(false);
   readonly errorMessage = signal('');
+  readonly showOrders = signal(false);
 
   ngOnInit(): void {
     if (isPlatformBrowser(this.platformId)) {
@@ -53,6 +54,10 @@ export class Admin implements OnInit {
 
   get filledOrders(): number {
     return this.orders.filter(order => order.status === 'FILLED').length;
+  }
+
+  toggleOrders(): void {
+    this.showOrders.update(isVisible => !isVisible);
   }
 
   formatCurrency(value: number): string {
