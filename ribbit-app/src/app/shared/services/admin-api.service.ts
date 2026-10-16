@@ -36,6 +36,25 @@ export interface AdminOverview {
   orders: AdminOrder[];
   accounts: AdminAccount[];
   users: AdminUser[];
+  transactions: AdminTransaction[];
+}
+
+export interface AdminTransaction {
+  transaction_id: number;
+  transaction_type: string;
+  amount: number;
+  side: string;
+  account_id: number;
+  happened_at: string;
+}
+
+export interface AdminUserLookup {
+  userId: number;
+  name: string;
+  email: string;
+  dateOfBirth: string;
+  address: string;
+  accounts: AdminAccount[];
 }
 
 export interface TopBoughtStock {
@@ -60,6 +79,9 @@ export class AdminApiService {
       }),
       users: this.http.get<AdminUser[]>(`${this.apiBaseUrl}/admin/users`, {
         headers: this.authHeaders()
+      }),
+      transactions: this.http.get<AdminTransaction[]>(`${this.apiBaseUrl}/admin/transactions`, {
+        headers: this.authHeaders()
       })
     });
   }
@@ -67,6 +89,13 @@ export class AdminApiService {
   getTopBoughtStocks(): Observable<TopBoughtStock[]> {
     return this.http.get<TopBoughtStock[]>(`${this.apiBaseUrl}/admin/analytics/top-bought`, {
       headers: this.authHeaders()
+    });
+  }
+
+  findUserByEmail(email: string): Observable<AdminUserLookup> {
+    return this.http.get<AdminUserLookup>(`${this.apiBaseUrl}/admin/users/by-email`, {
+      headers: this.authHeaders(),
+      params: { email }
     });
   }
 
