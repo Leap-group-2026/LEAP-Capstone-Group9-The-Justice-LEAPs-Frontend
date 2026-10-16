@@ -38,6 +38,11 @@ export interface AdminOverview {
   users: AdminUser[];
 }
 
+export interface TopBoughtStock {
+  ticker: string;
+  totalVolume: number;
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -56,6 +61,12 @@ export class AdminApiService {
       users: this.http.get<AdminUser[]>(`${this.apiBaseUrl}/admin/users`, {
         headers: this.authHeaders()
       })
+    });
+  }
+
+  getTopBoughtStocks(): Observable<TopBoughtStock[]> {
+    return this.http.get<TopBoughtStock[]>(`${this.apiBaseUrl}/admin/analytics/top-bought`, {
+      headers: this.authHeaders()
     });
   }
 
