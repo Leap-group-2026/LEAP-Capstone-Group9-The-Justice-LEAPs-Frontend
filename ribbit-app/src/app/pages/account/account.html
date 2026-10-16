@@ -121,8 +121,8 @@
           <button type="button" class="button secondary" (click)="closeEditProfile()">
             Cancel
           </button>
-          <button type="submit" class="button primary">
-            Save Changes
+          <button type="submit" class="button primary" [disabled]="isSavingProfile()">
+            {{ isSavingProfile() ? 'Saving...' : 'Save Changes' }}
           </button>
         </div>
       </form>

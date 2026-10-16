@@ -84,6 +84,7 @@ export class Account implements OnInit {
   // State signals
   readonly profileData = signal<UserProfile>(this.readProfile());
   readonly editProfileStep = signal<EditProfileStep>('view');
+  readonly isSavingProfile = signal(false);
   readonly changePasswordStep = signal<ChangePasswordStep>('form');
   readonly showChangePasswordModal = signal(false);
   readonly preferences = signal<PreferenceSettings>({
@@ -326,20 +327,47 @@ export class Account implements OnInit {
   }
 
   saveProfileChanges(): void {
-    if (this.validateProfileForm()) {
-      this.profileData.set({
-        firstName: this.editFirstName,
-        lastName: this.editLastName,
-        email: this.editEmail,
-        address: this.editAddress
-      });
-      this.authService.setUserProfile({
-        name: `${this.editFirstName.trim()} ${this.editLastName.trim()}`,
-        email: this.editEmail.trim(),
-        address: this.editAddress.trim()
-      });
-      this.editProfileStep.set('success');
+    if (!this.validateProfileForm() || this.isSavingProfile()) return;
+
+    const name = `${this.editFirstName.trim()} ${this.editLastName.trim()}`;
+    const email = this.editEmail.trim().toLowerCase();
+    const address = this.editAddress.trim();
+    const token = typeof localStorage === 'undefined' ? null : localStorage.getItem('token');
+
+    if (!token) {
+      this.editFormError = 'Your session has expired. Please log in again.';
+      return;
     }
+
+    this.isSavingProfile.set(true);
+    this.editFormError = '';
+    this.http.patch<{ name: string; email: string; address: string }>(
+      `${environment.springUrl}/user`,
+      { name, email, address },
+      { headers: new HttpHeaders({ Authorization: `Bearer ${token}` }) }
+    ).pipe(finalize(() => this.isSavingProfile.set(false))).subscribe({
+      next: (updatedUser) => {
+        this.profileData.set({
+          firstName: updatedUser.name.trim().split(/\s+/)[0] ?? '',
+          lastName: updatedUser.name.trim().split(/\s+/).slice(1).join(' '),
+          email: updatedUser.email,
+          address: updatedUser.address
+        });
+        this.authService.setUserProfile(updatedUser);
+        this.editProfileStep.set('success');
+      },
+      error: (error) => {
+        this.editFormError = this.getProfileUpdateError(error);
+      }
+    });
+  }
+
+  private getProfileUpdateError(error: { error?: unknown }): string {
+    if (typeof error.error === 'string') return error.error;
+    if (error.error && typeof error.error === 'object' && 'message' in error.error) {
+      return String((error.error as { message: unknown }).message);
+    }
+    return 'Unable to update your profile. Please try again.';
   }
 
   finishProfileEdit(): void {
