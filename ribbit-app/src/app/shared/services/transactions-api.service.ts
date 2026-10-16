@@ -20,12 +20,13 @@ export class TransactionsApiService {
     return this.http.post<string>(
       `${environment.springUrl}/user/transactions/exchange`,
       request,
-      { headers: this.createAuthHeaders() }
+      { headers: this.createAuthHeaders(), responseType: 'text' as const }
     );
   }
 
   private createAuthHeaders(): HttpHeaders {
-    const token = typeof window === 'undefined' ? null : window.localStorage.getItem('token');
+    const storedToken = typeof window === 'undefined' ? null : window.localStorage.getItem('token');
+    const token = storedToken?.trim().replace(/^Bearer\s+/i, '').replace(/^"|"$/g, '') || null;
     return token ? new HttpHeaders({ Authorization: `Bearer ${token}` }) : new HttpHeaders();
   }
 }

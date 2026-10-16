@@ -12,7 +12,7 @@ export class InstrumentsApiService {
 
   getByTicker(ticker: string): Observable<InstrumentApiResponse> {
     return this.http.get<InstrumentApiResponse>(
-      `${environment.springUrl}/instruments/${encodeURIComponent(ticker)}`,
+      `${environment.springUrl}/instruments/${this.encodeInstrumentReference(ticker)}`,
       { headers: this.createAuthHeaders() }
     );
   }
@@ -49,6 +49,10 @@ export class InstrumentsApiService {
     return token
       ? new HttpHeaders({ Authorization: `Bearer ${token}` })
       : new HttpHeaders();
+  }
+
+  private encodeInstrumentReference(reference: string): string {
+    return reference.split('/').map(encodeURIComponent).join('/');
   }
 
   private resolveAuthToken(): string | null {

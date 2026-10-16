@@ -2,7 +2,8 @@ import { CommonModule } from '@angular/common';
 import { ChangeDetectorRef, Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
-import { finalize, timeout } from 'rxjs';
+import { catchError, finalize, of, switchMap, timeout } from 'rxjs';
+import { AccountContextService } from '../../shared/services/account-context.service';
 import { AuthService } from '../../shared/services/auth.service';
 import { InstrumentsApiService } from '../../shared/services/instruments-api.service';
 import { TransactionsApiService } from '../../shared/services/transactions-api.service';
@@ -39,6 +40,7 @@ export class Transactions {
   private readonly authService = inject(AuthService);
   private readonly instrumentsApi = inject(InstrumentsApiService);
   private readonly transactionsApi = inject(TransactionsApiService);
+  private readonly accountContext = inject(AccountContextService);
   private readonly changeDetector = inject(ChangeDetectorRef);
 
   // Account data
@@ -513,13 +515,29 @@ export class Transactions {
         side: 'EXCHANGE',
         accountId,
         transactionType: 'CURRENCY EXCHANGE'
-      }).subscribe({
-        next: () => {
+      }).pipe(
+        timeout(15000),
+        switchMap(() => this.accountContext.refreshAccount(accountId).pipe(
+          catchError(error => {
+            console.error('Currency exchange completed but account refresh failed', error);
+            return of(null);
+          })
+        )),
+        finalize(() => {
           this.exchangeSubmitting = false;
-          this.exchangeSuccess = 'Currency exchange submitted successfully.';
+          this.changeDetector.markForCheck();
+        })
+      ).subscribe({
+        next: account => {
+          if (account) {
+            this.availableCashCents = Math.round(account.balance * 100);
+            this.exchangeSuccess = 'Currency exchange submitted successfully. Your account balance and portfolio have been updated.';
+          } else {
+            this.exchangeSuccess = 'Currency exchange submitted successfully, but the account balance could not be refreshed.';
+          }
         },
-        error: () => {
-          this.exchangeSubmitting = false;
+        error: error => {
+          console.error('Unable to complete currency exchange', error);
           this.exchangeError = 'Unable to complete the currency exchange. Please try again.';
         }
       });
