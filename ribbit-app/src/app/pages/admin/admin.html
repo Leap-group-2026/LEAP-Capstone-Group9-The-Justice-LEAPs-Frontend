@@ -8,6 +8,44 @@
   </button>
 </section>
 
+<section class="analytics-grid" aria-label="Admin analytics">
+  <article class="panel analytics-panel" aria-labelledby="order-activity-heading">
+    <div class="panel-heading">
+      <div class="section-title">
+        <h2 id="order-activity-heading">Order activity</h2>
+        <span>ANALYTICS</span>
+      </div>
+    </div>
+    <div
+      id="order-activity-chart"
+      class="chart-slot"
+      data-chart="order-activity"
+      role="img"
+      aria-label="Order activity chart placeholder"
+    >
+      <span>Order activity chart</span>
+    </div>
+  </article>
+
+  <article class="panel analytics-panel" aria-labelledby="trading-volume-heading">
+    <div class="panel-heading">
+      <div class="section-title">
+        <h2 id="trading-volume-heading">Trading volume</h2>
+        <span>ANALYTICS</span>
+      </div>
+    </div>
+    <div
+      id="trading-volume-chart"
+      class="chart-slot"
+      data-chart="trading-volume"
+      role="img"
+      aria-label="Trading volume chart placeholder"
+    >
+      <span>Trading volume chart</span>
+    </div>
+  </article>
+</section>
+
 @if (errorMessage()) {
   <section class="notice" role="alert">
     <strong>{{ errorMessage() }}</strong>
@@ -44,10 +82,20 @@
       <h2 id="orders-heading">Recent orders</h2>
       <span>{{ orders.length }} TOTAL</span>
     </div>
+    <button
+      class="panel-toggle"
+      type="button"
+      (click)="toggleOrders()"
+      [attr.aria-expanded]="showOrders()"
+      aria-controls="admin-orders-table"
+      [attr.aria-label]="showOrders() ? 'Collapse orders' : 'Expand orders'"
+    >
+      <span aria-hidden="true">{{ showOrders() ? '−' : '+' }}</span>
+    </button>
   </div>
 
-  @if (orders.length > 0) {
-    <div class="table-scroll" tabindex="0" role="region" aria-label="Admin orders table">
+  @if (showOrders() && orders.length > 0) {
+    <div id="admin-orders-table" class="table-scroll" tabindex="0" role="region" aria-label="Admin orders table">
       <table>
         <thead>
           <tr>
@@ -77,7 +125,7 @@
         </tbody>
       </table>
     </div>
-  } @else if (!isLoading()) {
+  } @else if (showOrders() && !isLoading()) {
     <div class="empty-state"><p>No orders were returned by the API.</p></div>
   }
 </section>
