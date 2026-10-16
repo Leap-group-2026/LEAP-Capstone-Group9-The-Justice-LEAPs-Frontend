@@ -143,6 +143,7 @@ small { display: block; font-size: 10px; color: var(--subtle); line-height: 1.6;
 .welcome-actions {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 12px;
 }
 
@@ -940,4 +941,89 @@ th.numeric, td.numeric {
   .review-amount {
     font-size: 24px;
   }
+}
+
+.account-line {
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.error-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 16px 18px;
+  padding: 14px 16px;
+  background: #3a2424;
+  border: 1px solid rgba(240, 142, 133, 0.4);
+  border-radius: 6px;
+
+  p {
+    color: #ff9b9b;
+    font-size: 13px;
+  }
+}
+
+.button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.order-history {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+
+  p { font-size: 12px; }
+}
+
+.timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 0 0 0 16px;
+  border-left: 1px solid var(--border);
+  list-style: none;
+
+  strong {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 12px;
+    font-weight: 500;
+  }
+}
+
+.mode-toggle {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  padding: 4px;
+  margin-bottom: 18px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+
+  button {
+    padding: 8px 12px;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--muted);
+    font-size: 13px;
+    font-weight: 500;
+
+    &.active {
+      background: var(--accent);
+      color: var(--background);
+    }
+  }
+}
+
+.modal-close:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }

@@ -2,13 +2,24 @@
   <div>
     <h1 id="welcome-heading">Transactions</h1>
     <p>View and manage your account transactions.</p>
+    @if (account()) {
+      <small class="account-line">
+        @if (accountName()) {
+          {{ accountName() }} ·
+        }
+        Account ending {{ accountEnding() }}
+      </small>
+    }
   </div>
 
   <div class="welcome-actions">
     <button class="button secondary" type="button" (click)="openCurrencyExchangeModal()">
       Currency Exchange
     </button>
-    <button class="button primary" type="button" (click)="openAddFundsModal()">
+    <button class="button secondary" type="button" (click)="openFundsModal('withdraw')">
+      Withdraw
+    </button>
+    <button class="button primary" type="button" (click)="openFundsModal('deposit')">
       Add Funds
       <svg viewBox="0 0 24 24" aria-hidden="true">
         <path [attr.d]="icons['plus']"/>
@@ -20,25 +31,25 @@
 <section class="summary-grid" aria-label="Account summary">
   <article class="summary-card">
     <h2>Available Cash</h2>
-    <strong>{{ formatCurrency(availableCash) }}</strong>
+    <strong>{{ account() ? formatCurrency(availableCash) : '—' }}</strong>
     <p>Ready to invest</p>
   </article>
 
   <article class="summary-card">
     <h2>Total Deposits</h2>
-    <strong class="positive">{{ formatCurrency(totalDeposits) }}</strong>
+    <strong class="positive">{{ formatCurrency(totalDeposits()) }}</strong>
     <p>Completed deposits</p>
   </article>
 
   <article class="summary-card">
     <h2>Total Withdrawals</h2>
-    <strong class="negative">{{ formatCurrency(totalWithdrawals) }}</strong>
+    <strong class="negative">{{ formatCurrency(totalWithdrawals()) }}</strong>
     <p>Completed withdrawals</p>
   </article>
 
   <article class="summary-card">
     <h2>Total Transaction Value</h2>
-    <strong>{{ formatCurrency(totalTransactionValue) }}</strong>
+    <strong>{{ formatCurrency(totalTransactionValue()) }}</strong>
     <p>All completed transactions</p>
   </article>
 </section>
@@ -55,7 +66,7 @@
         id="search-input"
         type="text"
         placeholder="Search by ID, description, or symbol..."
-        [value]="searchQuery"
+        [value]="searchQuery()"
         (input)="onSearchChange($event.target.value)"
         class="filter-input"
       />
@@ -65,7 +76,7 @@
       <label for="type-filter">Transaction Type</label>
       <select
         id="type-filter"
-        [value]="typeFilter"
+        [value]="typeFilter()"
         (change)="onTypeFilterChange($event)"
         class="filter-input"
       >
@@ -81,7 +92,7 @@
       <label for="status-filter">Status</label>
       <select
         id="status-filter"
-        [value]="statusFilter"
+        [value]="statusFilter()"
         (change)="onStatusFilterChange($event)"
         class="filter-input"
       >
@@ -98,11 +109,28 @@
   <div class="panel-heading">
     <div class="section-title">
       <h2 id="history-title">Transaction History</h2>
-      <span>{{ completedTransactionsCount }} COMPLETED</span>
+      <span>{{ completedTransactionsCount() }} COMPLETED</span>
     </div>
   </div>
 
-  @if (filteredTransactions().length > 0) {
+  @if (loading()) {
+    <div class="empty-state" role="status">
+      <p>Loading transactions…</p>
+    </div>
+  } @else if (error()) {
+    <div class="error-banner" role="alert">
+      <p>{{ error() }}</p>
+      <button type="button" class="button secondary" (click)="load()">Retry</button>
+    </div>
+  } @else if (noAccount()) {
+    <div class="empty-state">
+      <p>No open account.</p>
+    </div>
+  } @else if (transactions().length === 0) {
+    <div class="empty-state">
+      <p>No transactions yet.</p>
+    </div>
+  } @else if (filteredTransactions().length > 0) {
     <div class="table-scroll" tabindex="0" role="region" aria-label="Transaction history table">
       <table>
         <thead>
@@ -122,7 +150,7 @@
               <th scope="row" class="transaction-id">{{ transaction.id }}</th>
               <td>
                 {{ formatDate(transaction.date) }}
-                <small class="cell-detail">{{ transaction.time }}</small>
+                <small class="cell-detail">{{ formatTime(transaction.time) }}</small>
               </td>
               <td>
                 <span class="transaction-type" [class.deposit]="transaction.type === 'Deposit'" [class.withdrawal]="transaction.type === 'Withdrawal'" [class.buy]="transaction.type === 'Buy'" [class.sell]="transaction.type === 'Sell'">
@@ -165,7 +193,13 @@
                       </div>
                       <div class="detail-item">
                         <span class="detail-label">Date & Time</span>
-                        <strong>{{ formatDate(transaction.date) }} · {{ transaction.time }}</strong>
+                        <strong>
+                          @if (transaction.date) {
+                            {{ formatDate(transaction.date) }} · {{ formatTime(transaction.time) }}
+                          } @else {
+                            Not yet executed
+                          }
+                        </strong>
                       </div>
                       <div class="detail-item">
                         <span class="detail-label">Type</span>
@@ -205,6 +239,28 @@
                         </div>
                       }
                     </div>
+
+                    @if (historyFor(transaction.id); as history) {
+                      <div class="order-history">
+                        <span class="detail-label">Order History</span>
+                        @if (history.loading) {
+                          <p class="muted">Loading history…</p>
+                        } @else if (history.error) {
+                          <p class="negative">{{ history.error }}</p>
+                        } @else if (history.events.length === 0) {
+                          <p class="muted">No history recorded for this order.</p>
+                        } @else {
+                          <ol class="timeline">
+                            @for (event of history.events; track event.event_id; let first = $first) {
+                              <li>
+                                <strong>{{ first ? 'Placed · ' : '' }}{{ event.status }}</strong>
+                                <small>{{ formatDateTime(event.occurred_at) }}</small>
+                              </li>
+                            }
+                          </ol>
+                        }
+                      </div>
+                    }
                   </div>
                 </td>
               </tr>
@@ -216,26 +272,45 @@
   } @else {
     <div class="empty-state">
       <p>No transactions match your filters.</p>
-      <button type="button" class="text-button" (click)="searchQuery = ''; typeFilter = 'all'; statusFilter = 'all'; applyFilters()">
+      <button type="button" class="text-button" (click)="clearFilters()">
         Clear filters
       </button>
     </div>
   }
 </section>
 
-@if (showAddFundsModal()) {
-  <div class="modal-backdrop" (click)="closeAddFundsModal()"></div>
-  <div class="modal" role="dialog" aria-labelledby="modal-title">
-    @if (addFundsStep() === 'form') {
+@if (showFundsModal()) {
+  <div class="modal-backdrop" (click)="closeFundsModal()"></div>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    @if (fundsStep() === 'form') {
       <div class="modal-header">
-        <h2 id="modal-title">Add Funds</h2>
-        <button type="button" class="modal-close" (click)="closeAddFundsModal()" aria-label="Close">×</button>
+        <h2 id="modal-title">{{ fundsMode() === 'deposit' ? 'Add Funds' : 'Withdraw Funds' }}</h2>
+        <button type="button" class="modal-close" (click)="closeFundsModal()" aria-label="Close">×</button>
       </div>
 
       <div class="modal-body">
-        @if (addFundsError) {
+        <div class="mode-toggle" role="group" aria-label="Transfer type">
+          <button
+            type="button"
+            [class.active]="fundsMode() === 'deposit'"
+            [attr.aria-pressed]="fundsMode() === 'deposit'"
+            (click)="setFundsMode('deposit')"
+          >
+            Deposit
+          </button>
+          <button
+            type="button"
+            [class.active]="fundsMode() === 'withdraw'"
+            [attr.aria-pressed]="fundsMode() === 'withdraw'"
+            (click)="setFundsMode('withdraw')"
+          >
+            Withdraw
+          </button>
+        </div>
+
+        @if (fundsError()) {
           <div class="modal-error" role="alert">
-            {{ addFundsError }}
+            {{ fundsError() }}
           </div>
         }
 
@@ -246,18 +321,23 @@
             type="text"
             inputmode="decimal"
             placeholder="Enter amount (e.g., 1000)"
-            [(ngModel)]="addFundsAmount"
+            [(ngModel)]="fundsAmount"
             class="form-input"
-            [class.error]="addFundsError && addFundsAmount"
+            [class.error]="fundsError() && fundsAmount"
           />
-          <small>Minimum $1 · Maximum $100,000</small>
+          <small>
+            Minimum $0.01 · Maximum $100,000
+            @if (fundsMode() === 'withdraw' && account()) {
+              · {{ formatCurrency(availableCash) }} available
+            }
+          </small>
         </div>
 
         <div class="form-group">
-          <label for="funding-method">Funding Method</label>
+          <label for="funding-method">{{ fundsMode() === 'deposit' ? 'Funding Method' : 'Withdraw To' }}</label>
           <select
             id="funding-method"
-            [(ngModel)]="addFundsFundingMethod"
+            [(ngModel)]="fundsMethod"
             class="form-input"
           >
             @for (method of fundingMethods; track method.id) {
@@ -268,27 +348,27 @@
       </div>
 
       <div class="modal-footer">
-        <button type="button" class="button secondary" (click)="closeAddFundsModal()">
+        <button type="button" class="button secondary" (click)="closeFundsModal()">
           Cancel
         </button>
-        <button type="button" class="button primary" (click)="reviewAddFunds()">
+        <button type="button" class="button primary" (click)="reviewFunds()">
           Continue
         </button>
       </div>
     }
 
-    @if (addFundsStep() === 'review') {
+    @if (fundsStep() === 'review') {
       <div class="modal-header">
-        <h2 id="modal-title">Review Your Deposit</h2>
-        <button type="button" class="modal-close" (click)="cancelAddFunds()" aria-label="Back">×</button>
+        <h2 id="modal-title">{{ fundsMode() === 'deposit' ? 'Review Your Deposit' : 'Review Your Withdrawal' }}</h2>
+        <button type="button" class="modal-close" (click)="backToFundsForm()" [disabled]="submitting()" aria-label="Back">×</button>
       </div>
 
       <div class="modal-body">
         <div class="review-section">
-          <p class="review-heading">You're adding</p>
+          <p class="review-heading">{{ fundsMode() === 'deposit' ? "You're adding" : "You're withdrawing" }}</p>
           <strong class="review-amount">{{ formatCurrency(getReviewAmount()) }}</strong>
           <p class="review-method">
-            Via {{ fundingMethods.find(m => m.id === addFundsFundingMethod)?.label || 'Bank transfer' }}
+            {{ fundsMode() === 'deposit' ? 'From' : 'To' }} {{ fundingMethodLabel() }}
           </p>
         </div>
 
@@ -298,29 +378,38 @@
             <strong>{{ formatCurrency(availableCash) }}</strong>
           </div>
           <div class="review-row total">
-            <span>New Available Cash</span>
-            <strong>{{ formatCurrency(getNewCashBalance()) }}</strong>
+            <span>Estimated New Available Cash</span>
+            <strong>{{ formatCurrency(getEstimatedBalance()) }}</strong>
           </div>
         </div>
 
         <div class="review-note">
-          <p>Funds will be added to your account after confirmation. This is a simulated transaction.</p>
+          <p>This is a simulated transfer. No real money moves, and no bank or card details are stored.</p>
         </div>
       </div>
 
       <div class="modal-footer">
-        <button type="button" class="button secondary" (click)="cancelAddFunds()">
+        <button type="button" class="button secondary" (click)="backToFundsForm()" [disabled]="submitting()">
           Back
         </button>
-        <button type="button" class="button primary" (click)="confirmAddFunds()">
-          Confirm Deposit
+        <button
+          type="button"
+          class="button primary"
+          [disabled]="submitting() || !account()"
+          (click)="confirmFunds()"
+        >
+          @if (submitting()) {
+            Processing…
+          } @else {
+            {{ fundsMode() === 'deposit' ? 'Confirm Deposit' : 'Confirm Withdrawal' }}
+          }
         </button>
       </div>
     }
 
-    @if (addFundsStep() === 'success') {
+    @if (fundsStep() === 'success') {
       <div class="modal-header">
-        <h2 id="modal-title">Funds Added Successfully</h2>
+        <h2 id="modal-title">{{ fundsMode() === 'deposit' ? 'Funds Added Successfully' : 'Withdrawal Successful' }}</h2>
       </div>
 
       <div class="modal-body success-body">
@@ -331,8 +420,11 @@
         </div>
 
         <div class="success-message">
-          <strong>Deposit Complete</strong>
-          <p>{{ formatCurrency(getReviewAmount()) }} has been added to your account.</p>
+          <strong>{{ fundsMode() === 'deposit' ? 'Deposit Complete' : 'Withdrawal Complete' }}</strong>
+          <p>
+            {{ formatCurrency(getReviewAmount()) }}
+            {{ fundsMode() === 'deposit' ? 'has been added to your account.' : 'has been withdrawn from your account.' }}
+          </p>
         </div>
 
         <div class="success-details">
@@ -341,18 +433,18 @@
             <strong>{{ formatCurrency(getReviewAmount()) }}</strong>
           </div>
           <div class="detail-row">
-            <span>Funding Method</span>
-            <strong>{{ fundingMethods.find(m => m.id === addFundsFundingMethod)?.label }}</strong>
+            <span>{{ fundsMode() === 'deposit' ? 'Funding Method' : 'Sent To' }}</span>
+            <strong>{{ fundingMethodLabel() }}</strong>
           </div>
           <div class="detail-row">
             <span>New Available Cash</span>
-            <strong class="accent">{{ formatCurrency(availableCash) }}</strong>
+            <strong class="accent new-balance">{{ formatCurrency(balanceAfterTransfer() ?? 0) }}</strong>
           </div>
         </div>
       </div>
 
       <div class="modal-footer">
-        <button type="button" class="button primary" (click)="finishAddFunds()">
+        <button type="button" class="button primary" (click)="closeFundsModal()">
           Done
         </button>
       </div>
@@ -369,11 +461,11 @@
     </div>
 
     <div class="modal-body">
-      @if (exchangeError) {
-        <div class="modal-error" role="alert">{{ exchangeError }}</div>
+      @if (exchangeError()) {
+        <div class="modal-error" role="alert">{{ exchangeError() }}</div>
       }
-      @if (exchangeSuccess) {
-        <div class="modal-success" role="status">{{ exchangeSuccess }}</div>
+      @if (exchangeSuccess()) {
+        <div class="modal-success" role="status">{{ exchangeSuccess() }}</div>
       }
 
       <div class="exchange-fields">
@@ -398,7 +490,7 @@
       <div class="exchange-rate">
         <span>Exchange rate</span>
         <strong>
-          @if (exchangeRateLoading) { Loading... } @else { 1 {{ exchangeFrom }} = {{ formatExchangeRate() }} {{ exchangeTo }} }
+          @if (exchangeRateLoading()) { Loading... } @else { 1 {{ exchangeFrom }} = {{ formatExchangeRate() }} {{ exchangeTo }} }
         </strong>
       </div>
 
@@ -417,8 +509,8 @@
 
     <div class="modal-footer">
       <button type="button" class="button secondary" (click)="closeCurrencyExchangeModal()">Cancel</button>
-      <button type="button" class="button primary" (click)="submitCurrencyExchange()" [disabled]="exchangeSubmitting || exchangeRateLoading || !!exchangeSuccess">
-        {{ exchangeSubmitting ? 'Submitting...' : 'Exchange' }}
+      <button type="button" class="button primary" (click)="submitCurrencyExchange()" [disabled]="exchangeSubmitting() || exchangeRateLoading() || !!exchangeSuccess()">
+        {{ exchangeSubmitting() ? 'Submitting...' : 'Exchange' }}
       </button>
     </div>
   </div>
