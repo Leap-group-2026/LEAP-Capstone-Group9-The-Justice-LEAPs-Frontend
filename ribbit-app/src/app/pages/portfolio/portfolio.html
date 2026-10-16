@@ -102,14 +102,14 @@
             [class.positive]="totalGain >= 0"
             [class.negative]="totalGain < 0"
           >
-            {{ sign(totalGain) }}{{ absolute(totalGain) | currency }}
+            {{ sign(totalGain) }}{{ absolute(totalGainPercent) | percent:'1.2-2' }}
           </strong>
           <p
             [class.positive]="totalGain >= 0"
             [class.negative]="totalGain < 0"
           >
-            {{ sign(totalGain) }}{{ absolute(totalGainPercent) | percent:'1.2-2' }}
-            of initial portfolio capital
+            {{ sign(totalGain) }}{{ absolute(totalGain) | currency }}
+            total gain/loss
           </p>
         </article>
       </section>

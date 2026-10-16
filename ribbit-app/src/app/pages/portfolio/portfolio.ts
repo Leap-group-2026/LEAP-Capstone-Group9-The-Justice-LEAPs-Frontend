@@ -5,8 +5,10 @@ import { Component, DestroyRef, inject, OnInit, PLATFORM_ID, signal } from '@ang
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
+import { forkJoin, map, of, catchError } from 'rxjs';
 import { environment } from '../../environments/environment';
 import { AuthService } from '../../shared/services/auth.service';
+import { InstrumentApiResponse, InstrumentsApiService } from '../../shared/services/instruments-api.service';
 import { PortfolioValueService } from '../../shared/services/portfolio-value.service';
 import { AccountContextService } from '../../shared/services/account-context.service';
 
@@ -66,6 +68,7 @@ export class Portfolio implements OnInit {
   private readonly platformId = inject(PLATFORM_ID);
   private readonly router = inject(Router);
   private readonly authService = inject(AuthService);
+  private readonly instrumentsApi = inject(InstrumentsApiService);
   private readonly portfolioValueService = inject(PortfolioValueService);
   private readonly accountContext = inject(AccountContextService);
   private readonly destroyRef = inject(DestroyRef);
@@ -327,27 +330,50 @@ export class Portfolio implements OnInit {
       )
       .subscribe({
         next: positions => {
-          this.holdings = positions.map((position): Holding => ({
-            symbol: position.ticker,
-            name: position.asset_name,
-            type: position.asset_type.toUpperCase().includes('ETF')
-              ? 'ETF'
-              : 'Stock',
-            quantity: position.quantity,
-            averagePurchasePrice: position.average_price,
-            currentPrice: position.quantity > 0
-              ? position.total_price / position.quantity
-              : position.average_price
-          }))
-            .sort((first, second) =>
-              this.marketValue(second) - this.marketValue(first)
-            );
-          console.log('Positions loaded:', this.holdings.length);
+          forkJoin(
+            positions.map(position => this.getCurrentPrice(position).pipe(
+              map(currentPrice => ({ position, currentPrice }))
+            ))
+          ).subscribe(holdings => {
+            this.holdings = holdings.map(({ position, currentPrice }): Holding => ({
+              symbol: position.ticker,
+              name: position.asset_name,
+              type: position.asset_type.toUpperCase().includes('ETF')
+                ? 'ETF'
+                : 'Stock',
+              quantity: position.quantity,
+              averagePurchasePrice: position.average_price,
+              currentPrice
+            }))
+              .sort((first, second) =>
+                this.marketValue(second) - this.marketValue(first)
+              );
+            console.log('Positions loaded:', this.holdings.length);
+          });
         },
         error: error => {
           console.error('Positions lookup failed:', error);
         }
       });
+  }
+
+  private getCurrentPrice(position: AccountPosition) {
+    const instrumentRequest = position.ticker.includes('/')
+      ? this.instrumentsApi.getForexPrice(position.ticker)
+      : this.instrumentsApi.getByTicker(position.ticker);
+    const fallbackPrice = position.quantity > 0
+      ? position.total_price / position.quantity
+      : position.average_price;
+
+    return instrumentRequest.pipe(
+      map((instrument: InstrumentApiResponse) =>
+        Number.isFinite(instrument.price) ? instrument.price : fallbackPrice
+      ),
+      catchError(error => {
+        console.error(`Unable to load current price for ${position.ticker}`, error);
+        return of(fallbackPrice);
+      })
+    );
   }
 
   absolute(value: number): number {
