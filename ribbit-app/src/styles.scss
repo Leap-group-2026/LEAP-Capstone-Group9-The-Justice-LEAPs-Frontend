@@ -1,0 +1,161 @@
+/* Global Styles - Apex Trading Platform Design System */
+
+// ============================================================================
+// APEX TRADING - GLOBAL DESIGN TOKENS
+// ============================================================================
+
+// Color Palette - Dark Theme
+$background: #090b0a;
+$surface: #121613;
+$accent: #c1ff39;
+$accent-light: #d0ff6a;
+$text: #f4f7f4;
+$muted: #949f97;
+$subtle: #79867d;
+$border: #2a302c;
+$error: #ff9b9b;
+$success: #34d399;
+$warning: #fbbf24;
+
+// Font families
+$font-primary: 'Inter', system-ui, sans-serif;
+$font-mono: 'IBM Plex Mono', monospace;
+
+// Spacing
+$spacing-xs: 4px;
+$spacing-sm: 8px;
+$spacing-md: 16px;
+$spacing-lg: 24px;
+$spacing-xl: 32px;
+
+// Border radius
+$radius-sm: 4px;
+$radius-md: 8px;
+$radius-lg: 12px;
+
+// Breakpoints
+$mobile: 480px;
+$tablet: 768px;
+$desktop: 1024px;
+
+/* Reset and Base Styles */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  font-size: 16px;
+}
+
+body {
+  font-family: $font-primary;
+  background-color: $background;
+  color: $text;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-weight: 600;
+  line-height: 1.2;
+  margin-bottom: $spacing-md;
+}
+
+h1 {
+  font-size: 2rem;
+}
+
+h2 {
+  font-size: 1.5rem;
+}
+
+h3 {
+  font-size: 1.25rem;
+}
+
+p {
+  margin-bottom: $spacing-md;
+  color: $muted;
+}
+
+a {
+  color: $accent;
+  text-decoration: none;
+  transition: color 0.3s ease;
+
+  &:hover {
+    color: $accent-light;
+  }
+}
+
+button {
+  font-family: $font-primary;
+  cursor: pointer;
+  border: none;
+  border-radius: $radius-md;
+  transition: all 0.3s ease;
+}
+
+input, textarea, select {
+  font-family: $font-primary;
+  background-color: $surface;
+  border: 1px solid $border;
+  border-radius: $radius-md;
+  padding: $spacing-sm $spacing-md;
+  font-size: 1rem;
+  color: $text;
+  transition: border-color 0.3s ease;
+
+  &::placeholder {
+    color: $subtle;
+  }
+
+  &:focus {
+    outline: none;
+    border-color: $accent;
+    box-shadow: 0 0 0 3px rgba(193, 255, 57, 0.1);
+  }
+}
+
+/* Utility Classes */
+.positive {
+  color: $success;
+}
+
+.negative {
+  color: $error;
+}
+
+.text-center {
+  text-align: center;
+}
+
+.text-muted {
+  color: $muted;
+}
+
+.text-accent {
+  color: $accent;
+}
+
+.bg-surface {
+  background-color: $surface;
+}
+
+/* Responsive Design */
+@media (max-width: $tablet) {
+  h1 {
+    font-size: 1.5rem;
+  }
+
+  h2 {
+    font-size: 1.25rem;
+  }
+
+  h3 {
+    font-size: 1rem;
+  }
+}

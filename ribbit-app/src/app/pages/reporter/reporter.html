@@ -1,0 +1,134 @@
+<h1>Reporter workspace</h1>
+
+<section class="analytics-grid" aria-label="Reporter analytics">
+	<article class="panel analytics-panel" aria-labelledby="order-activity-heading">
+		<div class="panel-heading">
+			<div class="section-title">
+				<h2 id="order-activity-heading">Order activity</h2>
+				<span>ANALYTICS</span>
+			</div>
+		</div>
+		<div
+			id="order-activity-chart"
+			class="chart-slot"
+			data-chart="order-activity"
+			role="img"
+			aria-label="Order activity chart placeholder"
+		>
+			<span>Order activity chart</span>
+		</div>
+	</article>
+
+	<article class="panel analytics-panel" aria-labelledby="trading-volume-heading">
+		<div class="panel-heading">
+			<div class="section-title">
+				<h2 id="trading-volume-heading">Trading volume</h2>
+				<span>BUY / FILLED</span>
+			</div>
+			<span class="chart-count">{{ topBoughtStocks().length }} stocks</span>
+		</div>
+		<div id="trading-volume-chart" class="chart-slot volume-chart" role="img" aria-label="Top bought stocks by trading volume">
+			@if (topBoughtStocks().length > 0) {
+				<div class="volume-meta">
+					<span>Top purchased instruments</span>
+					<strong>{{ topBoughtStocks()[0].totalVolume | number }} shares at peak</strong>
+				</div>
+				<svg class="volume-svg" viewBox="0 0 780 260" role="img" aria-label="Completed buy volume by stock">
+					@for (tick of [0, 0.25, 0.5, 0.75, 1]; track tick) {
+						<line class="volume-gridline" x1="48" x2="750" [attr.y1]="220 - tick * 190" [attr.y2]="220 - tick * 190" />
+						<text class="volume-axis-label" x="40" [attr.y]="224 - tick * 190" text-anchor="end">
+							{{ maximumVolume * tick | number:'1.0-0' }}
+						</text>
+					}
+					<line class="volume-axis" x1="48" y1="220" x2="750" y2="220" />
+					@for (stock of topBoughtStocks(); track stock.ticker; let index = $index) {
+						<rect
+							class="volume-svg-bar"
+							[class.volume-svg-leader]="index === 0"
+							[attr.x]="volumeBarX(index) + 48"
+							[attr.y]="220 - volumeBarHeight(stock.totalVolume)"
+							[attr.width]="volumeBarWidth()"
+							[attr.height]="volumeBarHeight(stock.totalVolume)"
+							rx="3"
+						/>
+						<text class="volume-x-label" [attr.x]="volumeBarX(index) + 48 + volumeBarWidth() / 2" y="242" text-anchor="middle">
+							{{ stock.ticker }}
+						</text>
+						<text class="volume-value-label" [attr.x]="volumeBarX(index) + 48 + volumeBarWidth() / 2" [attr.y]="214 - volumeBarHeight(stock.totalVolume)" text-anchor="middle">
+							{{ stock.totalVolume | number:'1.0-0' }}
+						</text>
+					}
+				</svg>
+			} @else if (isLoading()) {
+				<span class="chart-message">Loading warehouse volume...</span>
+			} @else {
+				<span class="chart-message">No warehouse volume data available.</span>
+			}
+		</div>
+	</article>
+
+	<article class="panel analytics-panel money-panel" aria-labelledby="money-moved-heading">
+		<div class="panel-heading">
+			<div class="section-title">
+				<h2 id="money-moved-heading">Money moved</h2>
+				<span>FILLED ORDERS · LAST 30 DAYS</span>
+			</div>
+			@if (money(); as summary) {
+				<span class="chart-count">{{ summary.orders | number }} orders</span>
+			}
+		</div>
+		<div class="chart-slot volume-chart money-chart">
+			@if (money(); as summary) {
+				<div class="money-summary">
+					<div class="money-headline">
+						<strong>{{ summary.total | currency:'USD':'symbol':'1.2-2' }}</strong>
+						@if (summary.changePercent !== null) {
+							<span class="money-change" [class.down]="summary.changePercent < 0">
+								{{ summary.changePercent < 0 ? '▼' : '▲' }} {{ (summary.changePercent < 0 ? -summary.changePercent : summary.changePercent) | number:'1.0-0' }}% vs prior 30 days
+							</span>
+						} @else {
+							<span class="money-change muted">No fills in the prior 30 days</span>
+						}
+					</div>
+					<div class="money-legend">
+						<span><i class="swatch buy"></i>Buys {{ summary.buyTotal | currency:'USD':'symbol':'1.0-0' }}</span>
+						<span><i class="swatch sell"></i>Sells {{ summary.sellTotal | currency:'USD':'symbol':'1.0-0' }}</span>
+					</div>
+				</div>
+				<svg class="volume-svg money-svg" viewBox="0 0 780 260" role="img"
+					[attr.aria-label]="'Money moved per day over the last 30 days, ' + (summary.total | currency:'USD':'symbol':'1.0-0') + ' in total'">
+					@for (tick of axisTicks; track tick) {
+						<line class="volume-gridline" x1="56" x2="760" [attr.y1]="moneyTickY(tick)" [attr.y2]="moneyTickY(tick)" />
+						<text class="volume-axis-label" x="48" [attr.y]="moneyTickY(tick) + 4" text-anchor="end">
+							{{ compactDollars(moneyAxisMax() * tick) }}
+						</text>
+					}
+					<line class="volume-axis" x1="56" [attr.y1]="moneyBaseline" x2="760" [attr.y2]="moneyBaseline" />
+					@for (day of summary.days; track day.date; let index = $index) {
+						<g class="money-day">
+							<title>{{ dayTooltip(day) }}</title>
+							<rect class="money-hit" [attr.x]="56 + index * moneySlotWidth()" y="20" [attr.width]="moneySlotWidth()" height="200" />
+							@if (day.buyTotal > 0) {
+								<rect class="money-bar buy" [attr.x]="moneyBarX(index)" [attr.width]="moneyBarWidth()"
+									[attr.y]="moneyBaseline - moneyHeight(day.buyTotal)" [attr.height]="moneyHeight(day.buyTotal)" rx="2" />
+							}
+							@if (day.sellTotal > 0) {
+								<rect class="money-bar sell" [attr.x]="moneyBarX(index)" [attr.width]="moneyBarWidth()"
+									[attr.y]="moneyBaseline - moneyHeight(day.buyTotal + day.sellTotal)" [attr.height]="moneyHeight(day.sellTotal)" rx="2" />
+							}
+							@if (showDateLabel(index)) {
+								<text class="volume-axis-label" [attr.x]="moneyBarX(index) + moneyBarWidth() / 2" y="242" text-anchor="middle">
+									{{ shortDate(day.date) }}
+								</text>
+							}
+						</g>
+					}
+				</svg>
+			} @else if (moneyLoading()) {
+				<span class="chart-message">Loading money moved...</span>
+			} @else if (moneyError()) {
+				<span class="chart-message">Money moved is unavailable right now.</span>
+			}
+		</div>
+	</article>
+</section>

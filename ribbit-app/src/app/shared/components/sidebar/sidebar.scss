@@ -1,0 +1,214 @@
+// Sidebar Component Styles - Apex Trading Design System
+
+// Design Tokens
+$spacing-md: 16px;
+$spacing-lg: 24px;
+$radius-md: 8px;
+$sidebar-width: 260px;
+$sidebar-collapsed-width: 80px;
+
+.sidebar {
+  width: $sidebar-width;
+  background-color: var(--surface);
+  border-right: 1px solid var(--border);
+  overflow-y: auto;
+  transition: width 0.3s ease;
+  display: flex;
+  flex-direction: column;
+
+  &.collapsed {
+    width: $sidebar-collapsed-width;
+  }
+}
+
+.nav-menu {
+  flex: 1;
+  padding: $spacing-lg 0;
+}
+
+.nav-section {
+  margin-bottom: $spacing-lg;
+}
+
+.nav-section-title {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--subtle);
+  padding: 0 $spacing-md;
+  margin-bottom: $spacing-md;
+  letter-spacing: 0.5px;
+}
+
+.nav-items {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.nav-item {
+  margin: 0;
+}
+
+.nav-link {
+  display: flex;
+  align-items: center;
+  gap: $spacing-md;
+  padding: 12px $spacing-md;
+  margin: 0 $spacing-md;
+  color: var(--muted);
+  text-decoration: none;
+  border-radius: $radius-md;
+  transition: all 0.15s ease;
+  position: relative;
+  font-weight: 500;
+  font-size: 14px;
+
+  .sidebar.collapsed & {
+    padding: $spacing-md;
+    justify-content: center;
+    margin: 0 4px;
+  }
+
+  &:hover {
+    background-color: rgba(193, 255, 57, 0.1);
+    color: var(--accent);
+  }
+
+  &.active {
+    background-color: rgba(193, 255, 57, 0.15);
+    color: var(--accent);
+    font-weight: 600;
+
+    &::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 4px;
+      background-color: var(--accent);
+      border-radius: 0 $radius-md $radius-md 0;
+    }
+  }
+}
+
+.nav-icon {
+  flex-shrink: 0;
+  font-size: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+}
+
+.nav-label {
+  flex: 1;
+  white-space: nowrap;
+}
+
+.nav-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 6px;
+  background-color: var(--border);
+  color: var(--muted);
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  flex-shrink: 0;
+
+  &.badge-highlight {
+    background-color: var(--accent);
+    color: var(--background);
+  }
+
+  .sidebar.collapsed & {
+    display: none;
+  }
+}
+
+.sidebar-footer {
+  padding: $spacing-lg $spacing-md;
+  border-top: 1px solid var(--border);
+  display: flex;
+  justify-content: center;
+}
+
+.toggle-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--border);
+  background-color: var(--surface);
+  color: var(--muted);
+  border-radius: $radius-md;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-size: 14px;
+
+  &:hover {
+    background-color: rgba(193, 255, 57, 0.1);
+    color: var(--accent);
+    border-color: var(--accent);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 4px;
+  }
+}
+
+// Scrollbar styling
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--subtle);
+  border-radius: 3px;
+
+  &:hover {
+    background: var(--muted);
+  }
+}
+
+// Responsive Design
+@media (max-width: 768px) {
+  .sidebar {
+    width: $sidebar-collapsed-width;
+    position: absolute;
+    left: -$sidebar-collapsed-width;
+    height: calc(100dvh - 88px);
+    z-index: 50;
+    transition: left 0.3s ease;
+
+    &.open {
+      left: 0;
+      width: $sidebar-width;
+    }
+  }
+
+  .nav-section-title {
+    display: none;
+  }
+
+  .nav-label {
+    display: none;
+  }
+
+  .nav-badge {
+    display: none !important;
+  }
+}

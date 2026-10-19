@@ -1,0 +1,741 @@
+import {
+  Component,
+  DestroyRef,
+  ElementRef,
+  HostListener,
+  inject,
+  signal,
+  ViewChild
+} from '@angular/core';
+import { CommonModule } from '@angular/common';
+import {
+  AbstractControl,
+  FormControl,
+  FormGroup,
+  ReactiveFormsModule,
+  ValidationErrors,
+  ValidatorFn,
+  Validators
+} from '@angular/forms';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { Router } from '@angular/router';
+import { InstrumentsApiService } from '../../shared/services/instruments-api.service';
+
+type Side = 'Buy' | 'Sell';
+type OrderType = 'Market' | 'Limit';
+type Step = 'entry' | 'review' | 'success';
+type Field = 'symbol' | 'quantity' | 'limitPrice';
+
+export interface Instrument {
+  readonly symbol: string;
+  readonly name: string;
+  readonly priceCents: number;
+  readonly changePct: number;
+  readonly owned: number;
+  readonly exchange: string;
+  readonly assetType: string;
+}
+
+export interface OrderSnapshot {
+  readonly side: Side;
+  readonly instrument: Instrument;
+  readonly quantity: number;
+  readonly type: OrderType;
+  readonly priceCents: number;
+  readonly totalCents: number;
+  readonly cashAfterCents: number;
+  readonly timeInForce: 'Day';
+}
+
+export interface MockSubmission {
+  readonly id: string;
+  readonly status: 'Submitted';
+  readonly order: OrderSnapshot;
+  readonly submittedAt: string;
+}
+
+const wholeShares: ValidatorFn = (
+  control: AbstractControl
+): ValidationErrors | null => {
+  const value = String(control.value ?? '').trim();
+
+  if (!value) return null;
+
+  return /^\d+$/.test(value) &&
+    Number.isSafeInteger(Number(value)) &&
+    Number(value) >= 1
+    ? null
+    : { wholeShares: true };
+};
+
+function parseUsdCents(input: string): number | null {
+  const value = input.trim();
+
+  if (!/^\d+(?:\.\d{1,2})?$/.test(value)) return null;
+
+  const [dollars, fraction = ''] = value.split('.');
+  const cents =
+    Number(dollars) * 100 + Number(fraction.padEnd(2, '0'));
+
+  return Number.isSafeInteger(cents) && cents > 0 ? cents : null;
+}
+
+@Component({
+  selector: 'app-trade',
+  standalone: true,
+  imports: [CommonModule, ReactiveFormsModule],
+  templateUrl: './trade.html',
+  styleUrls: ['./trade.scss']
+})
+export class Trade {
+  private readonly router = inject(Router);
+  private readonly destroyRef = inject(DestroyRef);
+  private readonly instrumentsApi = inject(InstrumentsApiService);
+
+  readonly cashCents = this.readStoredBalance() * 100;
+
+  readonly instruments: readonly Instrument[] = Object.freeze([
+    Object.freeze({
+      symbol: 'AAPL',
+      assetType: 'Stock',
+      name: 'Apple Inc.',
+      priceCents: 22_842,
+      changePct: 0.84,
+      owned: 80,
+      exchange: 'NASDAQ'
+    }),
+    Object.freeze({
+      symbol: 'NVDA',
+      assetType: 'Stock',
+      name: 'NVIDIA Corporation',
+      priceCents: 14_287,
+      changePct: 2.45,
+      owned: 120,
+      exchange: 'NASDAQ'
+    }),
+    Object.freeze({
+      symbol: 'MSFT',
+      assetType: 'Stock',
+      name: 'Microsoft Corporation',
+      priceCents: 42_560,
+      changePct: -0.37,
+      owned: 40,
+      exchange: 'NASDAQ'
+    }),
+    Object.freeze({
+      symbol: 'SPY',
+      assetType: 'ETF',
+      name: 'SPDR S&P 500 ETF Trust',
+      priceCents: 58_921,
+      changePct: 0.12,
+      owned: 60,
+      exchange: 'NYSE ARCA'
+    }),
+    Object.freeze({
+      symbol: 'TSLA',
+      assetType: 'Stock',
+      name: 'Tesla, Inc.',
+      priceCents: 24_850,
+      changePct: -1.92,
+      owned: 30,
+      exchange: 'NASDAQ'
+    })
+  ]);
+
+  readonly icons: Record<string, string> = {
+    arrow: 'M5 12h14 M13 6l6 6-6 6',
+    check: 'M5 12l4 4L19 6'
+  };
+
+  readonly step = signal<Step>('entry');
+  readonly attempted = signal(false);
+  readonly reviewSnapshot = signal<OrderSnapshot | null>(null);
+  readonly submission = signal<MockSubmission | null>(null);
+  readonly searchQuery = signal('');
+  readonly dropdownOpen = signal(false);
+  readonly activeIndex = signal(-1);
+  readonly chartPrices = signal<readonly number[]>([]);
+  readonly chartDates = signal<readonly Date[]>([]);
+  readonly chartLoading = signal(false);
+  readonly chartError = signal(false);
+  readonly chartSize = signal({ width: 400, height: 200 });
+
+  private chartResizeObserver?: ResizeObserver;
+  private submissionCount = 0;
+
+  private readStoredBalance(): number {
+    const balance = Number(typeof localStorage === 'undefined' ? null : localStorage.getItem('balance'));
+    return Number.isFinite(balance) ? Math.round(balance) : 0;
+  }
+
+  private readonly currencyFormatter = new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD'
+  });
+
+  readonly form = new FormGroup(
+    {
+      side: new FormControl<Side>('Buy', {
+        nonNullable: true,
+        validators: [Validators.required]
+      }),
+      symbol: new FormControl('', {
+        nonNullable: true,
+        validators: [
+          Validators.required,
+          control =>
+            !control.value ||
+            this.instruments.some(item => item.symbol === control.value)
+              ? null
+              : { unknownInstrument: true }
+        ]
+      }),
+      quantity: new FormControl('', {
+        nonNullable: true,
+        validators: [Validators.required, wholeShares]
+      }),
+      orderType: new FormControl<OrderType>('Market', {
+        nonNullable: true,
+        validators: [Validators.required]
+      }),
+      limitPrice: new FormControl('0.00', { nonNullable: true })
+    },
+    { validators: [control => this.validateOrder(control)] }
+  );
+
+  @ViewChild('searchField') searchField?: ElementRef<HTMLElement>;
+
+  @ViewChild('priceChart') set priceChart(ref: ElementRef<SVGSVGElement> | undefined) {
+    this.chartResizeObserver?.disconnect();
+    if (!ref) return;
+
+    this.chartResizeObserver ??= new ResizeObserver(entries => {
+      const { width, height } = entries[0].contentRect;
+      if (width > 0 && height > 0) {
+        this.chartSize.set({ width: Math.round(width), height: Math.round(height) });
+      }
+    });
+    this.chartResizeObserver.observe(ref.nativeElement);
+  }
+
+  constructor() {
+    this.destroyRef.onDestroy(() => this.chartResizeObserver?.disconnect());
+
+    this.form.controls.symbol.valueChanges
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(symbol => {
+        if (symbol) {
+          this.loadChart(symbol);
+        } else {
+          this.resetChart();
+        }
+      });
+
+    this.form.valueChanges
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => {
+        if (this.step() === 'review') {
+          this.reviewSnapshot.set(null);
+          this.step.set('entry');
+        }
+      });
+  }
+
+  get selectedInstrument(): Instrument | undefined {
+    return this.instruments.find(
+      item => item.symbol === this.form.controls.symbol.value
+    );
+  }
+
+  get filteredInstruments(): Instrument[] {
+    const query = this.searchQuery().toLowerCase().trim();
+    if (!query) return Array.from(this.instruments);
+
+    return this.instruments.filter(
+      instrument =>
+        instrument.symbol.toLowerCase().includes(query) ||
+        instrument.name.toLowerCase().includes(query)
+    );
+  }
+
+  get chartGeometry() {
+    const { width, height } = this.chartSize();
+    const left = 44;
+    const right = width - 8;
+    const top = 8;
+    const bottom = height - 24;
+    return {
+      width,
+      height,
+      left,
+      right,
+      top,
+      bottom,
+      midY: (top + bottom) / 2
+    };
+  }
+
+  get chartPoints(): string {
+    const prices = this.chartPrices();
+    if (!prices.length) return '';
+
+    const { left, right, top, bottom } = this.chartGeometry;
+    const min = this.chartAxisMin;
+    const max = Math.max(...prices);
+    const range = max - min || 1;
+    const plotWidth = right - left;
+    const plotHeight = bottom - top;
+
+    return prices
+      .map((price, index) => {
+        const x = left + (index / Math.max(prices.length - 1, 1)) * plotWidth;
+        const y = bottom - ((price - min) / range) * plotHeight;
+        return `${x.toFixed(2)},${y.toFixed(2)}`;
+      })
+      .join(' ');
+  }
+
+  get chartAxisMin(): number {
+    const prices = this.chartPrices();
+    return prices.length ? Math.min(...prices) : 0;
+  }
+
+  get chartMax(): number {
+    return Math.max(...this.chartPrices());
+  }
+
+  get chartXLabels(): { x: number; label: string; anchor: 'start' | 'middle' | 'end' }[] {
+    const dates = this.chartDates();
+    const count = dates.length;
+    if (count < 2) return [];
+
+    const { left, right } = this.chartGeometry;
+    const formatter = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' });
+    const indexes = [...new Set([0, Math.round((count - 1) / 3), Math.round((2 * (count - 1)) / 3), count - 1])];
+
+    return indexes.map(index => ({
+      x: left + (index / (count - 1)) * (right - left) + (index === 0 ? 6 : 0),
+      label: formatter.format(dates[index]),
+      anchor: index === 0 ? 'start' : index === count - 1 ? 'end' : 'middle'
+    }));
+  }
+
+  get chartChangePercent(): number | null {
+    const prices = this.chartPrices();
+    if (prices.length < 2 || prices[0] === 0) return null;
+
+    return ((prices[prices.length - 1] - prices[0]) / prices[0]) * 100;
+  }
+
+  get side(): Side {
+    return this.form.controls.side.value;
+  }
+
+  get isLimit(): boolean {
+    return this.form.controls.orderType.value === 'Limit';
+  }
+
+  get priceCents(): number | null {
+    return this.isLimit
+      ? parseUsdCents(this.form.controls.limitPrice.value)
+      : this.selectedInstrument?.priceCents ?? null;
+  }
+
+  get estimatedCents(): number | null {
+    if (
+      !this.selectedInstrument ||
+      this.form.controls.quantity.invalid ||
+      this.priceCents === null
+    ) {
+      return null;
+    }
+
+    const total =
+      Number(this.form.controls.quantity.value) * this.priceCents;
+
+    return Number.isSafeInteger(total) ? total : null;
+  }
+
+  get cashAfterCents(): number | null {
+    if (
+      this.estimatedCents === null ||
+      this.form.hasError('insufficientFunds') ||
+      this.form.hasError('exceedsOwned')
+    ) {
+      return null;
+    }
+
+    return this.cashCents +
+      (this.side === 'Sell' ? this.estimatedCents : -this.estimatedCents);
+  }
+
+  get maximumBuyQuantity(): number | null {
+    return this.priceCents
+      ? Math.floor(this.cashCents / this.priceCents)
+      : null;
+  }
+
+  get fundsShortfall(): number {
+    return Math.max(0, (this.estimatedCents ?? 0) - this.cashCents);
+  }
+
+  get displayedOrder(): OrderSnapshot | null {
+    return this.step() === 'success'
+      ? this.submission()?.order ?? null
+      : this.reviewSnapshot();
+  }
+
+  get errorSummary(): string[] {
+    const messages = (['symbol', 'quantity', 'limitPrice'] as const)
+      .map(field => this.fieldError(field))
+      .filter(Boolean);
+
+    if (this.form.hasError('invalidSide')) {
+      messages.push('Choose Buy or Sell.');
+    }
+    if (this.form.hasError('invalidOrderType')) {
+      messages.push('Choose Market or Limit.');
+    }
+
+    return messages;
+  }
+
+  fieldError(field: Field): string {
+    const control = this.form.controls[field];
+
+    if (!this.attempted() && !control.touched) return '';
+
+    if (field === 'symbol') {
+      if (control.hasError('required')) {
+        return 'Select an instrument to continue.';
+      }
+      if (control.hasError('unknownInstrument')) {
+        return 'Select an instrument from the available list.';
+      }
+    }
+
+    if (field === 'quantity') {
+      if (control.hasError('required')) {
+        return 'Quantity is required.';
+      }
+      if (control.hasError('wholeShares')) {
+        return 'Enter a whole number of shares, at least 1.';
+      }
+      if (this.form.hasError('exceedsOwned')) {
+        return `You own ${this.selectedInstrument?.owned ?? 0} shares. Short selling is not supported.`;
+      }
+      if (this.form.hasError('insufficientFunds')) {
+        return 'Estimated order value exceeds your available cash.';
+      }
+      if (this.form.hasError('unsafeTotal')) {
+        return 'Enter a smaller quantity to calculate a valid total.';
+      }
+    }
+
+    if (field === 'limitPrice' && this.isLimit) {
+      if (this.form.hasError('requiredPrice')) {
+        return 'Limit price is required for a Limit order.';
+      }
+      if (this.form.hasError('invalidPrice')) {
+        return 'Enter a price greater than $0.00 with up to 2 decimal places.';
+      }
+    }
+
+    return '';
+  }
+
+  money(cents: number | null | undefined): string {
+    return cents == null
+      ? '—'
+      : this.currencyFormatter.format(cents / 100);
+  }
+
+  formatChange(pct: number): string {
+    const sign = pct > 0 ? '+' : '';
+    return `${sign}${pct.toFixed(2)}%`;
+  }
+
+  selectSide(side: Side): void {
+    this.form.controls.side.setValue(side);
+  }
+
+  selectType(type: OrderType): void {
+    this.form.controls.orderType.setValue(type);
+  }
+
+  selectInstrument(symbol: string): void {
+    this.form.controls.symbol.setValue(symbol);
+
+    const instrument = this.instruments.find(item => item.symbol === symbol);
+    if (instrument && Number(this.form.controls.limitPrice.value) === 0) {
+      this.form.controls.limitPrice.setValue(
+        (instrument.priceCents / 100).toFixed(2)
+      );
+    }
+
+    this.closeDropdown();
+  }
+
+  openDropdown(): void {
+    this.dropdownOpen.set(true);
+  }
+
+  updateSearch(query: string): void {
+    this.searchQuery.set(query);
+    this.dropdownOpen.set(true);
+    this.activeIndex.set(-1);
+  }
+
+  onSearchKeydown(event: KeyboardEvent): void {
+    if (event.key === 'Escape') {
+      this.closeDropdown();
+      return;
+    }
+
+    if (!this.dropdownOpen()) return;
+
+    const items = this.filteredInstruments;
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      event.preventDefault();
+      if (!items.length) return;
+
+      const current = this.activeIndex();
+      const step = event.key === 'ArrowDown' ? 1 : -1;
+      const next =
+        current < 0
+          ? (step > 0 ? 0 : items.length - 1)
+          : (current + step + items.length) % items.length;
+      this.activeIndex.set(next);
+    } else if (event.key === 'Enter') {
+      const item = items[this.activeIndex()];
+      if (item) {
+        event.preventDefault();
+        this.selectInstrument(item.symbol);
+      }
+    }
+  }
+
+  @HostListener('document:mousedown', ['$event'])
+  onDocumentMouseDown(event: MouseEvent): void {
+    const container = this.searchField?.nativeElement;
+    if (container && !container.contains(event.target as Node)) {
+      this.closeDropdown();
+    }
+  }
+
+  private closeDropdown(): void {
+    this.dropdownOpen.set(false);
+    this.activeIndex.set(-1);
+  }
+
+  private resetChart(): void {
+    this.chartPrices.set([]);
+    this.chartDates.set([]);
+    this.chartLoading.set(false);
+    this.chartError.set(false);
+  }
+
+  private loadChart(symbol: string): void {
+    this.chartPrices.set([]);
+    this.chartDates.set([]);
+    this.chartError.set(false);
+    this.chartLoading.set(true);
+
+    const endDate = new Date();
+    const startDate = new Date(endDate);
+    startDate.setMonth(startDate.getMonth() - 6);
+
+    this.instrumentsApi
+      .getBarNumbers(
+        symbol,
+        '1Day',
+        this.formatDate(startDate),
+        this.formatDate(endDate)
+      )
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: prices => {
+          if (this.selectedInstrument?.symbol !== symbol) return;
+
+          const dates = this.estimateBarDates(prices.length);
+          const validBars = prices
+            .map((price, index) => ({ price, date: dates[index] }))
+            .filter(bar => typeof bar.price === 'number' && Number.isFinite(bar.price));
+          this.chartPrices.set(validBars.map(bar => bar.price));
+          this.chartDates.set(validBars.map(bar => bar.date));
+          this.chartLoading.set(false);
+        },
+        error: () => {
+          if (this.selectedInstrument?.symbol !== symbol) return;
+
+          this.chartLoading.set(false);
+          this.chartError.set(true);
+        }
+      });
+  }
+
+  private estimateBarDates(count: number): Date[] {
+    const isWeekend = (date: Date) => date.getDay() === 0 || date.getDay() === 6;
+    const cursor = new Date();
+    cursor.setHours(0, 0, 0, 0);
+    while (isWeekend(cursor)) cursor.setDate(cursor.getDate() - 1);
+
+    const dates: Date[] = [];
+    for (let i = 0; i < count; i++) {
+      dates.push(new Date(cursor));
+      do {
+        cursor.setDate(cursor.getDate() - 1);
+      } while (isWeekend(cursor));
+    }
+    return dates.reverse();
+  }
+
+  private formatDate(date: Date): string {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
+  reviewOrder(): void {
+    this.attempted.set(true);
+    this.form.markAllAsTouched();
+    this.form.updateValueAndValidity();
+
+    const instrument = this.selectedInstrument;
+    const price = this.priceCents;
+    const total = this.estimatedCents;
+    const remaining = this.cashAfterCents;
+
+    if (
+      this.form.invalid ||
+      !instrument ||
+      price === null ||
+      total === null ||
+      remaining === null
+    ) {
+      return;
+    }
+
+    this.reviewSnapshot.set(Object.freeze({
+      side: this.side,
+      instrument,
+      quantity: Number(this.form.controls.quantity.value),
+      type: this.form.controls.orderType.value,
+      priceCents: price,
+      totalCents: total,
+      cashAfterCents: remaining,
+      timeInForce: 'Day'
+    }));
+
+    this.step.set('review');
+    this.focusHeading();
+  }
+
+  cancelReview(): void {
+    this.reviewSnapshot.set(null);
+    this.step.set('entry');
+    this.focusHeading();
+  }
+
+  confirmOrder(): void {
+    const order = this.reviewSnapshot();
+
+    if (this.step() !== 'review' || !order) return;
+
+    this.submissionCount += 1;
+
+    const result: MockSubmission = Object.freeze({
+      id: `SIM-20261008-${String(this.submissionCount).padStart(3, '0')}`,
+      status: 'Submitted',
+      order,
+      submittedAt: new Date().toISOString()
+    });
+
+    this.submission.set(result);
+    this.step.set('success');
+    this.focusHeading();
+  }
+
+  newOrder(): void {
+    this.step.set('entry');
+    this.reviewSnapshot.set(null);
+    this.submission.set(null);
+    this.attempted.set(false);
+    this.searchQuery.set('');
+
+    this.form.reset({
+      side: 'Buy',
+      symbol: '',
+      quantity: '',
+      orderType: 'Market',
+      limitPrice: '0.00'
+    });
+
+    this.focusHeading();
+  }
+
+  navigateTo(destination: string): void {
+    this.router.navigate([`/${destination}`]);
+  }
+
+  private validateOrder(control: AbstractControl): ValidationErrors | null {
+    const value = control.getRawValue();
+    const errors: ValidationErrors = {};
+
+    if (value.side !== 'Buy' && value.side !== 'Sell') {
+      errors['invalidSide'] = true;
+    }
+    if (value.orderType !== 'Market' && value.orderType !== 'Limit') {
+      errors['invalidOrderType'] = true;
+    }
+
+    const instrument = this.instruments.find(
+      item => item.symbol === value.symbol
+    );
+
+    const quantityText = String(value.quantity ?? '').trim();
+    const quantity = Number(quantityText);
+    const validQuantity =
+      /^\d+$/.test(quantityText) &&
+      Number.isSafeInteger(quantity) &&
+      quantity > 0;
+
+    let price: number | null = instrument?.priceCents ?? null;
+
+    if (value.orderType === 'Limit') {
+      const limitText = String(value.limitPrice ?? '').trim();
+      price = parseUsdCents(limitText);
+
+      if (!limitText) errors['requiredPrice'] = true;
+      else if (price === null) errors['invalidPrice'] = true;
+    }
+
+    if (
+      instrument &&
+      validQuantity &&
+      value.side === 'Sell' &&
+      quantity > instrument.owned
+    ) {
+      errors['exceedsOwned'] = true;
+    }
+
+    if (instrument && validQuantity && price !== null) {
+      const total = quantity * price;
+
+      if (!Number.isSafeInteger(total)) {
+        errors['unsafeTotal'] = true;
+      } else if (value.side === 'Buy' && total > this.cashCents) {
+        errors['insufficientFunds'] = true;
+      }
+    }
+
+    return Object.keys(errors).length ? errors : null;
+  }
+
+  private focusHeading(): void {
+    queueMicrotask(() => {
+      document.getElementById('trade-heading')?.focus();
+    });
+  }
+}

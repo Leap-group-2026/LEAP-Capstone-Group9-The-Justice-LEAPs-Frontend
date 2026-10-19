@@ -1,0 +1,9 @@
+<app-main-layout 
+  [pageTitle]="getCurrentPageTitle()"
+  *ngIf="showNavigation()"
+>
+  <router-outlet></router-outlet>
+</app-main-layout>
+
+<router-outlet *ngIf="!showNavigation()"></router-outlet>
+
