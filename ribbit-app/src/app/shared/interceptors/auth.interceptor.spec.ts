@@ -242,7 +242,7 @@ describe('authInterceptor with BR-03 sessions', () => {
   it('clears profile and account data and the logged-in state when the server ends the session', async () => {
     const { AuthService } = await import('../services/auth.service');
     const sessionData = ['name', 'email', 'address', 'userEmail', 'accountId', 'balance',
-      'tradeType', 'portfolioSize', 'createdAt', 'accountActive'];
+      'tradeType', 'portfolioSize', 'createdAt', 'accountActive', 'adminRole'];
     localStorage.setItem('token', validToken);
     localStorage.setItem('refreshToken', 'refresh-1');
     for (const key of sessionData) {

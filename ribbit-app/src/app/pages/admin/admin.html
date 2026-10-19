@@ -8,6 +8,56 @@
   </button>
 </section>
 
+<section class="filter-bar panel" aria-label="Admin activity filters">
+  <label for="account-filter">Account</label>
+  <select id="account-filter" (change)="onAccountFilterChange($event)">
+    <option value="">All accounts</option>
+    @for (accountId of accountOptions; track accountId) {
+      <option [value]="accountId">Account #{{ accountId }}</option>
+    }
+  </select>
+</section>
+
+<section class="panel user-lookup" aria-labelledby="user-lookup-heading">
+  <div class="panel-heading">
+    <div class="section-title">
+      <h2 id="user-lookup-heading">User lookup</h2>
+      <span>BY EMAIL</span>
+    </div>
+  </div>
+  <form class="lookup-form" (submit)="$event.preventDefault(); searchUser()">
+    <label for="user-email">Email address</label>
+    <input id="user-email" type="email" [value]="userEmail()" (input)="userEmail.set($any($event.target).value)" required>
+    <button class="button secondary" type="submit" [disabled]="userLookupLoading()">
+      {{ userLookupLoading() ? 'Searching...' : 'Search' }}
+    </button>
+  </form>
+  @if (userLookupError()) {
+    <p class="lookup-error" role="alert">{{ userLookupError() }}</p>
+  }
+  @if (userLookup(); as user) {
+    <div class="user-result">
+      <div><strong>{{ user.name }}</strong><span>{{ user.email }}</span></div>
+      <div><span>User ID</span><strong>#{{ user.userId }}</strong></div>
+      <div><span>Date of birth</span><strong>{{ user.dateOfBirth }}</strong></div>
+      <div><span>Address</span><strong>{{ user.address }}</strong></div>
+    </div>
+    <div class="lookup-accounts">
+      <h3>Accounts</h3>
+      @if (user.accounts.length) {
+        @for (account of user.accounts; track account.accountId) {
+          <div class="lookup-account">
+            <strong>#{{ account.accountId }}</strong>
+            <span>{{ formatCurrency(account.balance) }} · {{ account.accountActive ? 'Active' : 'Closed' }}</span>
+          </div>
+        }
+      } @else {
+        <p class="empty-state">No accounts found.</p>
+      }
+    </div>
+  }
+</section>
+
 @if (errorMessage()) {
   <section class="notice" role="alert">
     <strong>{{ errorMessage() }}</strong>
@@ -36,6 +86,11 @@
     <strong class="negative">{{ pendingOrders }}</strong>
     <p>{{ filledOrders }} filled orders</p>
   </article>
+  <article class="summary-card">
+    <h2>Transactions</h2>
+    <strong>{{ transactions.length }}</strong>
+    <p>Money movements</p>
+  </article>
 </section>
 
 <section class="panel" aria-labelledby="orders-heading">
@@ -44,10 +99,20 @@
       <h2 id="orders-heading">Recent orders</h2>
       <span>{{ orders.length }} TOTAL</span>
     </div>
+    <button
+      class="panel-toggle"
+      type="button"
+      (click)="toggleOrders()"
+      [attr.aria-expanded]="showOrders()"
+      aria-controls="admin-orders-table"
+      [attr.aria-label]="showOrders() ? 'Collapse orders' : 'Expand orders'"
+    >
+      <span aria-hidden="true">{{ showOrders() ? '−' : '+' }}</span>
+    </button>
   </div>
 
-  @if (orders.length > 0) {
-    <div class="table-scroll" tabindex="0" role="region" aria-label="Admin orders table">
+  @if (showOrders() && orders.length > 0) {
+    <div id="admin-orders-table" class="table-scroll" tabindex="0" role="region" aria-label="Admin orders table">
       <table>
         <thead>
           <tr>
@@ -62,7 +127,7 @@
           </tr>
         </thead>
         <tbody>
-          @for (order of orders; track order.order_id) {
+          @for (order of pagedOrders; track order.order_id) {
             <tr>
               <th scope="row" class="order-id">#{{ order.order_id }}</th>
               <td>{{ order.account_id }}</td>
@@ -77,7 +142,67 @@
         </tbody>
       </table>
     </div>
-  } @else if (!isLoading()) {
+    <div class="pagination" aria-label="Orders pagination">
+      <button class="button secondary" type="button" (click)="setOrdersPage(ordersPage() - 1)" [disabled]="ordersPage() === 1">Previous</button>
+      <span>Page {{ ordersPage() }} of {{ ordersPageCount }}</span>
+      <button class="button secondary" type="button" (click)="setOrdersPage(ordersPage() + 1)" [disabled]="ordersPage() === ordersPageCount">Next</button>
+    </div>
+  } @else if (showOrders() && !isLoading()) {
     <div class="empty-state"><p>No orders were returned by the API.</p></div>
+  }
+</section>
+
+<section class="panel" aria-labelledby="transactions-heading">
+  <div class="panel-heading">
+    <div class="section-title">
+      <h2 id="transactions-heading">Transaction history</h2>
+      <span>{{ transactions.length }} TOTAL</span>
+    </div>
+    <button
+      class="panel-toggle"
+      type="button"
+      (click)="toggleTransactions()"
+      [attr.aria-expanded]="showTransactions()"
+      aria-controls="admin-transactions-table"
+      [attr.aria-label]="showTransactions() ? 'Collapse transactions' : 'Expand transactions'"
+    >
+      <span aria-hidden="true">{{ showTransactions() ? '−' : '+' }}</span>
+    </button>
+  </div>
+
+  @if (showTransactions() && transactions.length > 0) {
+    <div id="admin-transactions-table" class="table-scroll" tabindex="0" role="region" aria-label="Admin transaction table">
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">Transaction ID</th>
+            <th scope="col">Account</th>
+            <th scope="col">Type</th>
+            <th scope="col">Direction</th>
+            <th scope="col" class="numeric">Amount</th>
+            <th scope="col">Occurred</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (transaction of pagedTransactions; track transaction.transaction_id) {
+            <tr>
+              <th scope="row" class="order-id">#{{ transaction.transaction_id }}</th>
+              <td>{{ transaction.account_id }}</td>
+              <td>{{ transaction.transaction_type }}</td>
+              <td><span class="side" [class.sell]="transaction.side === 'OUT'">{{ transaction.side }}</span></td>
+              <td class="numeric">{{ formatCurrency(transaction.amount) }}</td>
+              <td>{{ formatDate(transaction.happened_at) }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+    <div class="pagination" aria-label="Transactions pagination">
+      <button class="button secondary" type="button" (click)="setTransactionsPage(transactionsPage() - 1)" [disabled]="transactionsPage() === 1">Previous</button>
+      <span>Page {{ transactionsPage() }} of {{ transactionsPageCount }}</span>
+      <button class="button secondary" type="button" (click)="setTransactionsPage(transactionsPage() + 1)" [disabled]="transactionsPage() === transactionsPageCount">Next</button>
+    </div>
+  } @else if (showTransactions() && !isLoading()) {
+    <div class="empty-state"><p>No transactions match the selected account.</p></div>
   }
 </section>

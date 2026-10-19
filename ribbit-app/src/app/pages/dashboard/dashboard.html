@@ -55,11 +55,11 @@
       <article class="summary-card">
         <h2>Total Gain/Loss</h2>
         <strong [class.positive]="totalGain >= 0" [class.negative]="totalGain < 0">
-          {{ sign(totalGain) }}{{ absolute(totalGain) | currency:'USD':'symbol':'1.2-2' }}
+          {{ sign(totalGain) }}{{ absolute(totalGainPercent) | percent:'1.2-2' }}
         </strong>
         <p [class.positive]="totalGain >= 0" [class.negative]="totalGain < 0">
-          {{ sign(totalGain) }}{{ absolute(totalGainPercent) | percent:'1.2-2' }}
-          since first investment
+          {{ sign(totalGain) }}{{ absolute(totalGain) | currency:'USD':'symbol':'1.2-2' }}
+          total gain/loss
         </p>
       </article>
     </section>

@@ -25,6 +25,10 @@ interface LoginResponse {
   refreshToken?: string;
   access_token?: string;
   token?: string;
+  role?: string;
+  tokenRole?: string;
+  adminRole?: string;
+  roles?: string[];
 }
 
 interface UserResponse {
@@ -132,6 +136,10 @@ export class Login {
     this.isSubmitting.set(true);
     this.loginError.set('');
 
+    if (this.isAdminLogin) {
+      this.authService.setAdminRole('');
+    }
+
     this.http
       .post<LoginResponse>(
         `${environment.authUrl}/auth/${this.isAdminLogin ? 'adminLogin' : 'login'}`,
@@ -140,6 +148,8 @@ export class Login {
       .pipe(
         timeout(5000),
         switchMap((response) => {
+          const role = this.readRole(response);
+
           const accessToken =
             response.accessToken ?? response.access_token ?? response.token;
 
@@ -150,6 +160,9 @@ export class Login {
           storeTokens(accessToken, response.refreshToken);
 
           if (this.isAdminLogin) {
+            if (role) {
+              this.authService.setAdminRole(role);
+            }
             return of(null);
           }
 
@@ -186,7 +199,11 @@ export class Login {
           }
 
           localStorage.setItem('userEmail', requestBody.email);
-          this.router.navigate([this.isAdminLogin ? '/admin' : '/dashboard']);
+          const isReporter = this.isAdminLogin && this.authService.isReporter();
+          this.router.navigate([
+            isReporter ? '/reporter' :
+              this.isAdminLogin ? '/admin' : '/dashboard'
+          ]);
         },
         error: (error: unknown) => {
           const status = (error as { status?: number })?.status;
@@ -203,6 +220,10 @@ export class Login {
       ...credentials,
       email: requestBody.email
     });
+  }
+
+  private readRole(response: LoginResponse): string {
+    return response.role ?? response.tokenRole ?? response.adminRole ?? response.roles?.[0] ?? '';
   }
 
   private loadAccount(accessToken: string): Observable<void> {

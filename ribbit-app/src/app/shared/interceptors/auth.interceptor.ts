@@ -61,7 +61,17 @@ export function clearToken(): void {
 // True when the JWT's own `exp` claim has passed, or the token can't be read.
 export function isTokenExpired(token: string, nowMs = Date.now()): boolean {
   try {
-    const payload = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+    const encodedPayload = token
+      .trim()
+      .replace(/^Bearer\s+/i, '')
+      .replace(/^"|"$/g, '')
+      .split('.')[1];
+    const normalizedPayload = encodedPayload.replace(/-/g, '+').replace(/_/g, '/');
+    const paddedPayload = normalizedPayload.padEnd(
+      normalizedPayload.length + (4 - normalizedPayload.length % 4) % 4,
+      '='
+    );
+    const payload = JSON.parse(atob(paddedPayload));
     return typeof payload.exp !== 'number' || payload.exp * 1000 <= nowMs;
   } catch {
     return true;

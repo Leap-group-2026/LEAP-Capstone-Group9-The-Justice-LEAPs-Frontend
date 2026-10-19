@@ -36,7 +36,8 @@ export class App {
       orders: 'Orders',
       transactions: 'Transactions',
       account: 'Account',
-      admin: 'Admin'
+      admin: 'Admin',
+      reporter: 'Reporter'
     };
     return titleMap[path] || 'Dashboard';
   }

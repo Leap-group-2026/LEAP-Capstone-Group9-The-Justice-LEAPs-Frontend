@@ -75,8 +75,22 @@ describe('toTransaction', () => {
     expect(t?.amount).toBe(-250);
   });
 
-  it('skips currency exchange rows', () => {
-    expect(toTransaction(txDto({ transaction_type: 'CURRENCY EXCHANGE', side: 'EXCHANGE' }))).toBeNull();
+  it('maps currency exchange rows into completed history entries', () => {
+    expect(toTransaction(txDto({
+      transaction_id: 101,
+      transaction_type: 'CURRENCY EXCHANGE',
+      side: 'EXCHANGE',
+      amount: 100,
+      happened_at: '2026-10-19T13:10:32.830734'
+    }))).toEqual({
+      id: 'TX-101',
+      date: '2026-10-19',
+      time: '13:10',
+      type: 'Currency Exchange',
+      description: 'Currency Exchange',
+      amount: 100,
+      status: 'Completed'
+    });
   });
 });
 
@@ -232,5 +246,19 @@ describe('TransactionsService deposit/withdraw', () => {
 
     expect(error?.status).toBe(400);
     expect(error?.error).toEqual(body);
+  });
+
+  it('gets transactions for the stored account with the bearer token', () => {
+    localStorage.setItem('token', 'test-token');
+    let result: TransactionDto[] | undefined;
+    service.getTransactions(42).subscribe(transactions => (result = transactions));
+
+    const req = http.expectOne(`${base}`);
+    expect(req.request.method).toBe('GET');
+    expect(req.request.headers.get('Authorization')).toBe('Bearer test-token');
+
+    const response = [txDto({ account_id: 42 })];
+    req.flush(response);
+    expect(result).toEqual(response);
   });
 });

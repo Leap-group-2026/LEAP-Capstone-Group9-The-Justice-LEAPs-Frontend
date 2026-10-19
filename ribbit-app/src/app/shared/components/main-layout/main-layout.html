@@ -85,68 +85,70 @@
     [class.collapsed]="sidebarCollapsed"
   >
     <div class="sidebar-header">
-      <div class="sidebar-label">{{ sidebarCollapsed ? '' : 'WORKSPACE' }}</div>
-      <button
-        class="collapse-button"
-        type="button"
-        aria-label="Toggle sidebar collapse"
-        [attr.aria-pressed]="sidebarCollapsed"
-        (click)="sidebarCollapsed = !sidebarCollapsed"
-      >
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-          <path [attr.d]="sidebarCollapsed ? icons['expand'] : icons['collapse']"/>
-        </svg>
-      </button>
-    </div>
-
-    <nav aria-label="Main navigation">
-      @for (item of visibleNavigation; track item.id) {
+        <div class="sidebar-label">{{ sidebarCollapsed ? '' : 'WORKSPACE' }}</div>
         <button
-          class="nav-item"
+          class="collapse-button"
           type="button"
-          [class.active]="item.id === currentPage"
-          [attr.aria-current]="item.id === currentPage ? 'page' : null"
-          (click)="navigate(item.id)"
-          [title]="sidebarCollapsed ? item.label : ''"
+          aria-label="Toggle sidebar collapse"
+          [attr.aria-pressed]="sidebarCollapsed"
+          (click)="sidebarCollapsed = !sidebarCollapsed"
         >
           <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path [attr.d]="icons[item.icon]"/>
+            <path [attr.d]="sidebarCollapsed ? icons['expand'] : icons['collapse']"/>
           </svg>
-          @if (!sidebarCollapsed) {
-            <span>{{ item.label }}</span>
-          }
         </button>
-      }
-    </nav>
+    </div>
+
+    @if (!isReporterUser) {
+      <nav aria-label="Main navigation">
+          @for (item of visibleNavigation; track item.id) {
+            <button
+              class="nav-item"
+              type="button"
+              [class.active]="item.id === currentPage"
+              [attr.aria-current]="item.id === currentPage ? 'page' : null"
+              (click)="navigate(item.id)"
+              [title]="sidebarCollapsed ? item.label : ''"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path [attr.d]="icons[item.icon]"/>
+              </svg>
+              @if (!sidebarCollapsed) {
+                <span>{{ item.label }}</span>
+              }
+            </button>
+          }
+      </nav>
+    }
 
     <div class="sidebar-bottom">
-      <div class="market-status" [class.collapsed]="sidebarCollapsed">
-        <span><i></i> {{ sidebarCollapsed ? '' : 'MARKET OPEN' }}</span>
-        @if (!sidebarCollapsed) {
-          <p>NYSE · Closes at 4:00 PM ET</p>
-          <small>Mock market session</small>
-        }
-      </div>
+        <div class="market-status" [class.collapsed]="sidebarCollapsed">
+          <span><i></i> {{ sidebarCollapsed ? '' : 'MARKET OPEN' }}</span>
+          @if (!sidebarCollapsed) {
+            <p>NYSE · Closes at 4:00 PM ET</p>
+            <small>Mock market session</small>
+          }
+        </div>
 
-      <button class="nav-item" type="button" (click)="navigate('account')" [title]="sidebarCollapsed ? 'Help & support' : ''">
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-          <path [attr.d]="icons['support']"/>
-        </svg>
-        @if (!sidebarCollapsed) {
-          <span>Help &amp; support</span>
-        }
-      </button>
+        <button class="nav-item" type="button" (click)="navigate('account')" [title]="sidebarCollapsed ? 'Help & support' : ''">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path [attr.d]="icons['support']"/>
+          </svg>
+          @if (!sidebarCollapsed) {
+            <span>Help &amp; support</span>
+          }
+        </button>
 
-      <button class="nav-item" type="button" (click)="navigate('logout')" [title]="sidebarCollapsed ? 'Logout' : ''">
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-          <path [attr.d]="icons['logout']"/>
-        </svg>
-        @if (!sidebarCollapsed) {
-          <span>Logout</span>
-        }
-      </button>
+        <button class="nav-item" type="button" (click)="navigate('logout')" [title]="sidebarCollapsed ? 'Logout' : ''">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path [attr.d]="icons['logout']"/>
+          </svg>
+          @if (!sidebarCollapsed) {
+            <span>Logout</span>
+          }
+        </button>
 
-      <small class="copyright" [style.display]="sidebarCollapsed ? 'none' : 'block'">© 2026 Ribbit Financial</small>
+        <small class="copyright" [style.display]="sidebarCollapsed ? 'none' : 'block'">© 2026 Ribbit Financial</small>
     </div>
   </aside>
 
