@@ -146,6 +146,8 @@ export class Login {
       .pipe(
         timeout(5000),
         switchMap((response) => {
+          const role = this.readRole(response);
+
           const accessToken =
             response.accessToken ?? response.access_token ?? response.token;
 
@@ -156,7 +158,6 @@ export class Login {
           localStorage.setItem('token', accessToken);
 
           if (this.isAdminLogin) {
-            const role = this.readRole(response);
             if (role) {
               this.authService.setAdminRole(role);
             }
@@ -196,8 +197,9 @@ export class Login {
           }
 
           localStorage.setItem('userEmail', requestBody.email);
+          const isReporter = this.isAdminLogin && this.authService.isReporter();
           this.router.navigate([
-            this.isAdminLogin && this.authService.isReporter() ? '/reporter' :
+            isReporter ? '/reporter' :
               this.isAdminLogin ? '/admin' : '/dashboard'
           ]);
         },
