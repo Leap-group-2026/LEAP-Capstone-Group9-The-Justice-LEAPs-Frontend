@@ -114,3 +114,206 @@ describe('authInterceptor', () => {
     expect(navigate).not.toHaveBeenCalled();
   });
 });
+
+describe('authInterceptor with BR-03 sessions', () => {
+  let http: HttpClient;
+  let controller: HttpTestingController;
+  let navigate: ReturnType<typeof vi.spyOn>;
+  const accounts = `${environment.springUrl}/user/accounts`;
+  const refreshUrl = `${environment.authUrl}/auth/refresh`;
+  const newToken = makeToken({ sub: '42', role: 'client', exp: NOW_S + 1800, v: 2 });
+  // Lets the Web Lock (when the browser has one) and promise hops run before asserting
+  const settle = () => new Promise(resolve => setTimeout(resolve, 0));
+
+  beforeEach(() => {
+    TestBed.configureTestingModule({
+      providers: [
+        provideHttpClient(withInterceptors([authInterceptor])),
+        provideHttpClientTesting(),
+        provideRouter([])
+      ]
+    });
+    http = TestBed.inject(HttpClient);
+    controller = TestBed.inject(HttpTestingController);
+    navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+  });
+
+  afterEach(() => {
+    localStorage.clear();
+    try {
+      controller.verify();
+    } finally {
+      TestBed.resetTestingModule();
+    }
+  });
+
+  const springError = (code: string, status = 401) =>
+    ({ body: { error: code, message: 'x' }, opts: { status, statusText: 'Error' } });
+
+  it('refreshes on token_expired, stores the new pair and retries with the new token', async () => {
+    localStorage.setItem('token', validToken);
+    localStorage.setItem('refreshToken', 'refresh-1');
+    let result: unknown;
+    http.get(accounts).subscribe(r => (result = r));
+
+    const first = springError('token_expired');
+    controller.expectOne(accounts).flush(first.body, first.opts);
+    await settle();
+    const refresh = controller.expectOne(refreshUrl);
+    expect(refresh.request.body).toEqual({ refreshToken: 'refresh-1' });
+    refresh.flush({ accessToken: newToken, refreshToken: 'refresh-2' });
+    await settle();
+    const retry = controller.expectOne(accounts);
+    expect(retry.request.headers.get('Authorization')).toBe(`Bearer ${newToken}`);
+    retry.flush([{ accountId: 1 }]);
+
+    expect(result).toEqual([{ accountId: 1 }]);
+    expect(localStorage.getItem('token')).toBe(newToken);
+    expect(localStorage.getItem('refreshToken')).toBe('refresh-2');
+    expect(navigate).not.toHaveBeenCalled();
+  });
+
+  it('sends one refresh for several requests that expire together', async () => {
+    localStorage.setItem('token', validToken);
+    localStorage.setItem('refreshToken', 'refresh-1');
+    http.get(`${accounts}?a`).subscribe();
+    http.get(`${accounts}?b`).subscribe();
+
+    const expired = springError('token_expired');
+    controller.expectOne(`${accounts}?a`).flush(expired.body, expired.opts);
+    controller.expectOne(`${accounts}?b`).flush(expired.body, expired.opts);
+    await settle();
+    controller.expectOne(refreshUrl).flush({ accessToken: newToken, refreshToken: 'refresh-2' });
+    await settle();
+
+    controller.expectOne(`${accounts}?a`).flush([]);
+    controller.expectOne(`${accounts}?b`).flush([]);
+  });
+
+  it('logs out when the refresh token is refused', async () => {
+    localStorage.setItem('token', validToken);
+    localStorage.setItem('refreshToken', 'refresh-1');
+    let error: HttpErrorResponse | undefined;
+    http.get(accounts).subscribe({ error: e => (error = e) });
+
+    const expired = springError('token_expired');
+    controller.expectOne(accounts).flush(expired.body, expired.opts);
+    await settle();
+    controller.expectOne(refreshUrl).flush({ message: 'Session has ended' }, { status: 401, statusText: 'Unauthorized' });
+    await settle();
+
+    expect(error?.status).toBe(401);
+    expect(localStorage.getItem('token')).toBeNull();
+    expect(localStorage.getItem('refreshToken')).toBeNull();
+    expect(navigate).toHaveBeenCalledWith(['/login']);
+  });
+
+  it('keeps the session when the auth service cannot be reached during a refresh', async () => {
+    localStorage.setItem('token', validToken);
+    localStorage.setItem('refreshToken', 'refresh-1');
+    let error: HttpErrorResponse | undefined;
+    http.get(accounts).subscribe({ error: e => (error = e) });
+
+    const expired = springError('token_expired');
+    controller.expectOne(accounts).flush(expired.body, expired.opts);
+    await settle();
+    controller.expectOne(refreshUrl).flush('Bad Gateway', { status: 502, statusText: 'Bad Gateway' });
+    await settle();
+
+    expect(error?.status).toBe(401);
+    expect(localStorage.getItem('refreshToken')).toBe('refresh-1');
+    expect(navigate).not.toHaveBeenCalled();
+  });
+
+  it.each(['session_revoked', 'session_idle', 'session_expired', 'session_invalid', 'token_invalid'])(
+    'logs out at once on %s, even though the JWT has not expired', code => {
+      localStorage.setItem('token', validToken);
+      localStorage.setItem('refreshToken', 'refresh-1');
+      http.get(accounts).subscribe({ error: () => undefined });
+
+      const ended = springError(code);
+      controller.expectOne(accounts).flush(ended.body, ended.opts);
+
+      expect(localStorage.getItem('token')).toBeNull();
+      expect(localStorage.getItem('refreshToken')).toBeNull();
+      expect(navigate).toHaveBeenCalledWith(['/login']);
+    });
+
+  it('clears profile and account data and the logged-in state when the server ends the session', async () => {
+    const { AuthService } = await import('../services/auth.service');
+    const sessionData = ['name', 'email', 'address', 'userEmail', 'accountId', 'balance',
+      'tradeType', 'portfolioSize', 'createdAt', 'accountActive'];
+    localStorage.setItem('token', validToken);
+    localStorage.setItem('refreshToken', 'refresh-1');
+    for (const key of sessionData) {
+      localStorage.setItem(key, `value-${key}`);
+    }
+    localStorage.setItem('theme', 'dark');
+    const auth = TestBed.inject(AuthService);
+    expect(auth.isLoggedIn().isLoggedIn).toBe(true);
+
+    http.get(accounts).subscribe({ error: () => undefined });
+    const ended = springError('session_revoked');
+    controller.expectOne(accounts).flush(ended.body, ended.opts);
+
+    for (const key of ['token', 'refreshToken', ...sessionData]) {
+      expect(localStorage.getItem(key), key).toBeNull();
+    }
+    // Not session data: survives.
+    expect(localStorage.getItem('theme')).toBe('dark');
+    expect(auth.isLoggedIn().isLoggedIn).toBe(false);
+    expect(auth.getUserProfile().name).toBe('');
+    expect(navigate).toHaveBeenCalledWith(['/login']);
+  });
+
+  it('reads the code from a text response too', () => {
+    localStorage.setItem('token', validToken);
+    http.get(accounts, { responseType: 'text' }).subscribe({ error: () => undefined });
+
+    controller.expectOne(accounts).flush(JSON.stringify({ error: 'session_revoked', message: 'x' }),
+      { status: 401, statusText: 'Unauthorized' });
+
+    expect(navigate).toHaveBeenCalledWith(['/login']);
+  });
+
+  it('never ends the session on 503 session_store_unavailable or 403', () => {
+    localStorage.setItem('token', validToken);
+    http.get(`${accounts}?503`).subscribe({ error: () => undefined });
+    http.get(`${accounts}?403`).subscribe({ error: () => undefined });
+
+    controller.expectOne(`${accounts}?503`).flush({ error: 'session_store_unavailable' }, { status: 503, statusText: 'Unavailable' });
+    controller.expectOne(`${accounts}?403`).flush(null, { status: 403, statusText: 'Forbidden' });
+
+    expect(localStorage.getItem('token')).toBe(validToken);
+    expect(navigate).not.toHaveBeenCalled();
+  });
+});
+
+describe('AuthService.logout', () => {
+  afterEach(() => {
+    localStorage.clear();
+    TestBed.resetTestingModule();
+  });
+
+  it('ends the session at the server and clears both tokens', async () => {
+    const { AuthService } = await import('../services/auth.service');
+    TestBed.configureTestingModule({ providers: [provideHttpClient(), provideHttpClientTesting()] });
+    const controller = TestBed.inject(HttpTestingController);
+    localStorage.setItem('token', validToken);
+    localStorage.setItem('refreshToken', 'refresh-1');
+    localStorage.setItem('email', 'jo@example.com');
+    localStorage.setItem('balance', '1000');
+
+    TestBed.inject(AuthService).logout();
+
+    const logout = controller.expectOne(`${environment.authUrl}/auth/logout`);
+    expect(logout.request.method).toBe('POST');
+    expect(logout.request.headers.get('Authorization')).toBe(`Bearer ${validToken}`);
+    expect(localStorage.getItem('token')).toBeNull();
+    expect(localStorage.getItem('refreshToken')).toBeNull();
+    expect(localStorage.getItem('email')).toBeNull();
+    expect(localStorage.getItem('balance')).toBeNull();
+    logout.flush({ message: 'Logout successful' });
+    controller.verify();
+  });
+});

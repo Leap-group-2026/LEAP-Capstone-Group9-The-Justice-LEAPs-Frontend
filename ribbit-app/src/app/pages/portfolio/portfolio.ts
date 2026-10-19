@@ -279,6 +279,7 @@ export class Portfolio implements OnInit {
 
   navigate(destination: PortfolioDestination): void {
     if (destination === 'logout') {
+      this.authService.logout();
       this.router.navigate(['/login']);
     } else {
       this.router.navigate([`/${destination}`]);

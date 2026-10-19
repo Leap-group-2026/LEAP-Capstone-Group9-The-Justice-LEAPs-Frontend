@@ -1,23 +1,49 @@
+import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
+import { provideRouter } from '@angular/router';
 import { App } from './app';
 
+
+function makeToken(payload: object): string {
+  const encode = (value: object) =>
+    btoa(JSON.stringify(value)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  return `${encode({ alg: 'HS256', typ: 'JWT' })}.${encode(payload)}.signature`;
+}
+
 describe('App', () => {
-  beforeEach(async () => {
-    await TestBed.configureTestingModule({
+  function createApp() {
+    TestBed.configureTestingModule({
       imports: [App],
-    }).compileComponents();
+      providers: [provideRouter([]), provideHttpClient(), provideHttpClientTesting()]
+    });
+    return TestBed.createComponent(App);
+  }
+
+  afterEach(() => {
+    localStorage.clear();
+    TestBed.resetTestingModule();
   });
 
   it('should create the app', () => {
-    const fixture = TestBed.createComponent(App);
-    const app = fixture.componentInstance;
-    expect(app).toBeTruthy();
+    expect(createApp().componentInstance).toBeTruthy();
   });
 
-  it('should render title', async () => {
-    const fixture = TestBed.createComponent(App);
+  it('shows only the routed page, without the main layout, when signed out', async () => {
+    const fixture = createApp();
     await fixture.whenStable();
     const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled.querySelector('h1')?.textContent).toContain('Hello, ribbit-app');
+
+    expect(compiled.querySelector('app-main-layout')).toBeNull();
+    expect(compiled.querySelector('router-outlet')).not.toBeNull();
+  });
+
+  it('wraps the routed page in the main layout when signed in', async () => {
+    localStorage.setItem('token', makeToken({ sub: '42', role: 'client', exp: Math.floor(Date.now() / 1000) + 1800 }));
+    const fixture = createApp();
+    await fixture.whenStable();
+    const compiled = fixture.nativeElement as HTMLElement;
+
+    expect(compiled.querySelector('app-main-layout router-outlet')).not.toBeNull();
   });
 });

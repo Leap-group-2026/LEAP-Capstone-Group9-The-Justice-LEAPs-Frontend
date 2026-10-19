@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { Router, RouterOutlet } from '@angular/router';
 import { MainLayout } from './shared/components/main-layout/main-layout';
 import { AuthService } from './shared/services/auth.service';
+import { SessionActivityService } from './shared/services/session-activity.service';
 
 @Component({
   selector: 'app-root',
@@ -16,10 +17,14 @@ export class App {
 
   protected readonly isLoggedIn = this.authService.isLoggedIn;
 
+  constructor() {
+    inject(SessionActivityService).start();
+  }
+
   protected showNavigation(): boolean {
     const currentPath = this.router.url.split('?')[0].replace(/\/$/, '');
     const isPublicPage = ['/login', '/admin-login', '/signup', '/forgot-password'].includes(currentPath);
-    return this.isLoggedIn() && !isPublicPage;
+    return this.isLoggedIn().isLoggedIn && !isPublicPage;
   }
 
   protected getCurrentPageTitle(): string {

@@ -12,6 +12,7 @@ import { finalize, map, Observable, of, switchMap, tap, throwError, timeout } fr
 import { environment } from '../../environments/environment';
 import { AuthService } from '../../shared/services/auth.service';
 import { ThemeService } from '../../shared/services/theme.service';
+import { storeTokens } from '../../shared/interceptors/auth.interceptor';
 
 export interface LoginCredentials {
   email: string;
@@ -21,6 +22,7 @@ export interface LoginCredentials {
 
 interface LoginResponse {
   accessToken?: string;
+  refreshToken?: string;
   access_token?: string;
   token?: string;
 }
@@ -145,7 +147,7 @@ export class Login {
             return throwError(() => new Error('Missing access token'));
           }
 
-          localStorage.setItem('token', accessToken);
+          storeTokens(accessToken, response.refreshToken);
 
           if (this.isAdminLogin) {
             return of(null);
@@ -186,8 +188,13 @@ export class Login {
           localStorage.setItem('userEmail', requestBody.email);
           this.router.navigate([this.isAdminLogin ? '/admin' : '/dashboard']);
         },
-        error: () => {
-          this.loginError.set('Login failed, username or password is incorrect.');
+        error: (error: unknown) => {
+          const status = (error as { status?: number })?.status;
+          this.loginError.set(
+            status === 401
+              ? 'Login failed, username or password is incorrect.'
+              : 'We could not sign you in right now. Please try again in a moment.'
+          );
         }
       });
 
