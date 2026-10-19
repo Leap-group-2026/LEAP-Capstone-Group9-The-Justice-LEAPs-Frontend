@@ -550,11 +550,13 @@ h1 {
   height: auto;
   margin: 16px 16px 22px;
   overflow: visible;
+  stroke: none;
 }
 
 .chart-grid {
-  stroke: #293029;
-  stroke-width: 1;
+  stroke: #344037;
+  stroke-width: .75;
+  opacity: .65;
 }
 
 .chart-line {
@@ -575,9 +577,13 @@ h1 {
 }
 
 .chart-label {
-  fill: var(--subtle);
-  font-family: "IBM Plex Mono", monospace;
-  font-size: 9px;
+  fill: #ffffff;
+  font-family: "Inter", system-ui, sans-serif;
+  font-size: 10px;
+  font-weight: 400;
+  letter-spacing: 0;
+  opacity: .9;
+  stroke: none;
 }
 
 // TABLE STYLING

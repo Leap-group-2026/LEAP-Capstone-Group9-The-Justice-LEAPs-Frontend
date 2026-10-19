@@ -7,6 +7,8 @@ import { InstrumentsApiService } from './instruments-api.service';
 interface PositionApiResponse {
   ticker: string;
   quantity: number;
+  total_price: number;
+  asset_type?: string;
 }
 
 interface InstrumentApiResponse {
@@ -36,7 +38,9 @@ export class PortfolioValueService {
 
           const priceRequests = positions.map(position =>
             this.getInstrument(position.ticker).pipe(
-              map(instrument => instrument.price * position.quantity)
+              map(instrument => this.isForex(position)
+                ? position.total_price
+                : instrument.price * position.quantity)
             )
           );
 
@@ -51,6 +55,10 @@ export class PortfolioValueService {
     return ticker.includes('/')
       ? this.instrumentsApi.getForexPrice(ticker)
       : this.instrumentsApi.getByTicker(ticker);
+  }
+
+  private isForex(position: PositionApiResponse): boolean {
+    return position.asset_type?.toUpperCase().includes('FOREX') ?? position.ticker.includes('/');
   }
 
   private createAuthHeaders(): HttpHeaders {

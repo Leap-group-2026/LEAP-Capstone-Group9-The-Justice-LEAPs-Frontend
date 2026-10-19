@@ -97,6 +97,11 @@
         </div>
       </div>
 
+      @if (performanceLoading) {
+        <p class="performance-state">Loading portfolio history...</p>
+      } @else if (performanceError || !series.length) {
+        <p class="performance-state">No portfolio history is available yet.</p>
+      } @else {
       <svg
         class="performance-chart"
         viewBox="0 0 1000 240"
@@ -107,9 +112,9 @@
           Portfolio value — {{ periodDescriptions[selectedPeriod] }}
         </title>
         <desc id="chart-description">
-          Illustrative portfolio performance, starting at
+          Portfolio performance, starting at
           {{ series[0].value | currency }}
-          and ending at {{ portfolioValue | currency }}.
+          and ending at {{ series[series.length - 1].value | currency }}.
         </desc>
 
         <defs>
@@ -120,8 +125,8 @@
         </defs>
 
         @for (tick of chartTicks; track tick.y) {
-          <line class="chart-grid" x1="16" x2="900" [attr.y1]="tick.y" [attr.y2]="tick.y"/>
-          <text class="chart-label" x="990" [attr.y]="tick.y + 4" text-anchor="end">
+          <line class="chart-grid" x1="72" x2="900" [attr.y1]="tick.y" [attr.y2]="tick.y"/>
+          <text class="chart-label" x="64" [attr.y]="tick.y + 4" text-anchor="end">
             {{ tick.value | currency:'USD':'symbol':'1.0-0' }}
           </text>
         }
@@ -134,7 +139,7 @@
         @for (label of dateLabels; track label.fraction) {
           <text
             class="chart-label"
-            [attr.x]="16 + label.fraction * 884"
+            [attr.x]="72 + label.fraction * 828"
             y="236"
             [attr.text-anchor]="
               label.fraction === 0 ? 'start' :
@@ -143,13 +148,14 @@
           >
             {{
               label.date | date:
-                (selectedPeriod === '1D' ? 'HH:mm' : 'MMM d'):
-                (selectedPeriod === '1D' ? '-0400' : 'UTC')
+                dateLabelFormat:
+                dateLabelTimezone
             }}
           </text>
         }
         <text class="chart-label" x="990" y="236" text-anchor="end">USD</text>
       </svg>
+      }
     </section>
 
     <section class="panel" aria-labelledby="holdings-title">
