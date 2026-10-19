@@ -10,7 +10,9 @@ import { Account } from './pages/account/account';
 import { Signup } from './pages/signup/signup';
 import { ResetPassword } from './pages/reset-password/reset-password';
 import { Admin } from './pages/admin/admin';
+import { Reporter } from './pages/reporter/reporter';
 import { adminGuard } from './shared/guards/admin.guard';
+import { reporterGuard } from './shared/guards/reporter.guard';
 import { authGuard } from './shared/guards/auth.guard';
 
 export const routes: Routes = [
@@ -27,5 +29,6 @@ export const routes: Routes = [
   { path: 'transactions', component: Transactions, canActivate: [authGuard] },
   { path: 'account', component: Account, canActivate: [authGuard] },
   { path: 'admin', component: Admin, canActivate: [authGuard, adminGuard] },
+  { path: 'reporter', component: Reporter, canActivate: [authGuard, reporterGuard] },
   { path: '**', redirectTo: '/login' },
 ];

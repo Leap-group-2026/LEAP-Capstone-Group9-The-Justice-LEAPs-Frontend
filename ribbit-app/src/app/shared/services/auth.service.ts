@@ -50,6 +50,7 @@ export class AuthService {
   logout(): void {
     if (typeof localStorage !== 'undefined') {
       localStorage.removeItem('token');
+      localStorage.removeItem('adminRole');
     }
 
     this.authState.set({
@@ -67,7 +68,10 @@ export class AuthService {
       return false;
     }
 
-    const token = window.localStorage.getItem('token');
+    const token = window.localStorage.getItem('token')
+      ?.trim()
+      .replace(/^Bearer\s+/i, '')
+      .replace(/^"|"$/g, '');
     if (!token) {
       return false;
     }
@@ -129,32 +133,62 @@ export class AuthService {
 
 
   isAdmin(): boolean {
+    return this.hasRole(['admin', 'super admin', 'superadmin']);
+  }
+
+  isReporter(): boolean {
+    return this.hasRole(['reporter/analyst', 'reporter', 'analyst']);
+  }
+
+  setAdminRole(role: string): void {
+    if (typeof localStorage !== 'undefined') {
+      if (role) {
+        localStorage.setItem('adminRole', this.normalizeRole(role));
+      } else {
+        localStorage.removeItem('adminRole');
+      }
+    }
+  }
+
+  private hasRole(expectedRoles: string[]): boolean {
     if (typeof window === 'undefined') {
       return false;
     }
 
     const token = window.localStorage.getItem('token');
-    if (!token) {
+    const storedRole = window.localStorage.getItem('adminRole');
+    if (!token && !storedRole) {
       return false;
     }
 
     try {
-      const payload = JSON.parse(this.decodeTokenPayload(token)) as { role?: string; roles?: string[] };
-      const roles = [payload.role, ...(payload.roles ?? [])]
+      const payload = token
+        ? JSON.parse(this.decodeTokenPayload(token)) as { role?: string; roles?: string[] }
+        : {};
+      const roles = [storedRole, payload.role, ...(payload.roles ?? [])]
         .filter((role): role is string => !!role)
-        .map(role => role.toLowerCase().replace(/[_-]/g, ' '));
+        .map(role => this.normalizeRole(role));
 
-      return roles.some(role => ['admin', 'super admin', 'superadmin'].includes(role));
+      return roles.some(role => expectedRoles.includes(role));
     } catch {
       return false;
     }
   }
 
+  private normalizeRole(role: string): string {
+    return role.toLowerCase().replace(/[_-]/g, ' ').trim();
+  }
+
   private decodeTokenPayload(token: string): string {
     const payload = token.split('.')[1];
     const normalized = payload.replace(/-/g, '+').replace(/_/g, '/');
+    const padded = normalized.padEnd(
+      normalized.length + (4 - normalized.length % 4) % 4,
+      '='
+    );
+
     return decodeURIComponent(
-      atob(normalized)
+      atob(padded)
         .split('')
         .map(character => `%${`00${character.charCodeAt(0).toString(16)}`.slice(-2)}`)
         .join('')

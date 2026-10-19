@@ -23,6 +23,10 @@ interface LoginResponse {
   accessToken?: string;
   access_token?: string;
   token?: string;
+  role?: string;
+  tokenRole?: string;
+  adminRole?: string;
+  roles?: string[];
 }
 
 interface UserResponse {
@@ -130,6 +134,10 @@ export class Login {
     this.isSubmitting.set(true);
     this.loginError.set('');
 
+    if (this.isAdminLogin) {
+      this.authService.setAdminRole('');
+    }
+
     this.http
       .post<LoginResponse>(
         `${environment.authUrl}/auth/${this.isAdminLogin ? 'adminLogin' : 'login'}`,
@@ -148,6 +156,10 @@ export class Login {
           localStorage.setItem('token', accessToken);
 
           if (this.isAdminLogin) {
+            const role = this.readRole(response);
+            if (role) {
+              this.authService.setAdminRole(role);
+            }
             return of(null);
           }
 
@@ -184,7 +196,10 @@ export class Login {
           }
 
           localStorage.setItem('userEmail', requestBody.email);
-          this.router.navigate([this.isAdminLogin ? '/admin' : '/dashboard']);
+          this.router.navigate([
+            this.isAdminLogin && this.authService.isReporter() ? '/reporter' :
+              this.isAdminLogin ? '/admin' : '/dashboard'
+          ]);
         },
         error: () => {
           this.loginError.set('Login failed, username or password is incorrect.');
@@ -196,6 +211,10 @@ export class Login {
       ...credentials,
       email: requestBody.email
     });
+  }
+
+  private readRole(response: LoginResponse): string {
+    return response.role ?? response.tokenRole ?? response.adminRole ?? response.roles?.[0] ?? '';
   }
 
   private loadAccount(accessToken: string): Observable<void> {

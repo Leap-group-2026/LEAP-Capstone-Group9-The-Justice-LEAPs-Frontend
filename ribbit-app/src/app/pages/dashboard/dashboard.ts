@@ -3,7 +3,9 @@ import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { environment } from '../../environments/environment';
 import { Component, inject, OnInit, signal } from '@angular/core';
 import { Router } from '@angular/router';
+import { catchError, forkJoin, map, of } from 'rxjs';
 import { AuthService } from '../../shared/services/auth.service';
+import { InstrumentApiResponse, InstrumentsApiService } from '../../shared/services/instruments-api.service';
 import { PortfolioValueService } from '../../shared/services/portfolio-value.service';
 
 type Period = '1D' | '1W' | '1M' | '3M' | '1Y' | 'ALL';
@@ -60,6 +62,7 @@ export class Dashboard implements OnInit {
   private readonly http = inject(HttpClient);
   private readonly router = inject(Router);
   private readonly authService = inject(AuthService);
+  private readonly instrumentsApi = inject(InstrumentsApiService);
   private readonly portfolioValueService = inject(PortfolioValueService);
 
   selectedPeriod: Period = '1M';
@@ -103,24 +106,46 @@ export class Dashboard implements OnInit {
       )
       .subscribe({
         next: positions => {
-          this.holdings = positions.map(position => ({
-            symbol: position.ticker,
-            name: position.asset_name,
-            quantity: position.quantity,
-            averageCost: position.average_price,
-            currentPrice: position.quantity > 0
-              ? position.total_price / position.quantity
-              : position.average_price
-          }))
-            .sort((first, second) =>
-              this.marketValue(second) - this.marketValue(first)
-            )
-            .slice(0, 5);
+          forkJoin(
+            positions.map(position => this.getCurrentPrice(position).pipe(
+              map(currentPrice => ({ position, currentPrice }))
+            ))
+          ).subscribe(holdings => {
+            this.holdings = holdings.map(({ position, currentPrice }) => ({
+              symbol: position.ticker,
+              name: position.asset_name,
+              quantity: position.quantity,
+              averageCost: position.average_price,
+              currentPrice
+            }))
+              .sort((first, second) =>
+                this.marketValue(second) - this.marketValue(first)
+              );
+          });
         },
         error: error => {
           console.error('Positions lookup failed:', error);
         }
       });
+  }
+
+  private getCurrentPrice(position: AccountPosition) {
+    const instrumentRequest = position.ticker.includes('/')
+      ? this.instrumentsApi.getForexPrice(position.ticker)
+      : this.instrumentsApi.getByTicker(position.ticker);
+    const fallbackPrice = position.quantity > 0
+      ? position.total_price / position.quantity
+      : position.average_price;
+
+    return instrumentRequest.pipe(
+      map((instrument: InstrumentApiResponse) =>
+        Number.isFinite(instrument.price) ? instrument.price : fallbackPrice
+      ),
+      catchError(error => {
+        console.error(`Unable to load current price for ${position.ticker}`, error);
+        return of(fallbackPrice);
+      })
+    );
   }
 
   private createUser() {

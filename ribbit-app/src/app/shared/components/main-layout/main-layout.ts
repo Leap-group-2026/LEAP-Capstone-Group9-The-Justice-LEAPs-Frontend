@@ -77,7 +77,9 @@ export class MainLayout implements OnInit, OnDestroy {
   };
 
   ngOnInit(): void {
-    this.accountContext.loadAccounts();
+    if (!this.authService.isAdmin() && !this.authService.isReporter()) {
+      this.accountContext.loadAccounts();
+    }
     this.updateCurrentPage();
     
     this.router.events
