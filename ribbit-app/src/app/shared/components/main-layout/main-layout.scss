@@ -161,6 +161,9 @@ svg {
   font-size: 11px;
 }
 
+/* The session timer takes the free space (margin-left: auto), so the profile sits right after it. */
+app-session-timer + .profile { margin-left: 0; }
+
 .profile-details { display: grid; gap: 4px; text-align: left; }
 .profile-details strong { color: var(--text); font-size: 12px; font-weight: 500; }
 .profile-details small { font-family: "IBM Plex Mono", monospace; font-size: 9px; }

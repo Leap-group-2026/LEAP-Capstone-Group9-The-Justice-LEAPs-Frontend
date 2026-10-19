@@ -1,5 +1,6 @@
 import { Component, Input, inject, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { SessionTimer } from '../session-timer/session-timer';
 import { Router, NavigationEnd } from '@angular/router';
 import { Subject } from 'rxjs';
 import { takeUntil, filter } from 'rxjs/operators';
@@ -18,7 +19,7 @@ type Destination = 'dashboard' | 'portfolio' | 'trade' | 'orders' | 'transaction
 @Component({
   selector: 'app-main-layout',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, SessionTimer],
   templateUrl: './main-layout.html',
   styleUrls: ['./main-layout.scss']
 })

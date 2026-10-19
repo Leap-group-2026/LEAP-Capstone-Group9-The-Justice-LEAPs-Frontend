@@ -199,6 +199,9 @@ export class Login {
           }
 
           localStorage.setItem('userEmail', requestBody.email);
+          // Marks the session as signed in before navigating, so the main layout (sidebar,
+          // header) renders on the first page instead of only after a reload.
+          this.authService.login(requestBody.email, user?.name ?? 'Administrator');
           const isReporter = this.isAdminLogin && this.authService.isReporter();
           this.router.navigate([
             isReporter ? '/reporter' :

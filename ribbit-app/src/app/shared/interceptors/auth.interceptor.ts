@@ -58,8 +58,8 @@ export function clearToken(): void {
   }
 }
 
-// True when the JWT's own `exp` claim has passed, or the token can't be read.
-export function isTokenExpired(token: string, nowMs = Date.now()): boolean {
+// The JWT's own `exp` as epoch milliseconds, or null when the token can't be read.
+export function tokenExpiresAt(token: string): number | null {
   try {
     const encodedPayload = token
       .trim()
@@ -72,10 +72,16 @@ export function isTokenExpired(token: string, nowMs = Date.now()): boolean {
       '='
     );
     const payload = JSON.parse(atob(paddedPayload));
-    return typeof payload.exp !== 'number' || payload.exp * 1000 <= nowMs;
+    return typeof payload.exp === 'number' ? payload.exp * 1000 : null;
   } catch {
-    return true;
+    return null;
   }
+}
+
+// True when the JWT's own `exp` claim has passed, or the token can't be read.
+export function isTokenExpired(token: string, nowMs = Date.now()): boolean {
+  const expiresAt = tokenExpiresAt(token);
+  return expiresAt === null || expiresAt <= nowMs;
 }
 
 let refreshInFlight: Observable<string | null> | null = null;
