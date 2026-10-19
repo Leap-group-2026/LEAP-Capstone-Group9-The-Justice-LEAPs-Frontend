@@ -109,7 +109,7 @@ export interface PositionDto {
 }
 
 // View model used by the Transactions page.
-export type TransactionType = 'Deposit' | 'Withdrawal' | 'Buy' | 'Sell';
+export type TransactionType = 'Deposit' | 'Withdrawal' | 'Currency Exchange' | 'Buy' | 'Sell';
 export type TransactionStatus = 'Completed' | 'Pending' | 'Failed';
 
 export interface Transaction {

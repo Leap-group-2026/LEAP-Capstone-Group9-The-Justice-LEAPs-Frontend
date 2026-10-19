@@ -93,7 +93,6 @@ describe('Transactions page: deposit and withdraw', () => {
   async function flushLoad(accounts: AccountDto[] = [makeAccount(42)], accountId = 42): Promise<void> {
     http.expectOne(`${SPRING}/user/accounts`).flush(accounts);
     http.expectOne(`${SPRING}/transactions/account/${accountId}`).flush([]);
-    http.expectOne(`${SPRING}/orders/account/${accountId}`).flush([]);
     http.expectOne(`${SPRING}/accounts/${accountId}`).flush({
       accountId,
       user: { userId: 7, name: 'Jo Client', email: 'jo@example.com' },

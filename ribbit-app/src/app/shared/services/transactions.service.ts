@@ -1,6 +1,6 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { Observable, forkJoin, map } from 'rxjs';
+import { Observable, map } from 'rxjs';
 import { environment } from '../../environments/environment';
 import {
   AccountDetailDto,
@@ -38,8 +38,14 @@ export function splitLocalDateTime(value: string | null | undefined): { date: st
 // Returns null for rows the frontend has no type for.
 export function toTransaction(dto: TransactionDto): Transaction | null {
   if (dto.transaction_type === 'CURRENCY EXCHANGE' || dto.side === 'EXCHANGE') {
-    // TODO(backend): 'CURRENCY EXCHANGE' rows have no frontend type and no defined amount direction; skipped.
-    return null;
+    return {
+      id: `${TRANSACTION_ID_PREFIX}${dto.transaction_id}`,
+      ...splitLocalDateTime(dto.happened_at),
+      type: 'Currency Exchange',
+      description: 'Currency Exchange',
+      amount: dto.amount,
+      status: 'Completed'
+    };
   }
 
   const isDeposit = dto.transaction_type === 'DEPOSIT';
@@ -127,7 +133,9 @@ export class TransactionsService {
   }
 
   getTransactions(accountId: number): Observable<TransactionDto[]> {
-    return this.http.get<TransactionDto[]>(`${this.baseUrl}/transactions/account/${accountId}`);
+    return this.http.get<TransactionDto[]>(`${this.baseUrl}/transactions/account/${accountId}`, {
+      headers: this.createAuthHeaders()
+    });
   }
 
   getOrders(accountId: number): Observable<OrderDto[]> {
@@ -157,18 +165,20 @@ export class TransactionsService {
     );
   }
 
-  // Deposits and withdrawals are transaction rows; trades aren't, so Buy/Sell activity comes from orders.
+  // The transaction history page is backed by the account transactions endpoint.
   getActivity(accountId: number): Observable<Transaction[]> {
-    return forkJoin({
-      transactions: this.getTransactions(accountId),
-      orders: this.getOrders(accountId)
-    }).pipe(
-      map(({ transactions, orders }) =>
-        sortNewestFirst([
-          ...transactions.map(toTransaction).filter((t): t is Transaction => t !== null),
-          ...orders.map(orderToTransaction)
-        ])
+    return this.getTransactions(accountId).pipe(
+      map(transactions =>
+        sortNewestFirst(
+          transactions.map(toTransaction).filter((t): t is Transaction => t !== null)
+        )
       )
     );
+  }
+
+  private createAuthHeaders(): HttpHeaders {
+    const storedToken = typeof window === 'undefined' ? null : window.localStorage.getItem('token');
+    const token = storedToken?.trim().replace(/^Bearer\s+/i, '').replace(/^"|"$/g, '') || null;
+    return token ? new HttpHeaders({ Authorization: `Bearer ${token}` }) : new HttpHeaders();
   }
 }

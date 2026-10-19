@@ -304,20 +304,25 @@
                       <td class="numeric">{{ holding.averagePurchasePrice | currency }}</td>
                       <td class="numeric">{{ holding.currentPrice | currency }}</td>
                       <td class="numeric">{{ marketValue(holding) | currency }}</td>
-                      <td
-                        class="numeric"
-                        [class.positive]="gain(holding) >= 0"
-                        [class.negative]="gain(holding) < 0"
-                      >
-                        {{ sign(gain(holding)) }}{{ absolute(gain(holding)) | currency }}
-                      </td>
-                      <td
-                        class="numeric"
-                        [class.positive]="gain(holding) >= 0"
-                        [class.negative]="gain(holding) < 0"
-                      >
-                        {{ sign(gain(holding)) }}{{ absolute(gainPercent(holding)) | percent:'1.2-2' }}
-                      </td>
+                      @if (isForex(holding)) {
+                        <td class="numeric" aria-label="Not applicable"></td>
+                        <td class="numeric" aria-label="Not applicable"></td>
+                      } @else {
+                        <td
+                          class="numeric"
+                          [class.positive]="gain(holding) >= 0"
+                          [class.negative]="gain(holding) < 0"
+                        >
+                          {{ sign(gain(holding)) }}{{ absolute(gain(holding)) | currency }}
+                        </td>
+                        <td
+                          class="numeric"
+                          [class.positive]="gain(holding) >= 0"
+                          [class.negative]="gain(holding) < 0"
+                        >
+                          {{ sign(gain(holding)) }}{{ absolute(gainPercent(holding)) | percent:'1.2-2' }}
+                        </td>
+                      }
                     </tr>
                   }
                 </tbody>

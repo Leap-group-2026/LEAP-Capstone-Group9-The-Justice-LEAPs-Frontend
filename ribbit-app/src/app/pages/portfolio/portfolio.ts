@@ -28,10 +28,11 @@ type HoldingFilter = 'all' | 'gainers' | 'losers' | 'stocks' | 'etfs';
 export interface Holding {
   symbol: string;
   name: string;
-  type: 'Stock' | 'ETF';
+  type: 'Stock' | 'ETF' | 'Forex';
   quantity: number;
   averagePurchasePrice: number;
   currentPrice: number;
+  totalPrice?: number;
 }
 
 interface AllocationItem {
@@ -146,14 +147,21 @@ export class Portfolio implements OnInit {
     return this.round(
       this.holdings.reduce(
         (total, holding) =>
-          total + holding.quantity * holding.averagePurchasePrice,
+          total + (this.isForex(holding)
+            ? 0
+            : holding.quantity * holding.averagePurchasePrice),
         0
       )
     );
   }
 
   get totalGain(): number {
-    return this.round(this.holdingsValue - this.totalInvested);
+    return this.round(
+      this.holdings.reduce(
+        (total, holding) => total + (this.isForex(holding) ? 0 : this.gain(holding)),
+        0
+      )
+    );
   }
 
   get totalGainPercent(): number {
@@ -253,10 +261,16 @@ export class Portfolio implements OnInit {
   }
 
   marketValue(holding: Holding): number {
+    if (this.isForex(holding) && Number.isFinite(holding.totalPrice)) {
+      return this.round(holding.totalPrice!);
+    }
+
     return this.round(holding.quantity * holding.currentPrice);
   }
 
   gain(holding: Holding): number {
+    if (this.isForex(holding)) return 0;
+
     return this.round(
       holding.quantity *
       (holding.currentPrice - holding.averagePurchasePrice)
@@ -264,6 +278,8 @@ export class Portfolio implements OnInit {
   }
 
   gainPercent(holding: Holding): number {
+    if (this.isForex(holding)) return 0;
+
     return holding.averagePurchasePrice > 0
       ? (holding.currentPrice - holding.averagePurchasePrice) /
         holding.averagePurchasePrice
@@ -338,12 +354,11 @@ export class Portfolio implements OnInit {
             this.holdings = holdings.map(({ position, currentPrice }): Holding => ({
               symbol: position.ticker,
               name: position.asset_name,
-              type: position.asset_type.toUpperCase().includes('ETF')
-                ? 'ETF'
-                : 'Stock',
+              type: this.getHoldingType(position),
               quantity: position.quantity,
               averagePurchasePrice: position.average_price,
-              currentPrice
+              currentPrice,
+              totalPrice: position.total_price
             }))
               .sort((first, second) =>
                 this.marketValue(second) - this.marketValue(first)
@@ -384,8 +399,22 @@ export class Portfolio implements OnInit {
     return value < 0 ? '−' : '+';
   }
 
+  isForex(holding: Holding): boolean {
+    return holding.type === 'Forex';
+  }
+
   private round(value: number): number {
     return Math.round(value * 100) / 100;
+  }
+
+  private getHoldingType(position: AccountPosition): Holding['type'] {
+    const assetType = position.asset_type.toUpperCase();
+
+    if (assetType.includes('FOREX') || position.ticker.includes('/')) {
+      return 'Forex';
+    }
+
+    return assetType.includes('ETF') ? 'ETF' : 'Stock';
   }
 
   private readAccountId(): number | null {
