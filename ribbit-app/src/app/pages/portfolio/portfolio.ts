@@ -77,6 +77,7 @@ export class Portfolio implements OnInit {
   state: PortfolioState = 'ready';
   availableCash = this.readStoredBalance();
   private readonly apiPortfolioValue = signal(0);
+  portfolioValueLoading = true;
 
   ngOnInit(): void {
     if (isPlatformBrowser(this.platformId)) {
@@ -314,14 +315,19 @@ export class Portfolio implements OnInit {
   private loadPortfolioValue(): void {
     const accountId = this.readAccountId();
 
-    if (accountId === null) return;
-
+    if (accountId === null) { 
+      this.portfolioValueLoading = false;
+      return;
+    }
+    this.portfolioValueLoading = true;
     this.portfolioValueService.getPortfolioValue(accountId).subscribe({
       next: value => {
         this.apiPortfolioValue.set(value);
+        this.portfolioValueLoading = false;
       },
       error: error => {
         console.error('Unable to load portfolio value', error);
+        this.portfolioValueLoading = false;
         this.state = 'ready';
       }
     });

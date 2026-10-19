@@ -80,7 +80,13 @@
       <section class="summary-grid" aria-label="Portfolio summary">
         <article class="summary-card portfolio-card">
           <h2>Total Portfolio Value</h2>
-          <strong>{{ portfolioValue | currency }}</strong>
+          <strong>
+            @if (portfolioValueLoading) {
+              Loading...
+            } @else {
+              {{ portfolioValue | currency }}
+            }
+          </strong>
           <p>Holdings + available cash</p>
         </article>
 
@@ -132,7 +138,13 @@
           >
             <div class="donut-center" aria-hidden="true">
               <span>TOTAL VALUE</span>
-              <strong>{{ portfolioValue | currency:'USD':'symbol':'1.0-0' }}</strong>
+              <strong>
+                @if (portfolioValueLoading) {
+                  ...
+                } @else {
+                  {{ portfolioValue | currency:'USD':'symbol':'1.0-0' }}
+                }
+              </strong>
               <small>{{ holdings.length }} positions</small>
             </div>
           </div>

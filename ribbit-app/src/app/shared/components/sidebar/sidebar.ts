@@ -20,7 +20,7 @@ export class Sidebar {
 
   navItems: NavItem[] = [
     { label: 'Dashboard', route: '/dashboard', icon: '📊' },
-    { label: 'Positions', route: '/positions', icon: '📈', badge: 5 },
+    { label: 'Portfolio', route: '/portfolio', icon: '💼' },
     { label: 'Orders', route: '/orders', icon: '📋', badge: 2 },
     { label: 'Account', route: '/account', icon: '👤' },
   ];
