@@ -22,7 +22,7 @@ type Destination =
 interface Holding {
   symbol: string;
   name: string;
-  type: 'Stock' | 'ETF' | 'Forex';
+  type: 'Stock' | 'Crypto' | 'Forex';
   quantity: number;
   currentPrice: number;
   averageCost: number;
@@ -151,7 +151,8 @@ export class Dashboard implements OnInit {
             }))
               .sort((first, second) =>
                 this.marketValue(second) - this.marketValue(first)
-              );
+              )
+              .slice(0, 5)
           });
         },
         error: error => {
@@ -527,7 +528,11 @@ export class Dashboard implements OnInit {
       return 'Forex';
     }
 
-    return assetType.includes('ETF') ? 'ETF' : 'Stock';
+    if (assetType.includes('CRYPTO')) {
+      return 'Crypto';
+    }
+
+    return 'Stock';
   }
 
   private readAccountId(): number | null {

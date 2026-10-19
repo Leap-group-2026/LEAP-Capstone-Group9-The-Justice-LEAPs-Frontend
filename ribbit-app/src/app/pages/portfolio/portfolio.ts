@@ -23,12 +23,12 @@ export type PortfolioDestination =
   | 'account'
   | 'logout';
 
-type HoldingFilter = 'all' | 'gainers' | 'losers' | 'stocks' | 'etfs';
+type HoldingFilter = 'all' | 'stocks' | 'crypto' | 'forex';
 
 export interface Holding {
   symbol: string;
   name: string;
-  type: 'Stock' | 'ETF' | 'Forex';
+  type: 'Stock' | 'Crypto' | 'Forex';
   quantity: number;
   averagePurchasePrice: number;
   currentPrice: number;
@@ -181,10 +181,9 @@ export class Portfolio implements OnInit {
 
       const matchesFilter =
         this.filter === 'all' ||
-        (this.filter === 'gainers' && this.gain(holding) > 0) ||
-        (this.filter === 'losers' && this.gain(holding) < 0) ||
         (this.filter === 'stocks' && holding.type === 'Stock') ||
-        (this.filter === 'etfs' && holding.type === 'ETF');
+        (this.filter === 'crypto' && holding.type === 'Crypto') ||
+        (this.filter === 'forex' && holding.type === 'Forex');
 
       return matchesSearch && matchesFilter;
     });
@@ -421,7 +420,11 @@ export class Portfolio implements OnInit {
       return 'Forex';
     }
 
-    return assetType.includes('ETF') ? 'ETF' : 'Stock';
+    if (assetType.includes('CRYPTO')) {
+      return 'Crypto';
+    }
+
+    return 'Stock';
   }
 
   private readAccountId(): number | null {
