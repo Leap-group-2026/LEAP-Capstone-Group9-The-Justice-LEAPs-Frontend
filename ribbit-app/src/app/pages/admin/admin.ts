@@ -1,12 +1,13 @@
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { Component, OnInit, PLATFORM_ID, inject, signal } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import { finalize } from 'rxjs';
-import { AdminApiService, AdminOrder, AdminOverview, AdminTransaction, AdminUserLookup } from '../../shared/services/admin-api.service';
+import { AdminApiService, AdminOverview, AdminUserLookup } from '../../shared/services/admin-api.service';
 
 @Component({
   selector: 'app-admin',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, RouterLink],
   templateUrl: './admin.html',
   styleUrls: ['./admin.scss']
 })
@@ -17,16 +18,11 @@ export class Admin implements OnInit {
   readonly overview = signal<AdminOverview>({ orders: [], accounts: [], users: [], transactions: [] });
   readonly isLoading = signal(false);
   readonly errorMessage = signal('');
-  readonly showOrders = signal(false);
-  readonly showTransactions = signal(false);
-  readonly selectedAccountId = signal<number | null>(null);
   readonly userEmail = signal('');
   readonly userLookup = signal<AdminUserLookup | null>(null);
   readonly userLookupLoading = signal(false);
   readonly userLookupError = signal('');
-  readonly ordersPage = signal(1);
-  readonly transactionsPage = signal(1);
-  readonly pageSize = 10;
+  readonly closingAccountId = signal<number | null>(null);
 
   ngOnInit(): void {
     if (isPlatformBrowser(this.platformId)) {
@@ -38,8 +34,7 @@ export class Admin implements OnInit {
     this.isLoading.set(true);
     this.errorMessage.set('');
 
-    this.adminApi
-      .getOverview()
+    this.adminApi.getOverview()
       .pipe(finalize(() => this.isLoading.set(false)))
       .subscribe({
         next: overview => this.overview.set(overview),
@@ -51,66 +46,14 @@ export class Admin implements OnInit {
           );
         }
       });
-
-  }
-
-  get orders(): AdminOrder[] {
-    const accountId = this.selectedAccountId();
-    return accountId === null
-      ? this.overview().orders
-      : this.overview().orders.filter(order => order.account_id === accountId);
-  }
-
-  get transactions(): AdminTransaction[] {
-    const accountId = this.selectedAccountId();
-    return accountId === null
-      ? this.overview().transactions
-      : this.overview().transactions.filter(transaction => transaction.account_id === accountId);
-  }
-
-  get pagedOrders(): AdminOrder[] {
-    return this.pageItems(this.orders, this.ordersPage());
-  }
-
-  get pagedTransactions(): AdminTransaction[] {
-    return this.pageItems(this.transactions, this.transactionsPage());
-  }
-
-  get ordersPageCount(): number {
-    return Math.max(1, Math.ceil(this.orders.length / this.pageSize));
-  }
-
-  get transactionsPageCount(): number {
-    return Math.max(1, Math.ceil(this.transactions.length / this.pageSize));
-  }
-
-  get accountOptions(): number[] {
-    return this.overview().accounts
-      .map(account => account.accountId)
-      .sort((left, right) => left - right);
   }
 
   get pendingOrders(): number {
-    return this.orders.filter(order => order.status === 'PENDING').length;
+    return this.overview().orders.filter(order => order.status === 'PENDING').length;
   }
 
   get filledOrders(): number {
-    return this.orders.filter(order => order.status === 'FILLED').length;
-  }
-
-  toggleOrders(): void {
-    this.showOrders.update(isVisible => !isVisible);
-  }
-
-  toggleTransactions(): void {
-    this.showTransactions.update(isVisible => !isVisible);
-  }
-
-  onAccountFilterChange(event: Event): void {
-    const value = (event.target as HTMLSelectElement).value;
-    this.selectedAccountId.set(value ? Number(value) : null);
-    this.ordersPage.set(1);
-    this.transactionsPage.set(1);
+    return this.overview().orders.filter(order => order.status === 'FILLED').length;
   }
 
   searchUser(): void {
@@ -126,17 +69,15 @@ export class Admin implements OnInit {
     });
   }
 
-  setOrdersPage(page: number): void {
-    this.ordersPage.set(Math.min(Math.max(page, 1), this.ordersPageCount));
-  }
+  closeAccount(accountId: number): void {
+    if (this.closingAccountId() !== null || !window.confirm(`Close account #${accountId}? This cannot be undone here.`)) return;
 
-  setTransactionsPage(page: number): void {
-    this.transactionsPage.set(Math.min(Math.max(page, 1), this.transactionsPageCount));
-  }
-
-  private pageItems<T>(items: T[], page: number): T[] {
-    const start = (page - 1) * this.pageSize;
-    return items.slice(start, start + this.pageSize);
+    this.closingAccountId.set(accountId);
+    this.userLookupError.set('');
+    this.adminApi.closeAccount(accountId).pipe(finalize(() => this.closingAccountId.set(null))).subscribe({
+      next: () => this.searchUser(),
+      error: response => this.userLookupError.set(response.error || 'Unable to close this account.')
+    });
   }
 
   formatCurrency(value: number): string {

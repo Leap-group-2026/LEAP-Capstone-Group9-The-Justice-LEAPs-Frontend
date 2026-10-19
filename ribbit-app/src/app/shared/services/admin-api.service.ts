@@ -94,6 +94,25 @@ export class AdminApiService {
     });
   }
 
+  getOrders(): Observable<AdminOrder[]> {
+    return this.http.get<AdminOrder[]>(`${this.apiBaseUrl}/admin/orders`, {
+      headers: this.authHeaders()
+    });
+  }
+
+  getTransactions(): Observable<AdminTransaction[]> {
+    return this.http.get<AdminTransaction[]>(`${this.apiBaseUrl}/admin/transactions`, {
+      headers: this.authHeaders()
+    });
+  }
+
+  closeAccount(accountId: number): Observable<string> {
+    return this.http.patch(`${this.apiBaseUrl}/accounts/close/${accountId}`, null, {
+      headers: this.authHeaders(),
+      responseType: 'text'
+    });
+  }
+
   getTopBoughtStocks(): Observable<TopBoughtStock[]> {
     return this.http.get<TopBoughtStock[]>(`${this.apiBaseUrl}/admin/analytics/top-bought`, {
       headers: this.authHeaders()

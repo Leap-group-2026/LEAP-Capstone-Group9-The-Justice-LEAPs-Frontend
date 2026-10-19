@@ -1,0 +1,88 @@
+<section class="admin-page" aria-labelledby="transactions-heading">
+  <section class="welcome">
+    <div>
+      <a class="back-link" routerLink="/admin">← Admin workspace</a>
+      <h1 id="transactions-heading">All transactions</h1>
+      <p>Inspect account deposits, withdrawals, and money movements.</p>
+    </div>
+    <button class="button secondary" type="button" (click)="loadTransactions()" [disabled]="isLoading()">
+      {{ isLoading() ? 'Loading...' : 'Refresh' }}
+    </button>
+  </section>
+
+  @if (errorMessage()) {
+    <section class="notice" role="alert"><strong>{{ errorMessage() }}</strong></section>
+  }
+
+  <section class="filter-bar panel" aria-label="Transaction filters">
+    <label for="transaction-account-filter">Account ID</label>
+    <select id="transaction-account-filter" [value]="accountIdFilter()" (change)="setAccountFilter($event)">
+      <option value="">All accounts</option>
+      @for (accountId of accountOptions; track accountId) {
+        <option [value]="accountId" [selected]="isSelectedAccount(accountId)">Account #{{ accountId }}</option>
+      }
+    </select>
+    @if (accountIdFilter()) {
+      <span class="filter-result">{{ filteredTransactions.length }} matching transactions</span>
+    }
+  </section>
+
+  <section class="chart-grid" aria-label="Transaction analytics">
+    <article class="panel chart-panel" aria-labelledby="transaction-type-heading">
+      <div class="panel-heading">
+        <div class="section-title">
+          <h2 id="transaction-type-heading">Transaction type</h2>
+          <span>{{ filteredTransactions.length }} TOTAL</span>
+        </div>
+      </div>
+      <div class="pie-content">
+        <div class="pie-chart" [style.background]="pieStyle(typeBreakdown)" role="img" aria-label="Transaction type distribution"></div>
+        <div class="chart-legend">
+          @for (item of typeBreakdown; track item.label) {
+            <div class="legend-item">
+              <span class="legend-label"><i [style.background]="item.color"></i>{{ item.label }}</span>
+              <strong>{{ item.count }} <small>{{ percentage(item.count, filteredTransactions.length) }}%</small></strong>
+            </div>
+          }
+          @if (!typeBreakdown.length) {
+            <span class="chart-empty">No type data available.</span>
+          }
+        </div>
+      </div>
+    </article>
+
+  </section>
+
+  <section class="panel" aria-labelledby="transactions-table-heading">
+    <div class="panel-heading">
+      <div class="section-title">
+        <h2 id="transactions-table-heading">Transaction history</h2>
+        <span>{{ filteredTransactions.length }} TOTAL</span>
+      </div>
+    </div>
+    @if (pagedTransactions.length) {
+      <div class="table-scroll" tabindex="0" role="region" aria-label="Admin transactions table">
+        <table>
+          <thead><tr><th>Transaction ID</th><th>Account</th><th>Type</th><th>Direction</th><th class="numeric">Amount</th><th>Occurred</th></tr></thead>
+          <tbody>
+            @for (transaction of pagedTransactions; track transaction.transaction_id) {
+              <tr>
+                <th scope="row" class="order-id">#{{ transaction.transaction_id }}</th>
+                <td>{{ transaction.account_id }}</td><td>{{ transaction.transaction_type }}</td>
+                <td><span class="side" [class.sell]="transaction.side === 'OUT'">{{ transaction.side }}</span></td>
+                <td class="numeric">{{ formatCurrency(transaction.amount) }}</td><td>{{ formatDate(transaction.happened_at) }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+      <div class="pagination" aria-label="Transactions pagination">
+        <button class="button secondary" type="button" (click)="setPage(page() - 1)" [disabled]="page() === 1">Previous</button>
+        <span>Page {{ page() }} of {{ pageCount }}</span>
+        <button class="button secondary" type="button" (click)="setPage(page() + 1)" [disabled]="page() === pageCount">Next</button>
+      </div>
+    } @else if (!isLoading()) {
+      <div class="empty-state"><p>No transactions match this account filter.</p></div>
+    }
+  </section>
+</section>

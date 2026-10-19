@@ -1,7 +1,7 @@
 import { Component, Input, inject, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { SessionTimer } from '../session-timer/session-timer';
-import { Router, NavigationEnd } from '@angular/router';
+import { Router, RouterLink, RouterLinkActive, NavigationEnd } from '@angular/router';
 import { Subject } from 'rxjs';
 import { takeUntil, filter } from 'rxjs/operators';
 import { AuthService, StoredUser } from '../../services/auth.service';
@@ -14,12 +14,10 @@ interface NavigationItem {
   icon: string;
 }
 
-type Destination = 'dashboard' | 'portfolio' | 'trade' | 'orders' | 'transactions' | 'account' | 'admin' | 'logout';
-
 @Component({
   selector: 'app-main-layout',
   standalone: true,
-  imports: [CommonModule, SessionTimer],
+  imports: [CommonModule, SessionTimer, RouterLink, RouterLinkActive],
   templateUrl: './main-layout.html',
   styleUrls: ['./main-layout.scss']
 })
@@ -44,7 +42,9 @@ export class MainLayout implements OnInit, OnDestroy {
     { id: 'orders', label: 'Orders', icon: 'orders' },
     { id: 'transactions', label: 'Transactions', icon: 'history' },
     { id: 'account', label: 'Account', icon: 'account' },
-    { id: 'admin', label: 'Admin', icon: 'admin' }
+    { id: 'admin', label: 'Admin', icon: 'admin' },
+    { id: 'admin/orders', label: 'Orders', icon: 'orders' },
+    { id: 'admin/transactions', label: 'Transactions', icon: 'history' }
   ];
 
   get visibleNavigation(): NavigationItem[] {
@@ -53,7 +53,7 @@ export class MainLayout implements OnInit, OnDestroy {
     }
 
     if (this.authService.isAdmin()) {
-      return this.navigation.filter(item => item.id === 'admin');
+      return this.navigation.filter(item => item.id.startsWith('admin'));
     }
 
     return this.navigation.filter(item => item.id !== 'admin');
@@ -116,9 +116,16 @@ export class MainLayout implements OnInit, OnDestroy {
   }
 
   private updateCurrentPage(): void {
-    const path = this.router.url.split('/')[1] || 'dashboard';
-    this.currentPage = path;
+    const segments = this.router.url.split('?')[0].split('/').filter(Boolean);
+    this.currentPage = segments[0] === 'admin' && segments[1]
+      ? `admin/${segments[1]}`
+      : segments[0] || 'dashboard';
     this.user = this.authService.getUserProfile();
+  }
+
+  isNavigationActive(item: NavigationItem): boolean {
+    const currentPath = this.router.url.split('?')[0].replace(/\/$/, '') || '/';
+    return currentPath === `/${item.id}`;
   }
 
   navigate(destination: string): void {
