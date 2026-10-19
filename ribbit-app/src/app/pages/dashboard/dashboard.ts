@@ -7,6 +7,7 @@ import { catchError, forkJoin, map, of } from 'rxjs';
 import { AuthService } from '../../shared/services/auth.service';
 import { InstrumentApiResponse, InstrumentsApiService } from '../../shared/services/instruments-api.service';
 import { PortfolioValueService } from '../../shared/services/portfolio-value.service';
+import { PortfolioSnapshot, PortfolioSnapshotsApiService } from '../../shared/services/portfolio-snapshots-api.service';
 
 type Period = '1D' | '1W' | '1M' | '3M' | '1Y' | 'ALL';
 type Destination =
@@ -21,6 +22,7 @@ type Destination =
 interface Holding {
   symbol: string;
   name: string;
+  type: 'Stock' | 'ETF' | 'Forex';
   quantity: number;
   currentPrice: number;
   averageCost: number;
@@ -29,6 +31,7 @@ interface Holding {
 interface AccountPosition {
   ticker: string;
   asset_name: string;
+  asset_type: string;
   quantity: number;
   average_price: number;
   total_price: number;
@@ -64,6 +67,7 @@ export class Dashboard implements OnInit {
   private readonly authService = inject(AuthService);
   private readonly instrumentsApi = inject(InstrumentsApiService);
   private readonly portfolioValueService = inject(PortfolioValueService);
+  private readonly portfolioSnapshotsApi = inject(PortfolioSnapshotsApiService);
 
   selectedPeriod: Period = '1M';
 
@@ -71,9 +75,11 @@ export class Dashboard implements OnInit {
 
   readonly snapshotLabel = 'Oct 7, 2026, 2:32 PM ET';
   readonly availableCash = this.readStoredBalance();
-  readonly todayGain = 864.20;
   private readonly apiPortfolioValue = signal(0);
   portfolioValueLoading = true;
+  performanceLoading = true;
+  performanceError = false;
+  private snapshots: PerformancePoint[] = [];
 
   ngOnInit(): void {
     const accountId = this.readAccountId();
@@ -92,6 +98,21 @@ export class Dashboard implements OnInit {
       error: error => {
         console.error('Unable to load portfolio value', error)
         this.portfolioValueLoading = false;
+      }
+    });
+
+    this.portfolioSnapshotsApi.getByAccountId(accountId).subscribe({
+      next: snapshots => {
+        this.snapshots = snapshots
+          .filter(snapshot => Number.isFinite(snapshot.portfolioValue) && !Number.isNaN(Date.parse(snapshot.snapshotDate)))
+          .map(snapshot => this.toPerformancePoint(snapshot))
+          .sort((first, second) => Date.parse(first.date) - Date.parse(second.date));
+        this.performanceLoading = false;
+      },
+      error: error => {
+        console.error('Unable to load portfolio snapshots', error);
+        this.performanceError = true;
+        this.performanceLoading = false;
       }
     });
   }
@@ -123,6 +144,7 @@ export class Dashboard implements OnInit {
             this.holdings = holdings.map(({ position, currentPrice }) => ({
               symbol: position.ticker,
               name: position.asset_name,
+              type: this.getHoldingType(position),
               quantity: position.quantity,
               averageCost: position.average_price,
               currentPrice
@@ -277,35 +299,6 @@ export class Dashboard implements OnInit {
     ALL: 'all time'
   };
 
-  private readonly periodConfig: Record<
-    Period,
-    { start: number; days: number }
-  > = {
-    '1D': { start: 106885.40, days: 0 },
-    '1W': { start: 106120, days: 7 },
-    '1M': { start: 103925, days: 30 },
-    '3M': { start: 102800, days: 92 },
-    '1Y': { start: 98500, days: 365 },
-    ALL: { start: 100500, days: 540 }
-  };
-
-  private readonly fluctuations = [
-    0, -.018, .045, .015, .052, .022, .070, .036,
-    .062, .010, .035, .076, .042, .105, .065, .072,
-    .044, .081, .039, .112, .054, .069, .028, .079,
-    .038, -.015, .034, .004, .060, .019, .078, .035,
-    .062, .009, .045, .018, .038, -.012, .012, 0
-  ];
-
-  readonly performance: Record<Period, PerformancePoint[]> = {
-    '1D': this.makeMockHistory('1D'),
-    '1W': this.makeMockHistory('1W'),
-    '1M': this.makeMockHistory('1M'),
-    '3M': this.makeMockHistory('3M'),
-    '1Y': this.makeMockHistory('1Y'),
-    ALL: this.makeMockHistory('ALL')
-  };
-
   get holdingsValue(): number {
     return this.round(
       this.holdings.reduce((sum, item) => sum + this.marketValue(item), 0)
@@ -316,23 +309,41 @@ export class Dashboard implements OnInit {
     return this.apiPortfolioValue() + this.availableCash;
   }
 
+  get todayGain(): number {
+    return this.round(this.portfolioValue - this.previousClose);
+  }
+
   get totalCostBasis(): number {
-    return this.holdings.reduce(
-      (sum, item) => sum + item.quantity * item.averageCost,
-      0
+    return this.round(
+      this.holdings.reduce(
+        (sum, item) => sum + (this.isForex(item) ? 0 : item.quantity * item.averageCost),
+        0
+      )
     );
   }
 
   get totalGain(): number {
-    return this.round(this.holdingsValue - this.totalCostBasis);
+    return this.round(
+      this.holdings.reduce(
+        (sum, item) => sum + (this.isForex(item) ? 0 : this.gain(item)),
+        0
+      )
+    );
   }
 
   get totalGainPercent(): number {
-    return this.totalGain / (this.totalCostBasis + this.availableCash);
+    const initialCapital = this.totalCostBasis + this.availableCash;
+    return initialCapital > 0 ? this.totalGain / initialCapital : 0;
   }
 
   get todayGainPercent(): number {
-    return this.todayGain / (this.portfolioValue - this.todayGain);
+    return this.previousClose > 0 ? this.todayGain / this.previousClose : 0;
+  }
+
+  private get previousClose(): number {
+    return this.snapshots.length
+      ? this.snapshots[this.snapshots.length - 1].value
+      : this.portfolioValue;
   }
 
   get openOrders(): number {
@@ -340,23 +351,29 @@ export class Dashboard implements OnInit {
   }
 
   get series(): PerformancePoint[] {
-    return this.performance[this.selectedPeriod];
+    if (!this.snapshots.length) return [];
+    if (this.selectedPeriod === 'ALL') return this.snapshots;
+
+    const latestDate = Date.parse(this.snapshots[this.snapshots.length - 1].date);
+    const days = { '1D': 1, '1W': 7, '1M': 30, '3M': 90, '1Y': 365 }[this.selectedPeriod];
+    const startDate = latestDate - days * 86400000;
+    const filtered = this.snapshots.filter(snapshot => Date.parse(snapshot.date) >= startDate);
+
+    return filtered.length ? filtered : [this.snapshots[this.snapshots.length - 1]];
   }
 
   get periodGain(): number {
+    if (this.series.length < 2) return 0;
     return this.round(this.series[this.series.length - 1].value - this.series[0].value);
   }
 
   get periodGainPercent(): number {
-    return this.periodGain / this.series[0].value;
+    return this.series[0]?.value ? this.periodGain / this.series[0].value : 0;
   }
 
   get chartDomain(): { min: number; max: number } {
-    if (this.selectedPeriod === '1M') {
-      return { min: 102500, max: 110000 };
-    }
-
     const values = this.series.map(point => point.value);
+    if (!values.length) return { min: 0, max: 1 };
     const low = Math.min(...values);
     const high = Math.max(...values);
     const padding = Math.max((high - low) * .2, 100);
@@ -382,7 +399,7 @@ export class Dashboard implements OnInit {
   }
 
   get areaPath(): string {
-    return `${this.linePath} L 900 216 L 16 216 Z`;
+    return `${this.linePath} L 900 216 L ${this.chartX(0)} 216 Z`;
   }
 
   get lastPoint(): { x: number; y: number } {
@@ -394,9 +411,23 @@ export class Dashboard implements OnInit {
 
   get dateLabels(): { date: string; fraction: number }[] {
     return [0, .25, .5, .75, 1].map(fraction => ({
-      date: this.series[Math.round((this.series.length - 1) * fraction)].date,
+      date: new Date(
+        this.chartStartDate + (this.chartEndDate - this.chartStartDate) * fraction
+      ).toISOString(),
       fraction
     }));
+  }
+
+  get dateLabelFormat(): string {
+    if (this.series.length < 2) return 'MMM d';
+
+    const firstDate = Date.parse(this.series[0].date);
+    const lastDate = Date.parse(this.series[this.series.length - 1].date);
+    return lastDate - firstDate < 2 * 86400000 ? 'HH:mm' : 'MMM d';
+  }
+
+  get dateLabelTimezone(): string {
+    return this.dateLabelFormat === 'HH:mm' ? '-0400' : 'UTC';
   }
 
   marketValue(holding: Holding): number {
@@ -404,13 +435,21 @@ export class Dashboard implements OnInit {
   }
 
   gain(holding: Holding): number {
+    if (this.isForex(holding)) return 0;
+
     return this.round(
       holding.quantity * (holding.currentPrice - holding.averageCost)
     );
   }
 
   gainPercent(holding: Holding): number {
+    if (this.isForex(holding)) return 0;
+
     return (holding.currentPrice - holding.averageCost) / holding.averageCost;
+  }
+
+  isForex(holding: Holding): boolean {
+    return holding.type === 'Forex';
   }
 
   absolute(value: number): number {
@@ -444,7 +483,25 @@ export class Dashboard implements OnInit {
   }
 
   private chartX(index: number): number {
-    return 16 + (index / (this.series.length - 1)) * 884;
+    const timestamp = Date.parse(this.series[index].date);
+    const duration = Math.max(this.chartEndDate - this.chartStartDate, 1);
+    return 72 + ((timestamp - this.chartStartDate) / duration) * 828;
+  }
+
+  private get chartStartDate(): number {
+    const latestDate = this.latestSnapshotDate;
+    if (this.selectedPeriod === 'ALL') return Date.parse(this.snapshots[0]?.date) || latestDate;
+
+    const days = { '1D': 1, '1W': 7, '1M': 30, '3M': 90, '1Y': 365 }[this.selectedPeriod];
+    return latestDate - days * 86400000;
+  }
+
+  private get chartEndDate(): number {
+    return this.latestSnapshotDate;
+  }
+
+  private get latestSnapshotDate(): number {
+    return Date.parse(this.snapshots[this.snapshots.length - 1]?.date) || Date.now();
   }
 
   private chartY(value: number): number {
@@ -452,28 +509,25 @@ export class Dashboard implements OnInit {
     return 204 - ((value - min) / (max - min)) * 188;
   }
 
-  private makeMockHistory(period: Period): PerformancePoint[] {
-    const { start, days } = this.periodConfig[period];
-    const end = this.portfolioValue;
-    const count = this.fluctuations.length;
-    const endDate = Date.UTC(2026, 9, 7, 18, 32);
-    const duration = days === 0 ? 5 * 60 * 60 * 1000 : days * 86400000;
-    const amplitude = Math.max(Math.abs(end - start), 1000);
-
-    return this.fluctuations.map((fluctuation, index) => {
-      const progress = index / (count - 1);
-
-      return {
-        date: new Date(endDate - duration * (1 - progress)).toISOString(),
-        value: this.round(
-          start + (end - start) * progress + fluctuation * amplitude
-        )
-      };
-    });
+  private toPerformancePoint(snapshot: PortfolioSnapshot): PerformancePoint {
+    return {
+      date: snapshot.snapshotDate,
+      value: this.round(Number(snapshot.portfolioValue))
+    };
   }
 
   private round(value: number): number {
     return Math.round(value * 100) / 100;
+  }
+
+  private getHoldingType(position: AccountPosition): Holding['type'] {
+    const assetType = position.asset_type.toUpperCase();
+
+    if (assetType.includes('FOREX') || position.ticker.includes('/')) {
+      return 'Forex';
+    }
+
+    return assetType.includes('ETF') ? 'ETF' : 'Stock';
   }
 
   private readAccountId(): number | null {
