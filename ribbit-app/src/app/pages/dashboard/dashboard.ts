@@ -73,17 +73,26 @@ export class Dashboard implements OnInit {
   readonly availableCash = this.readStoredBalance();
   readonly todayGain = 864.20;
   private readonly apiPortfolioValue = signal(0);
+  portfolioValueLoading = true;
 
   ngOnInit(): void {
     const accountId = this.readAccountId();
 
-    if (accountId === null) return;
-
+    if (accountId === null) {
+      this.portfolioValueLoading = false;
+      return;
+    }
     this.loadPositions();
 
     this.portfolioValueService.getPortfolioValue(accountId).subscribe({
-      next: value => this.apiPortfolioValue.set(value),
-      error: error => console.error('Unable to load portfolio value', error)
+      next: value => {
+        this.apiPortfolioValue.set(value);
+        this.portfolioValueLoading = false;
+      },
+      error: error => {
+        console.error('Unable to load portfolio value', error)
+        this.portfolioValueLoading = false;
+      }
     });
   }
   private loadPositions(): void {
