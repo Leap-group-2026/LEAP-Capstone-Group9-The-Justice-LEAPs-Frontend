@@ -123,6 +123,7 @@ export class MainLayout implements OnInit, OnDestroy {
   navigate(destination: string): void {
     this.sidebarOpen = false;
     if (destination === 'logout') {
+      this.authService.logout();
       this.router.navigate(['/login']);
     } else if (destination === 'account' && this.authService.isAdmin()) {
       this.router.navigate(['/admin']);

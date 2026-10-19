@@ -418,6 +418,7 @@ export class Dashboard implements OnInit {
 
   navigate(destination: Destination): void {
     if (destination === 'logout') {
+      this.authService.logout();
       this.router.navigate(['/login']);
     } else {
       this.router.navigate([`/${destination}`]);

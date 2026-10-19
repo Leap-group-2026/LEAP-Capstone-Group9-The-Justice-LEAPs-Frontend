@@ -1,4 +1,7 @@
-import { Injectable, signal } from '@angular/core';
+import { HttpBackend, HttpClient } from '@angular/common/http';
+import { Injectable, inject, signal } from '@angular/core';
+import { environment } from '../../environments/environment';
+import { clearToken, readToken } from '../interceptors/auth.interceptor';
 
 export interface StoredUser {
   name: string;
@@ -7,6 +10,14 @@ export interface StoredUser {
   initials: string;
   accountEnding: string;
 }
+
+
+// Everything stored for a signed-in user besides the tokens. adminRole is included because
+// hasRole() trusts it even without a token, so it must not outlive the session.
+const SESSION_DATA_KEYS = [
+  'name', 'email', 'address', 'userEmail', 'accountId', 'balance',
+  'tradeType', 'portfolioSize', 'createdAt', 'accountActive', 'adminRole'
+];
 
 export interface AuthState {
   isLoggedIn: boolean;
@@ -17,6 +28,9 @@ export interface AuthState {
   providedIn: 'root'
 })
 export class AuthService {
+  // Bypasses the interceptor: logout must not trigger a refresh or a redirect of its own
+  private readonly http = new HttpClient(inject(HttpBackend));
+
   private authState = signal<AuthState>({
     isLoggedIn: this.hasStoredSession(),
     user: this.readStoredAuthUser()
@@ -47,11 +61,27 @@ export class AuthService {
     this.storedUser.set(this.createStoredUser(profile.name, profile.email, profile.address));
   }
 
+
   logout(): void {
-    if (typeof localStorage !== 'undefined') {
-      localStorage.removeItem('token');
-      localStorage.removeItem('adminRole');
+    const token = readToken();
+    if (token) {
+      this.http
+        .post(`${environment.authUrl}/auth/logout`, {}, { headers: { Authorization: `Bearer ${token}` } })
+        .subscribe({ error: () => undefined });
     }
+    // Removes the token, the admin role and every other session key
+    this.clearSession();
+  }
+
+
+  clearSession(): void {
+    clearToken();
+    if (typeof localStorage !== 'undefined') {
+      for (const key of SESSION_DATA_KEYS) {
+        localStorage.removeItem(key);
+      }
+    }
+    this.storedUser.set(this.createStoredUser('', '', ''));
 
     this.authState.set({
       isLoggedIn: false,

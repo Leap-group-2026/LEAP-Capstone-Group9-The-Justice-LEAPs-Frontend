@@ -2,8 +2,8 @@ import { Component, OnInit, PLATFORM_ID, inject, signal, computed } from '@angul
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
-import { HttpErrorResponse } from '@angular/common/http';
-import { finalize } from 'rxjs';
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
+import { finalize, firstValueFrom } from 'rxjs';
 import { OrdersApiService, OrderHistoryApiResponse } from '../../shared/services/orders-api.service';
 import { environment } from '../../environments/environment';
 import { AuthService } from '../../shared/services/auth.service';
@@ -44,6 +44,7 @@ export class Orders implements OnInit {
   private readonly router = inject(Router);
   private readonly platformId = inject(PLATFORM_ID);
   private readonly ordersApiService = inject(OrdersApiService);
+  private readonly http = inject(HttpClient);
   private readonly authService = inject(AuthService);
 
   readonly user = this.authService.getUserProfile();
@@ -449,20 +450,13 @@ export class Orders implements OnInit {
       return storedAccountId;
     }
 
-    const token = localStorage.getItem('token');
-    if (!token) {
+    if (!localStorage.getItem('token')) {
       return null;
     }
 
-    const response = await fetch(`${environment.springUrl}/user/accounts`, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
-
-    if (!response.ok) {
-      throw new Error(`Account request failed: ${response.status}`);
-    }
-
-    const accounts = await response.json() as AccountApiResponse[];
+    const accounts = await firstValueFrom(
+      this.http.get<AccountApiResponse[]>(`${environment.springUrl}/user/accounts`)
+    );
     const accountId = accounts[0]?.accountId;
 
     return Number.isInteger(accountId) && accountId > 0 ? accountId : null;
