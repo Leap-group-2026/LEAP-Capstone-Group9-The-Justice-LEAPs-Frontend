@@ -47,6 +47,10 @@ export class MainLayout implements OnInit, OnDestroy {
   ];
 
   get visibleNavigation(): NavigationItem[] {
+    if (this.authService.isReporter()) {
+      return this.navigation.filter(item => item.id !== 'admin');
+    }
+
     if (this.authService.isAdmin()) {
       return this.navigation.filter(item => item.id === 'admin');
     }
@@ -56,6 +60,10 @@ export class MainLayout implements OnInit, OnDestroy {
 
   get isAdminUser(): boolean {
     return this.authService.isAdmin();
+  }
+
+  get isReporterUser(): boolean {
+    return this.authService.isReporter();
   }
 
   readonly icons: Record<string, string> = {
