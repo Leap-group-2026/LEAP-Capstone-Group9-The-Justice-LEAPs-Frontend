@@ -87,3 +87,23 @@ h1 { margin: 0; font-size: 32px; font-weight: 500; }
 @media (max-width: 900px) {
   .analytics-grid { grid-template-columns: 1fr; }
 }
+
+
+.money-panel { grid-column: 1 / -1; }
+.money-chart { --sell: #6f8f7d; }
+.money-summary { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px 24px; margin-bottom: 18px; }
+.money-headline { display: grid; gap: 4px; }
+.money-headline strong { color: var(--text); font-size: 24px; font-weight: 600; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+.money-change { color: var(--accent); font-size: 11px; }
+.money-change.down { color: #f08e85; }
+.money-change.muted { color: var(--subtle); }
+.money-legend { display: flex; flex-wrap: wrap; gap: 8px 18px; color: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+.money-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.swatch { width: 10px; height: 10px; border-radius: 2px; }
+.swatch.buy { background: var(--accent); }
+.swatch.sell { background: var(--sell); }
+.money-bar.buy { fill: var(--accent); opacity: 0.85; }
+.money-bar.sell { fill: var(--sell); }
+.money-hit { fill: transparent; }
+.money-day:hover .money-bar.buy { opacity: 1; }
+.money-day:hover .money-hit { fill: color-mix(in srgb, var(--border) 35%, transparent); }

@@ -62,6 +62,14 @@ export interface TopBoughtStock {
   totalVolume: number;
 }
 
+// GET /admin/analytics/money-moved: one row per day with filled orders (days without fills are omitted)
+export interface DailyMoneyMoved {
+  date: string;       // YYYY-MM-DD, Eastern time
+  buyTotal: number;
+  sellTotal: number;
+  orders: number;
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -89,6 +97,13 @@ export class AdminApiService {
   getTopBoughtStocks(): Observable<TopBoughtStock[]> {
     return this.http.get<TopBoughtStock[]>(`${this.apiBaseUrl}/admin/analytics/top-bought`, {
       headers: this.authHeaders()
+    });
+  }
+
+  getMoneyMoved(days = 30): Observable<DailyMoneyMoved[]> {
+    return this.http.get<DailyMoneyMoved[]>(`${this.apiBaseUrl}/admin/analytics/money-moved`, {
+      headers: this.authHeaders(),
+      params: { days }
     });
   }
 
