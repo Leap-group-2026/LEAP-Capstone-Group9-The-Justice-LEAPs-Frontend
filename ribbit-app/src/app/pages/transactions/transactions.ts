@@ -356,6 +356,11 @@ export class Transactions {
 
   // Deposit / withdraw modal
   openFundsModal(mode: FundsMode = 'deposit'): void {
+    const account = this.account() ?? this.accountContext.getKnownSelectedAccount();
+    if (mode === 'deposit' && account?.accountFrozen) {
+      this.accountContext.requestFrozenNotice(account.accountId);
+      return;
+    }
     this.fundsMode.set(mode);
     this.fundsStep.set('form');
     this.fundsAmount = '';
@@ -497,6 +502,11 @@ export class Transactions {
       return;
     }
 
+    if (this.isFrozenAccountError(error)) {
+      const accountId = this.account()?.accountId;
+      if (accountId) this.accountContext.requestFrozenNotice(accountId);
+    }
+
     const action = mode === 'deposit' ? 'deposit' : 'withdrawal';
     this.fundsError.set(describeHttpError(error, `Unable to complete the ${action}. Please try again.`));
   }
@@ -505,8 +515,20 @@ export class Transactions {
     return `Insufficient funds. You have ${this.formatCurrency(balance)} available.`;
   }
 
+  private isFrozenAccountError(error: HttpErrorResponse): boolean {
+    const body = typeof error.error === 'object' && error.error !== null
+      ? JSON.stringify(error.error)
+      : String(error.error ?? '');
+    return body.toLowerCase().includes('frozen');
+  }
+
   // Currency exchange modal
   openCurrencyExchangeModal(): void {
+    const account = this.account() ?? this.accountContext.getKnownSelectedAccount();
+    if (account?.accountFrozen) {
+      this.accountContext.requestFrozenNotice(account.accountId);
+      return;
+    }
     this.exchangeFrom = 'USD';
     this.exchangeTo = 'CAD';
     this.exchangeAmount = '';
@@ -637,6 +659,9 @@ export class Transactions {
           },
           error: error => {
             console.error('Unable to complete currency exchange', error);
+            if (error instanceof HttpErrorResponse && this.isFrozenAccountError(error)) {
+              this.accountContext.requestFrozenNotice(accountId);
+            }
             this.exchangeError.set('Unable to complete the currency exchange. Please try again.');
           }
         });

@@ -194,7 +194,32 @@
     </div>
   </aside>
 
+  @if (!isAdminUser && accountContext.selectedAccount()?.accountFrozen) {
+    <div class="frozen-account-banner" role="status">
+      <strong>Account frozen</strong>
+      <span>BUY orders, deposits, and currency exchanges are unavailable. SELL orders and withdrawals remain available.</span>
+      <button type="button" (click)="frozenNoticeOpen.set(true)">Details</button>
+    </div>
+  }
+
   <main class="main-content">
     <ng-content></ng-content>
   </main>
+
+  @if (frozenNoticeOpen()) {
+    <div class="frozen-account-backdrop" (click)="closeFrozenNotice()"></div>
+    <div class="frozen-account-modal" role="dialog" aria-modal="true" aria-labelledby="frozen-account-title">
+      <div class="modal-header">
+        <h2 id="frozen-account-title">Your account has been frozen</h2>
+        <button class="modal-close" type="button" (click)="closeFrozenNotice()" aria-label="Close">×</button>
+      </div>
+      <div class="modal-body">
+        <p>Account #{{ frozenNoticeAccountId() }} cannot BUY instruments, receive deposits, or make currency exchanges while it is frozen.</p>
+        <p>You can still SELL existing positions and withdraw money. Please contact an administrator to unfreeze your account.</p>
+      </div>
+      <div class="modal-actions">
+        <button class="button primary" type="button" (click)="closeFrozenNotice()">Close</button>
+      </div>
+    </div>
+  }
 </div>

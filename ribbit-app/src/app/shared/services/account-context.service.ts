@@ -12,6 +12,7 @@ export interface AccountContextItem {
   tradeType: string;
   createdAt: string;
   accountActive: boolean;
+  accountFrozen: boolean;
 }
 
 export interface CreateAccountRequest {
@@ -32,6 +33,8 @@ interface AccountApiResponse {
   created_at?: string;
   accountActive?: boolean;
   account_active?: boolean;
+  accountFrozen?: boolean;
+  account_frozen?: boolean;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -44,6 +47,7 @@ export class AccountContextService {
   readonly isLoading = signal(false);
   readonly loadError = signal('');
   readonly accountUpdated = new Subject<AccountContextItem>();
+  readonly frozenNoticeRequested = new Subject<number>();
 
   loadAccounts(): void {
     const token = typeof window === 'undefined' ? null : window.localStorage.getItem('token');
@@ -62,7 +66,10 @@ export class AccountContextService {
         const selected = activeAccounts.find(account => account.accountId === storedId)
           ?? [...activeAccounts].sort((left, right) => left.accountId - right.accountId)[0]
           ?? null;
-        if (selected) this.setSelectedAccount(selected, false);
+        if (selected) {
+          this.setSelectedAccount(selected, false);
+          if (selected.accountFrozen) this.requestFrozenNotice(selected.accountId);
+        }
         this.isLoading.set(false);
       },
       error: () => {
@@ -77,6 +84,31 @@ export class AccountContextService {
     if (!account || this.selectedAccount()?.accountId === accountId) return;
 
     this.setSelectedAccount(account, true);
+    if (account.accountFrozen) this.requestFrozenNotice(account.accountId);
+  }
+
+  requestFrozenNotice(accountId = this.selectedAccount()?.accountId ?? 0): void {
+    if (accountId > 0) this.frozenNoticeRequested.next(accountId);
+  }
+
+  getKnownSelectedAccount(): AccountContextItem | null {
+    const selected = this.selectedAccount();
+    if (selected) return selected;
+
+    if (typeof window === 'undefined') return null;
+    const accountId = Number(window.localStorage.getItem('accountId'));
+    if (!Number.isInteger(accountId) || accountId <= 0) return null;
+
+    return {
+      accountId,
+      userId: 0,
+      balance: Number(window.localStorage.getItem('balance')) || 0,
+      portfolioSize: window.localStorage.getItem('portfolioSize') ?? '',
+      tradeType: window.localStorage.getItem('tradeType') ?? '',
+      createdAt: window.localStorage.getItem('createdAt') ?? '',
+      accountActive: window.localStorage.getItem('accountActive') !== 'false',
+      accountFrozen: window.localStorage.getItem('accountFrozen') === 'true'
+    };
   }
 
   createAccount(request: CreateAccountRequest): Observable<AccountContextItem> {
@@ -131,6 +163,7 @@ export class AccountContextService {
     window.localStorage.setItem('portfolioSize', account.portfolioSize ?? '');
     window.localStorage.setItem('createdAt', account.createdAt ?? '');
     window.localStorage.setItem('accountActive', String(account.accountActive));
+    window.localStorage.setItem('accountFrozen', String(account.accountFrozen));
   }
 
   private normalizeAccount(response: AccountApiResponse): AccountContextItem {
@@ -141,7 +174,8 @@ export class AccountContextService {
       portfolioSize: response.portfolioSize ?? response.portfolio_size ?? '',
       tradeType: response.tradeType ?? response.trade_type ?? '',
       createdAt: response.createdAt ?? response.created_at ?? '',
-      accountActive: response.accountActive ?? response.account_active ?? true
+      accountActive: response.accountActive ?? response.account_active ?? true,
+      accountFrozen: response.accountFrozen ?? response.account_frozen ?? false
     };
   }
 
