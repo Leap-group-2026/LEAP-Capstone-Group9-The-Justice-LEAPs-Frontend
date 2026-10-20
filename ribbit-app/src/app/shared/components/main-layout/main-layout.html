@@ -146,9 +146,10 @@
             <button
               class="nav-item"
               type="button"
-              [class.active]="item.id === currentPage"
-              [attr.aria-current]="item.id === currentPage ? 'page' : null"
-              (click)="navigate(item.id)"
+                [routerLink]="'/' + item.id"
+                routerLinkActive="active"
+                [routerLinkActiveOptions]="{ paths: 'exact', queryParams: 'ignored', fragment: 'ignored', matrixParams: 'ignored' }"
+                ariaCurrentWhenActive="page"
               [title]="sidebarCollapsed ? item.label : ''"
             >
               <svg viewBox="0 0 24 24" aria-hidden="true">

@@ -10,6 +10,8 @@ import { Signup } from './pages/signup/signup';
 import { ResetPassword } from './pages/reset-password/reset-password';
 import { Admin } from './pages/admin/admin';
 import { Reporter } from './pages/reporter/reporter';
+import { AdminOrders } from './pages/admin-orders/admin-orders';
+import { AdminTransactions } from './pages/admin-transactions/admin-transactions';
 import { TradingTrends } from './pages/trading-trends/trading-trends';
 import { adminGuard } from './shared/guards/admin.guard';
 import { reporterGuard } from './shared/guards/reporter.guard';
@@ -29,6 +31,8 @@ export const routes: Routes = [
   { path: 'account', component: Account, canActivate: [authGuard] },
   { path: 'admin', component: Admin, canActivate: [authGuard, adminGuard] },
   { path: 'reporter', component: Reporter, canActivate: [authGuard, reporterGuard] },
+  { path: 'admin/orders', component: AdminOrders, canActivate: [authGuard, adminGuard] },
+  { path: 'admin/transactions', component: AdminTransactions, canActivate: [authGuard, adminGuard] },
   { path: 'trading-trends', component: TradingTrends, canActivate: [authGuard] },
   { path: '**', redirectTo: '/login' },
 ];
