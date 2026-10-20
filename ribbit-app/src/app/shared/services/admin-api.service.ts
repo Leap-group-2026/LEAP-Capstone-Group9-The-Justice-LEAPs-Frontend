@@ -57,9 +57,23 @@ export interface AdminUserLookup {
   accounts: AdminAccount[];
 }
 
+export interface PortfolioSizeCount {
+  portfolioSize: string;
+  accountCount: number;
+}
+
 export interface TopBoughtStock {
   ticker: string;
   totalVolume: number;
+}
+
+export interface ActiveAccountAnalytics {
+  accountId: number;
+  orderCount: number;
+  filledQuantity: number;
+  totalTradedValue: number;
+  buyCount: number;
+  sellCount: number;
 }
 
 // GET /admin/analytics/money-moved: one row per day with filled orders (days without fills are omitted)
@@ -119,6 +133,12 @@ export class AdminApiService {
     });
   }
 
+  getMostActiveAccounts(): Observable<ActiveAccountAnalytics[]> {
+    return this.http.get<ActiveAccountAnalytics[]>(`${this.apiBaseUrl}/admin/analytics/active-accounts`, {
+      headers: this.authHeaders()
+    });
+  }
+
   getMoneyMoved(days = 30): Observable<DailyMoneyMoved[]> {
     return this.http.get<DailyMoneyMoved[]>(`${this.apiBaseUrl}/admin/analytics/money-moved`, {
       headers: this.authHeaders(),
@@ -130,6 +150,12 @@ export class AdminApiService {
     return this.http.get<AdminUserLookup>(`${this.apiBaseUrl}/admin/users/by-email`, {
       headers: this.authHeaders(),
       params: { email }
+    });
+  }
+
+  getPortfolioSizeCounts(): Observable<PortfolioSizeCount[]> {
+    return this.http.get<PortfolioSizeCount[]>(`${this.apiBaseUrl}/admin/analytics/portfolio-sizes`, {
+      headers: this.authHeaders()
     });
   }
 

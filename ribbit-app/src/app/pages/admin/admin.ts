@@ -2,7 +2,7 @@ import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { Component, OnInit, PLATFORM_ID, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { finalize } from 'rxjs';
-import { AdminApiService, AdminOverview, AdminUserLookup } from '../../shared/services/admin-api.service';
+import { AdminApiService, AdminOverview, AdminUserLookup, PortfolioSizeCount } from '../../shared/services/admin-api.service';
 
 @Component({
   selector: 'app-admin',
@@ -22,6 +22,7 @@ export class Admin implements OnInit {
   readonly userLookup = signal<AdminUserLookup | null>(null);
   readonly userLookupLoading = signal(false);
   readonly userLookupError = signal('');
+  readonly portfolioSizes = signal<PortfolioSizeCount[]>([]);
   readonly closingAccountId = signal<number | null>(null);
 
   ngOnInit(): void {
@@ -32,12 +33,12 @@ export class Admin implements OnInit {
 
   loadOverview(): void {
     this.isLoading.set(true);
-    this.errorMessage.set('');
-
     this.adminApi.getOverview()
       .pipe(finalize(() => this.isLoading.set(false)))
       .subscribe({
-        next: overview => this.overview.set(overview),
+        next: overview => {
+          this.overview.set(overview);
+        },
         error: response => {
           this.errorMessage.set(
             response.status === 401 || response.status === 403
@@ -46,6 +47,19 @@ export class Admin implements OnInit {
           );
         }
       });
+
+    this.adminApi.getPortfolioSizeCounts().subscribe({
+      next: counts => this.portfolioSizes.set(counts),
+      error: response => {
+        if (!this.errorMessage()) {
+          this.errorMessage.set(
+            response.status === 401 || response.status === 403
+              ? 'You do not have permission to view portfolio analytics.'
+              : 'Unable to load portfolio analytics.'
+          );
+        }
+      }
+    });
   }
 
   get pendingOrders(): number {
@@ -54,6 +68,14 @@ export class Admin implements OnInit {
 
   get filledOrders(): number {
     return this.overview().orders.filter(order => order.status === 'FILLED').length;
+  }
+
+  get maximumPortfolioCount(): number {
+    return Math.max(...this.portfolioSizes().map(item => item.accountCount), 1);
+  }
+
+  portfolioBarWidth(count: number): number {
+    return (count / this.maximumPortfolioCount) * 100;
   }
 
   searchUser(): void {

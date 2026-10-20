@@ -132,3 +132,32 @@
 		</div>
 	</article>
 </section>
+
+<section class="panel active-account-bars" aria-labelledby="active-account-heading">
+	<div class="panel-heading">
+		<div class="section-title">
+			<h2 id="active-account-heading">Top 5 most active accounts</h2>
+			<span>COMPLETED TRADED VALUE</span>
+		</div>
+		<span class="chart-count">{{ topActiveAccounts.length }} ACCOUNTS</span>
+	</div>
+	@if (topActiveAccounts.length > 0) {
+		<div class="active-account-chart" role="img" aria-label="Top five accounts by completed traded value">
+			@for (account of topActiveAccounts; track account.accountId; let rank = $index) {
+				<div class="active-account-row">
+					<span class="active-account-rank">{{ rank + 1 }}</span>
+					<div class="active-account-label">
+						<strong>Account #{{ account.accountId }}</strong>
+						<span>{{ account.orderCount }} orders · {{ account.buyCount }} buys / {{ account.sellCount }} sells</span>
+					</div>
+					<span class="active-account-track"><span class="active-account-bar" [style.width.%]="accountBarWidth(account.totalTradedValue)"></span></span>
+					<strong class="active-account-value">{{ account.totalTradedValue | currency:'USD':'symbol':'1.0-0' }}</strong>
+				</div>
+			}
+		</div>
+	} @else if (isLoading()) {
+		<div class="chart-message">Loading account activity...</div>
+	} @else {
+		<div class="chart-message">No completed account activity available.</div>
+	}
+</section>

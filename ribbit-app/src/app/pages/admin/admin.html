@@ -59,6 +59,31 @@
   }
 </section>
 
+<section class="panel portfolio-analytics" aria-labelledby="portfolio-size-heading">
+  <div class="panel-heading">
+    <div class="section-title">
+      <h2 id="portfolio-size-heading">Account portfolio sizes</h2>
+      <span>ACCOUNT MIX</span>
+    </div>
+    <span class="chart-count">{{ portfolioSizes().length }} TYPES</span>
+  </div>
+  @if (portfolioSizes().length > 0) {
+    <div class="portfolio-chart" role="img" aria-label="Accounts grouped by portfolio size">
+      @for (item of portfolioSizes(); track item.portfolioSize) {
+        <div class="portfolio-row">
+          <span class="portfolio-label">{{ item.portfolioSize }}</span>
+          <span class="portfolio-track"><span class="portfolio-bar" [style.width.%]="portfolioBarWidth(item.accountCount)"></span></span>
+          <strong class="portfolio-value">{{ item.accountCount | number }}</strong>
+        </div>
+      }
+    </div>
+  } @else if (isLoading()) {
+    <div class="chart-message">Loading portfolio sizes...</div>
+  } @else {
+    <div class="chart-message">No portfolio size data available.</div>
+  }
+</section>
+
 @if (errorMessage()) {
   <section class="notice" role="alert">
     <strong>{{ errorMessage() }}</strong>
