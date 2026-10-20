@@ -1,9 +1,10 @@
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { Component, OnInit, PLATFORM_ID, computed, inject, signal } from '@angular/core';
 import { finalize } from 'rxjs';
-import { ActiveAccountAnalytics, AdminApiService, DailyMoneyMoved, TopBoughtStock } from '../../shared/services/admin-api.service';
+import { ActiveAccountAnalytics, AdminApiService, DailyMoneyMoved, OrderStatusCount, TopBoughtStock } from '../../shared/services/admin-api.service';
 
 export const MONEY_WINDOW_DAYS = 30;
+export const ORDER_ACTIVITY_DAYS = 30;
 
 export interface MoneyDay {
   date: string;
@@ -20,6 +21,11 @@ export interface MoneySummary {
   orders: number;
   priorTotal: number;        // the 30 days before that, for the comparison
   changePercent: number | null;
+}
+
+export interface OrderStatusSummary extends OrderStatusCount {
+  count: number;
+  percentage: number;
 }
 
 // Today's date in Eastern time, matching how the backend buckets fills.
@@ -127,6 +133,18 @@ export class Reporter implements OnInit {
   readonly isLoading = signal(false);
   readonly topBoughtStocks = signal<TopBoughtStock[]>([]);
   readonly activeAccounts = signal<ActiveAccountAnalytics[]>([]);
+  readonly orderActivityLoading = signal(false);
+  readonly orderStatusCounts = signal<OrderStatusCount[]>([]);
+  readonly orderStatusSummary = computed<OrderStatusSummary[]>(() => {
+    return [...this.orderStatusCounts()]
+      .map(item => ({
+        status: item.status.toUpperCase(),
+        orderCount: Number(item.orderCount) || 0,
+        count: Number(item.orderCount) || 0,
+        percentage: Number(item.percentage) || 0
+      }))
+      .sort((left, right) => right.count - left.count);
+  });
 
   readonly moneyLoading = signal(false);
   readonly moneyError = signal(false);
@@ -160,6 +178,19 @@ export class Reporter implements OnInit {
     this.adminApi.getMostActiveAccounts().subscribe({
       next: accounts => this.activeAccounts.set(accounts),
       error: () => this.activeAccounts.set([])
+    });
+
+    this.loadOrderActivity();
+
+  }
+
+  loadOrderActivity(): void {
+    this.orderActivityLoading.set(true);
+    this.adminApi.getOrderStatuses()
+      .pipe(finalize(() => this.orderActivityLoading.set(false)))
+      .subscribe({
+      next: statuses => this.orderStatusCounts.set(statuses),
+      error: () => this.orderStatusCounts.set([])
     });
   }
 
@@ -208,6 +239,26 @@ export class Reporter implements OnInit {
 
   volumeBarHeight(volume: number): number {
     return (volume / this.maximumVolume) * 190;
+  }
+
+  get maximumOrderStatusCount(): number {
+    return Math.max(...this.orderStatusSummary().map(item => item.count), 1);
+  }
+
+  orderStatusBarX(index: number): number {
+    const chartWidth = 720;
+    const barSlot = chartWidth / Math.max(this.orderStatusSummary().length, 1);
+    return index * barSlot + barSlot * 0.2;
+  }
+
+  orderStatusBarWidth(): number {
+    const chartWidth = 720;
+    const barSlot = chartWidth / Math.max(this.orderStatusSummary().length, 1);
+    return barSlot * 0.6;
+  }
+
+  orderStatusBarHeight(count: number): number {
+    return (count / this.maximumOrderStatusCount) * 190;
   }
 
   // Money moved chart geometry

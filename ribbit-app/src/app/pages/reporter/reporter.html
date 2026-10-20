@@ -4,18 +4,48 @@
 	<article class="panel analytics-panel" aria-labelledby="order-activity-heading">
 		<div class="panel-heading">
 			<div class="section-title">
-				<h2 id="order-activity-heading">Order activity</h2>
-				<span>ANALYTICS</span>
+				<h2 id="order-activity-heading" class="analytics-title">Order activity</h2>
+				<span>ORDER STATUSES · LAST 30 DAYS</span>
 			</div>
+			<span class="chart-count">{{ orderStatusSummary().length }} STATUSES</span>
 		</div>
 		<div
 			id="order-activity-chart"
-			class="chart-slot"
-			data-chart="order-activity"
+			class="chart-slot volume-chart"
 			role="img"
-			aria-label="Order activity chart placeholder"
+			aria-label="Order status activity for the last 30 days"
 		>
-			<span>Order activity chart</span>
+			@if (orderStatusSummary().length > 0) {
+				<svg class="volume-svg" viewBox="0 0 780 260" role="img" aria-label="Order statuses over the last 30 days">
+					@for (tick of [0, 0.25, 0.5, 0.75, 1]; track tick) {
+						<line class="volume-gridline" x1="48" x2="750" [attr.y1]="220 - tick * 190" [attr.y2]="220 - tick * 190" />
+						<text class="volume-axis-label" x="40" [attr.y]="224 - tick * 190" text-anchor="end">
+							{{ maximumOrderStatusCount * tick | number:'1.0-0' }}
+						</text>
+					}
+					<line class="volume-axis" x1="48" y1="220" x2="750" y2="220" />
+					@for (item of orderStatusSummary(); track item.status; let index = $index) {
+						<rect
+							class="volume-svg-bar"
+							[attr.x]="orderStatusBarX(index) + 48"
+							[attr.y]="220 - orderStatusBarHeight(item.count)"
+							[attr.width]="orderStatusBarWidth()"
+							[attr.height]="orderStatusBarHeight(item.count)"
+							rx="3"
+						/>
+						<text class="volume-x-label" [attr.x]="orderStatusBarX(index) + 48 + orderStatusBarWidth() / 2" y="242" text-anchor="middle">
+							{{ item.status }}
+						</text>
+						<text class="volume-value-label" [attr.x]="orderStatusBarX(index) + 48 + orderStatusBarWidth() / 2" [attr.y]="214 - orderStatusBarHeight(item.count)" text-anchor="middle">
+							{{ item.count }} ({{ item.percentage }}%)
+						</text>
+					}
+				</svg>
+			} @else if (orderActivityLoading()) {
+				<span class="chart-message">Loading order activity...</span>
+			} @else {
+				<span class="chart-message">No order status data available.</span>
+			}
 		</div>
 	</article>
 
