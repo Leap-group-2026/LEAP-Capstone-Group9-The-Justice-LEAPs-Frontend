@@ -1,4 +1,4 @@
-import { ChangeDetectorRef, Component, ElementRef, Input, ViewChild, inject, OnInit, OnDestroy } from '@angular/core';
+import { ChangeDetectorRef, Component, ElementRef, Input, ViewChild, effect, inject, OnInit, OnDestroy, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { SessionTimer } from '../session-timer/session-timer';
 import { Router, RouterLink, RouterLinkActive, NavigationEnd } from '@angular/router';
@@ -41,7 +41,20 @@ export class MainLayout implements OnInit, OnDestroy {
   activeNewsIndex = 0;
   newsStatus: 'loading' | 'ready' | 'unavailable' = 'loading';
   newsTransition: 'next' | 'previous' | '' = '';
+  readonly frozenNoticeOpen = signal(false);
+  readonly frozenNoticeAccountId = signal<number | null>(null);
+  private frozenNoticeShownAccountId: number | null = null;
   private newsTransitionTimeout?: ReturnType<typeof setTimeout>;
+  private readonly frozenAccountEffect = effect(() => {
+    const account = this.accountContext.selectedAccount();
+    if (account?.accountFrozen && account.accountId !== this.frozenNoticeShownAccountId) {
+      this.frozenNoticeShownAccountId = account.accountId;
+      this.frozenNoticeAccountId.set(account.accountId);
+      this.frozenNoticeOpen.set(true);
+    } else if (!account?.accountFrozen) {
+      this.frozenNoticeShownAccountId = null;
+    }
+  });
 
   @ViewChild('newsItem') private newsItem?: ElementRef<HTMLElement>;
 
@@ -55,19 +68,20 @@ export class MainLayout implements OnInit, OnDestroy {
     { id: 'admin', label: 'Admin', icon: 'admin' },
     { id: 'admin/orders', label: 'Orders', icon: 'orders' },
     { id: 'admin/transactions', label: 'Transactions', icon: 'history' },
+    { id: 'admin/frozen-accounts', label: 'Frozen accounts', icon: 'admin' },
     { id: 'trading-trends', label: 'Trading trends', icon: 'trends' }
   ];
 
   get visibleNavigation(): NavigationItem[] {
     if (this.authService.isReporter()) {
-      return this.navigation.filter(item => item.id !== 'admin');
+      return this.navigation.filter(item => !item.id.startsWith('admin'));
     }
 
     if (this.authService.isAdmin()) {
       return this.navigation.filter(item => item.id.startsWith('admin'));
     }
 
-    return this.navigation.filter(item => item.id !== 'admin');
+    return this.navigation.filter(item => !item.id.startsWith('admin'));
   }
 
   get isAdminUser(): boolean {
@@ -98,6 +112,15 @@ export class MainLayout implements OnInit, OnDestroy {
   };
 
   ngOnInit(): void {
+    this.accountContext.frozenNoticeRequested
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(accountId => {
+        if (!this.isAdminUser) {
+          this.frozenNoticeAccountId.set(accountId);
+          this.frozenNoticeOpen.set(true);
+        }
+      });
+
     if (!this.authService.isAdmin() && !this.authService.isReporter()) {
       this.accountContext.loadAccounts();
     }
@@ -114,6 +137,10 @@ export class MainLayout implements OnInit, OnDestroy {
     interval(10000)
       .pipe(takeUntil(this.destroy$))
       .subscribe(() => this.advanceNewsAutomatically());
+  }
+
+  closeFrozenNotice(): void {
+    this.frozenNoticeOpen.set(false);
   }
 
   loadNews(): void {

@@ -15,6 +15,7 @@ export interface AccountDto {
   tradeType: string;
   createdAt: string;
   accountActive: boolean;
+  accountFrozen?: boolean;
 }
 
 // GET /accounts/{accountId}

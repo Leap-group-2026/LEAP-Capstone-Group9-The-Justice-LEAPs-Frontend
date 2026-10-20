@@ -38,6 +38,7 @@ import {
 } from '../../shared/services/instruments-api.service';
 import { OrdersApiService } from '../../shared/services/orders-api.service';
 import { CurrentAccountService } from '../../shared/services/current-account.service';
+import { AccountContextService } from '../../shared/services/account-context.service';
 import { TransactionsService } from '../../shared/services/transactions.service';
 import { OrderStatus, PositionDto } from '../../shared/services/transactions.models';
 
@@ -116,6 +117,7 @@ export class Trade {
   private readonly ordersApi = inject(OrdersApiService);
   private readonly transactions = inject(TransactionsService);
   private readonly currentAccount = inject(CurrentAccountService);
+  private readonly accountContext = inject(AccountContextService);
 
   readonly account = this.currentAccount.account;
   readonly accountError = signal(false);
@@ -598,6 +600,13 @@ export class Trade {
   reviewOrder(): void {
     this.attempted.set(true);
     this.submitError.set('');
+
+    const account = this.account() ?? this.accountContext.getKnownSelectedAccount();
+    if (this.side === 'Buy' && account?.accountFrozen) {
+      this.accountContext.requestFrozenNotice(account.accountId);
+      return;
+    }
+
     this.form.markAllAsTouched();
     this.form.updateValueAndValidity();
 
@@ -676,6 +685,9 @@ export class Trade {
         },
         error: (error: unknown) => {
           this.submitting.set(false);
+          if (this.isFrozenAccountError(error)) {
+            this.accountContext.requestFrozenNotice(account.accountId);
+          }
           this.submitError.set(this.describeOrderError(error));
         }
       });
@@ -860,6 +872,14 @@ export class Trade {
     }
 
     return 'The order could not be placed. Please try again.';
+  }
+
+  private isFrozenAccountError(error: unknown): boolean {
+    if (!(error instanceof HttpErrorResponse)) return false;
+    const body = typeof error.error === 'object' && error.error !== null
+      ? JSON.stringify(error.error)
+      : String(error.error ?? '');
+    return body.toLowerCase().includes('frozen');
   }
 
 
