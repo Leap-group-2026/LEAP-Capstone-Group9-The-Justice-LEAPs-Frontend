@@ -46,7 +46,10 @@
           aria-label="Select account"
         >
           @for (account of accountContext.accounts(); track account.accountId) {
-            <option [value]="account.accountId">#{{ account.accountId }}</option>
+            <option
+              [value]="account.accountId"
+              [selected]="account.accountId === accountContext.selectedAccount()?.accountId"
+            >#{{ account.accountId }}</option>
           }
         </select>
       </div>
@@ -165,10 +168,9 @@
 
     <div class="sidebar-bottom">
         <div class="market-status" [class.collapsed]="sidebarCollapsed">
-          <span><i></i> {{ sidebarCollapsed ? '' : 'MARKET OPEN' }}</span>
+          <span><i></i> {{ sidebarCollapsed ? '' : (marketOpen ? 'MARKET OPEN' : 'MARKET CLOSED') }}</span>
           @if (!sidebarCollapsed) {
-            <p>NYSE · Closes at 4:00 PM ET</p>
-            <small>Mock market session</small>
+            <p>NYSE · {{ marketOpen ? 'Closes at 4:00 PM ET' : 'Opens at 9:30 AM ET' }}</p>
           }
         </div>
 

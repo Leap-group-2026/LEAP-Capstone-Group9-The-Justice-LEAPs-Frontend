@@ -543,8 +543,12 @@ export class Trade {
     const startDate = new Date(endDate);
     startDate.setMonth(startDate.getMonth() - 6);
 
-    this.instrumentsApi
-      .getBarNumbers(
+    const instrument = this.instruments().find(item => item.symbol === symbol);
+    const getBars = instrument?.assetType.toUpperCase().includes('CRYPTO')
+      ? this.instrumentsApi.getCryptoBarNumbers.bind(this.instrumentsApi)
+      : this.instrumentsApi.getBarNumbers.bind(this.instrumentsApi);
+
+    getBars(
         symbol,
         '1Day',
         this.formatDate(startDate),

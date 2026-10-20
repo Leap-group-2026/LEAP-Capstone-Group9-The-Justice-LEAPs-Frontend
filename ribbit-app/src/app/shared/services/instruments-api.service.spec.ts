@@ -69,6 +69,16 @@ describe('InstrumentsApiService', () => {
     request.flush([10, 20, 30]);
   });
 
+  it('sends all crypto bar query parameters to the crypto bars endpoint', () => {
+    service.getCryptoBarNumbers('BTC/USD', '1Day', '2026-01-01', '2026-01-31').subscribe();
+
+    const request = controller.expectOne(
+      `${environment.springUrl}/instruments/crypto-bars?symbols=BTC%2FUSD&timeframe=1Day&start=2026-01-01&end=2026-01-31`
+    );
+    expect(request.request.method).toBe('GET');
+    request.flush([10, 20, 30]);
+  });
+
   it('normalizes wrapped and unwrapped news responses', () => {
     let wrappedNews: unknown;
     let plainNews: unknown;

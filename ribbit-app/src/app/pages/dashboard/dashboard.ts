@@ -9,7 +9,7 @@ import { InstrumentApiResponse, InstrumentsApiService } from '../../shared/servi
 import { PortfolioValueService } from '../../shared/services/portfolio-value.service';
 import { PortfolioSnapshot, PortfolioSnapshotsApiService } from '../../shared/services/portfolio-snapshots-api.service';
 
-type Period = '1D' | '1W' | '1M' | '3M' | '1Y' | 'ALL';
+type Period = '3D' | '1W' | '1M' | '3M' | '1Y' | 'ALL';
 type Destination =
   | 'dashboard'
   | 'portfolio'
@@ -289,10 +289,10 @@ export class Dashboard implements OnInit {
     plus: 'M12 5v14 M5 12h14'
   };
 
-  readonly periods: Period[] = ['1D', '1W', '1M', '3M', '1Y', 'ALL'];
+  readonly periods: Period[] = ['3D', '1W', '1M', '3M', '1Y', 'ALL'];
 
   readonly periodDescriptions: Record<Period, string> = {
-    '1D': 'today',
+    '3D': 'past 3 days',
     '1W': 'past week',
     '1M': 'past month',
     '3M': 'past 3 months',
@@ -356,7 +356,7 @@ export class Dashboard implements OnInit {
     if (this.selectedPeriod === 'ALL') return this.snapshots;
 
     const latestDate = Date.parse(this.snapshots[this.snapshots.length - 1].date);
-    const days = { '1D': 1, '1W': 7, '1M': 30, '3M': 90, '1Y': 365 }[this.selectedPeriod];
+    const days = { '3D': 3, '1W': 7, '1M': 30, '3M': 90, '1Y': 365 }[this.selectedPeriod];
     const startDate = latestDate - days * 86400000;
     const filtered = this.snapshots.filter(snapshot => Date.parse(snapshot.date) >= startDate);
 
@@ -493,7 +493,7 @@ export class Dashboard implements OnInit {
     const latestDate = this.latestSnapshotDate;
     if (this.selectedPeriod === 'ALL') return Date.parse(this.snapshots[0]?.date) || latestDate;
 
-    const days = { '1D': 1, '1W': 7, '1M': 30, '3M': 90, '1Y': 365 }[this.selectedPeriod];
+    const days = { '3D': 3, '1W': 7, '1M': 30, '3M': 90, '1Y': 365 }[this.selectedPeriod];
     return latestDate - days * 86400000;
   }
 

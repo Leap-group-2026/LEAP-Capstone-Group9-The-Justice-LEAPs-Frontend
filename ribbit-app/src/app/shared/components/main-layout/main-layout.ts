@@ -41,6 +41,7 @@ export class MainLayout implements OnInit, OnDestroy {
   activeNewsIndex = 0;
   newsStatus: 'loading' | 'ready' | 'unavailable' = 'loading';
   newsTransition: 'next' | 'previous' | '' = '';
+  marketOpen = false;
   private newsTransitionTimeout?: ReturnType<typeof setTimeout>;
 
   @ViewChild('newsItem') private newsItem?: ElementRef<HTMLElement>;
@@ -102,6 +103,7 @@ export class MainLayout implements OnInit, OnDestroy {
       this.accountContext.loadAccounts();
     }
     this.updateCurrentPage();
+    this.updateMarketStatus();
     this.loadNews();
     
     this.router.events
@@ -114,6 +116,26 @@ export class MainLayout implements OnInit, OnDestroy {
     interval(10000)
       .pipe(takeUntil(this.destroy$))
       .subscribe(() => this.advanceNewsAutomatically());
+
+    interval(60000)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(() => this.updateMarketStatus());
+  }
+
+  private updateMarketStatus(): void {
+    const easternTimeParts = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'America/New_York',
+      weekday: 'short',
+      hour: 'numeric',
+      minute: 'numeric',
+      hour12: false
+    }).formatToParts(new Date());
+    const parts = Object.fromEntries(easternTimeParts.map(({ type, value }) => [type, value]));
+    const weekday = parts['weekday'];
+    const minutes = Number(parts['hour']) * 60 + Number(parts['minute']);
+
+    this.marketOpen = weekday !== 'Sat' && weekday !== 'Sun' && minutes >= 570 && minutes < 960;
+    this.changeDetectorRef.markForCheck();
   }
 
   loadNews(): void {
