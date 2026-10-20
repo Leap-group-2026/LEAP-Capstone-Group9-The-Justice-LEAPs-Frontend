@@ -39,7 +39,8 @@ export class App {
       transactions: 'Transactions',
       account: 'Account',
       admin: 'Admin',
-      reporter: 'Reporter'
+      reporter: 'Reporter',
+      'trading-trends': 'Trading trends'
     };
     if (path === 'admin' && adminSection === 'orders') return 'Admin Orders';
     if (path === 'admin' && adminSection === 'transactions') return 'Admin Transactions';

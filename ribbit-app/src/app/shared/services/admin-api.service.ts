@@ -106,8 +106,8 @@ export class AdminApiService {
     });
   }
 
-  closeAccount(accountId: number): Observable<string> {
-    return this.http.patch(`${this.apiBaseUrl}/accounts/close/${accountId}`, null, {
+  freezeAccount(accountId: number): Observable<string> {
+    return this.http.patch(`${this.apiBaseUrl}/accounts/freeze/${accountId}`, null, {
       headers: this.authHeaders(),
       responseType: 'text'
     });

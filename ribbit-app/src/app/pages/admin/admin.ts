@@ -70,13 +70,13 @@ export class Admin implements OnInit {
   }
 
   closeAccount(accountId: number): void {
-    if (this.closingAccountId() !== null || !window.confirm(`Close account #${accountId}? This cannot be undone here.`)) return;
+    if (this.closingAccountId() !== null || !window.confirm(`Freeze account #${accountId}?`)) return;
 
     this.closingAccountId.set(accountId);
     this.userLookupError.set('');
-    this.adminApi.closeAccount(accountId).pipe(finalize(() => this.closingAccountId.set(null))).subscribe({
+    this.adminApi.freezeAccount(accountId).pipe(finalize(() => this.closingAccountId.set(null))).subscribe({
       next: () => this.searchUser(),
-      error: response => this.userLookupError.set(response.error || 'Unable to close this account.')
+      error: response => this.userLookupError.set(response.error || 'Unable to freeze this account.')
     });
   }
 

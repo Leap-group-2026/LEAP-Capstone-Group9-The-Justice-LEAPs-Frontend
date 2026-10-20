@@ -46,7 +46,7 @@
               <a [routerLink]="['/admin/transactions']" [queryParams]="{ accountId: account.accountId }">View Transactions</a>
               @if (account.accountActive) {
                 <button class="close-account-button" type="button" (click)="closeAccount(account.accountId)" [disabled]="closingAccountId() !== null">
-                  {{ closingAccountId() === account.accountId ? 'Closing...' : 'Close Account' }}
+                  {{ closingAccountId() === account.accountId ? 'Freezing...' : 'Freeze Account' }}
                 </button>
               }
             </div>
