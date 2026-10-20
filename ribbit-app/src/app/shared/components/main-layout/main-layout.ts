@@ -1,11 +1,12 @@
-import { Component, Input, inject, OnInit, OnDestroy } from '@angular/core';
+import { ChangeDetectorRef, Component, ElementRef, Input, ViewChild, inject, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { SessionTimer } from '../session-timer/session-timer';
 import { Router, NavigationEnd } from '@angular/router';
-import { Subject } from 'rxjs';
+import { interval, Subject } from 'rxjs';
 import { takeUntil, filter } from 'rxjs/operators';
 import { AuthService, StoredUser } from '../../services/auth.service';
 import { AccountContextService } from '../../services/account-context.service';
+import { InstrumentsApiService, MarketNews } from '../../services/instruments-api.service';
 import { ThemeService } from '../../services/theme.service';
 
 interface NavigationItem {
@@ -26,6 +27,8 @@ type Destination = 'dashboard' | 'portfolio' | 'trade' | 'orders' | 'transaction
 export class MainLayout implements OnInit, OnDestroy {
   private readonly router = inject(Router);
   private readonly authService = inject(AuthService);
+  private readonly instrumentsApi = inject(InstrumentsApiService);
+  private readonly changeDetectorRef = inject(ChangeDetectorRef);
   readonly accountContext = inject(AccountContextService);
   readonly theme = inject(ThemeService);
   private readonly destroy$ = new Subject<void>();
@@ -36,6 +39,13 @@ export class MainLayout implements OnInit, OnDestroy {
   sidebarOpen = false;
   sidebarCollapsed = false;
   currentPage = 'dashboard';
+  news: MarketNews[] = [];
+  activeNewsIndex = 0;
+  newsStatus: 'loading' | 'ready' | 'unavailable' = 'loading';
+  newsTransition: 'next' | 'previous' | '' = '';
+  private newsTransitionTimeout?: ReturnType<typeof setTimeout>;
+
+  @ViewChild('newsItem') private newsItem?: ElementRef<HTMLElement>;
 
   readonly navigation: NavigationItem[] = [
     { id: 'dashboard', label: 'Home', icon: 'dashboard' },
@@ -44,6 +54,7 @@ export class MainLayout implements OnInit, OnDestroy {
     { id: 'orders', label: 'Orders', icon: 'orders' },
     { id: 'transactions', label: 'Transactions', icon: 'history' },
     { id: 'account', label: 'Account', icon: 'account' },
+    { id: 'trading-trends', label: 'Trading trends', icon: 'trends' },
     { id: 'admin', label: 'Admin', icon: 'admin' }
   ];
 
@@ -70,6 +81,7 @@ export class MainLayout implements OnInit, OnDestroy {
   readonly icons: Record<string, string> = {
     dashboard: 'M3 3h7v7H3z M14 3h7v7h-7z M3 14h7v7H3z M14 14h7v7h-7z',
     portfolio: 'M8 7V5h8v2 M3 7h18v13H3z M3 12h18 M10 12v3h4v-3',
+    trends: 'M4 19V5 M4 19h16 M8 15l3-4 3 2 5-7',
     trade: 'M4 7h16 M16 3l4 4-4 4 M20 17H4 M8 13l-4 4 4 4',
     orders: 'M8 4H5v17h14V4h-3 M8 3h8v4H8z M8 11h8 M8 15h5',
     history: 'M3 11a9 9 0 1 1 2 7 M3 4v7h7 M12 7v5l3 2',
@@ -90,6 +102,7 @@ export class MainLayout implements OnInit, OnDestroy {
       this.accountContext.loadAccounts();
     }
     this.updateCurrentPage();
+    this.loadNews();
     
     this.router.events
       .pipe(
@@ -97,6 +110,66 @@ export class MainLayout implements OnInit, OnDestroy {
         takeUntil(this.destroy$)
       )
       .subscribe(() => this.updateCurrentPage());
+
+    interval(10000)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(() => this.advanceNewsAutomatically());
+  }
+
+  loadNews(): void {
+    this.instrumentsApi.getNews()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: news => {
+          this.news = news.filter(item => item.headline && item.url);
+          this.activeNewsIndex = 0;
+          this.newsStatus = this.news.length ? 'ready' : 'unavailable';
+          this.changeDetectorRef.markForCheck();
+        },
+        error: () => {
+          this.news = [];
+          this.newsStatus = 'unavailable';
+          this.changeDetectorRef.markForCheck();
+        }
+      });
+  }
+
+  showPreviousNews(): void {
+    if (this.news.length > 1) {
+      this.activeNewsIndex = (this.activeNewsIndex - 1 + this.news.length) % this.news.length;
+      this.restartNewsAnimation('previous');
+      this.changeDetectorRef.markForCheck();
+    }
+  }
+
+  showNextNews(): void {
+    if (this.news.length > 1) {
+      this.activeNewsIndex = (this.activeNewsIndex + 1) % this.news.length;
+      this.restartNewsAnimation('next');
+      this.changeDetectorRef.markForCheck();
+    }
+  }
+
+  private advanceNewsAutomatically(): void {
+    if (this.news.length > 1) {
+      this.activeNewsIndex = (this.activeNewsIndex + 1) % this.news.length;
+      this.restartNewsAnimation('next');
+      this.changeDetectorRef.markForCheck();
+    }
+  }
+
+  private restartNewsAnimation(direction: 'next' | 'previous'): void {
+    clearTimeout(this.newsTransitionTimeout);
+    this.newsTransition = '';
+    this.changeDetectorRef.detectChanges();
+    this.newsItem?.nativeElement.offsetWidth;
+    this.newsTransition = direction;
+    this.changeDetectorRef.detectChanges();
+
+    this.newsTransitionTimeout = setTimeout(() => {
+      this.newsTransition = '';
+      this.changeDetectorRef.markForCheck();
+    }, 350);
   }
 
   selectAccount(event: Event): void {
@@ -111,6 +184,7 @@ export class MainLayout implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    clearTimeout(this.newsTransitionTimeout);
     this.destroy$.next();
     this.destroy$.complete();
   }
