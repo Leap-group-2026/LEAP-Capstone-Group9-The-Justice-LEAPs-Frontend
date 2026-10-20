@@ -463,21 +463,21 @@ export class Orders implements OnInit {
   }
 
   private mapApiOrderToView(order: OrderHistoryApiResponse): Order {
-    const parsedDate = order.executedAt ? new Date(order.executedAt) : null;
-    const hasValidDate = !!parsedDate && !Number.isNaN(parsedDate.getTime());
     const status = this.mapOrderStatus(order.status);
+    // executedAt is only set for FILLED orders; fall back to createdAt so pending orders still have a date.
+    const parsedDate = this.parseBackendDate(order.executedAt) ?? this.parseBackendDate(order.createdAt);
 
     return {
       backendOrderId: order.orderId,
       id: `ORD-${order.orderId}`,
-      date: hasValidDate ? parsedDate!.toISOString().slice(0, 10) : '',
-      time: hasValidDate
+      date: parsedDate ? this.toLocalIsoDate(parsedDate) : '',
+      time: parsedDate
         ? new Intl.DateTimeFormat('en-US', {
             hour: 'numeric',
             minute: '2-digit',
             hour12: true,
             timeZoneName: 'short'
-          }).format(parsedDate!)
+          }).format(parsedDate)
         : 'N/A',
       symbol: (order.ticker || '').toUpperCase(),
       instrument: (order.ticker || '').toUpperCase(),
@@ -490,6 +490,23 @@ export class Orders implements OnInit {
       filledQuantity: status === 'Filled' ? Number(order.quantity) || 0 : undefined,
       averageFillPrice: status === 'Filled' ? Number(order.pricePerUnit) || 0 : undefined
     };
+  }
+
+  private parseBackendDate(value: string | null | undefined): Date | null {
+    if (!value) {
+      return null;
+    }
+
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  }
+
+  // Backend timestamps are naive local date-times, so use local calendar parts rather than toISOString (UTC).
+  private toLocalIsoDate(date: Date): string {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
   }
 
   private mapOrderStatus(status: string): OrderStatus {
