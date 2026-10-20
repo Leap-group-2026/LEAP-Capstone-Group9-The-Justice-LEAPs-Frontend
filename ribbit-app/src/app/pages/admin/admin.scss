@@ -91,9 +91,13 @@ h2 { font-size: 15px; font-weight: 500; }
 .lookup-account-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 14px; }
 .lookup-account-actions a { color: var(--accent); font-size: 11px; text-decoration: none; }
 .lookup-account-actions a:hover { text-decoration: underline; }
-.close-account-button { padding: 0; border: 0; background: transparent; color: var(--negative); font: inherit; font-size: 11px; cursor: pointer; }
-.close-account-button:hover { color: var(--text); text-decoration: underline; }
-.close-account-button:disabled { cursor: wait; opacity: 0.6; }
+.refresh-button { border-color: var(--border); color: var(--muted); }
+.refresh-button:hover { border-color: var(--accent); color: var(--accent); background: rgba(193, 255, 57, 0.06); }
+.freeze-toggle-button { min-height: 32px; padding: 7px 12px; border: 1px solid #6c423f; border-radius: 6px; background: #211514; color: var(--negative); font: inherit; font-size: 11px; font-weight: 600; cursor: pointer; }
+.freeze-toggle-button:hover { border-color: var(--negative); background: #2a1918; color: #ffd8d4; }
+.freeze-toggle-button.unfreeze-button { border-color: #536f2a; background: #17200f; color: var(--accent); }
+.freeze-toggle-button.unfreeze-button:hover { border-color: var(--accent); background: #202c13; color: #efffc7; }
+.freeze-toggle-button:disabled { cursor: wait; opacity: 0.6; }
 .pagination { display: flex; align-items: center; justify-content: flex-end; gap: 12px; padding: 14px 20px; border-top: 1px solid var(--border); color: var(--muted); font-size: 12px; }
 .portfolio-analytics { margin-bottom: 24px; }
 .portfolio-chart { display: grid; gap: 14px; padding: 20px; }
