@@ -24,6 +24,27 @@ h1 { margin: 0; font-size: 32px; font-weight: 500; }
   gap: 24px;
   margin-top: 24px;
 }
+.active-accounts { margin-top: 24px; }
+.account-activity-chart { display: grid; gap: 14px; padding: 20px; }
+.account-activity-row { display: grid; grid-template-columns: 230px minmax(0, 1fr) 92px; align-items: center; gap: 14px; }
+.account-activity-label { display: grid; gap: 4px; min-width: 0; }
+.account-activity-label strong { color: var(--text); font-size: 12px; }
+.account-activity-label span { overflow: hidden; color: var(--muted); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.account-activity-track { height: 15px; overflow: hidden; border: 1px solid var(--border); border-radius: 4px; background: var(--surface-raised); }
+.account-activity-bar { display: block; height: 100%; border-radius: inherit; background: var(--accent); }
+.account-activity-value { color: var(--text); font-size: 11px; text-align: right; }
+.account-activity-footnote { padding: 0 20px 18px; color: var(--subtle); font-size: 10px; }
+.active-account-bars { margin-top: 24px; }
+.active-account-bars .chart-count { color: #9aad91; }
+.active-account-chart { display: grid; gap: 12px; padding: 20px; }
+.active-account-row { display: grid; grid-template-columns: 24px 230px minmax(0, 1fr) 94px; align-items: center; gap: 12px; }
+.active-account-rank { color: var(--subtle); font-size: 11px; text-align: right; }
+.active-account-label { display: grid; gap: 4px; min-width: 0; }
+.active-account-label strong { color: var(--text); font-size: 12px; }
+.active-account-label span { overflow: hidden; color: var(--muted); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.active-account-track { height: 15px; overflow: hidden; border: 1px solid var(--border); border-radius: 4px; background: var(--surface-raised); }
+.active-account-bar { display: block; height: 100%; border-radius: inherit; background: var(--accent); }
+.active-account-value { color: var(--text); font-size: 11px; text-align: right; }
 
 .panel {
   min-width: 0;
@@ -86,6 +107,9 @@ h1 { margin: 0; font-size: 32px; font-weight: 500; }
 
 @media (max-width: 900px) {
   .analytics-grid { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 560px) {
 }
 
 

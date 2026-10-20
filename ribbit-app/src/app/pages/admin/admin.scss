@@ -88,6 +88,13 @@ h2 { font-size: 15px; font-weight: 500; }
 .lookup-accounts h3 { margin: 0 0 10px; color: var(--muted); font-size: 12px; font-weight: 500; }
 .lookup-account { grid-template-columns: 100px 1fr; padding: 10px 0; border-top: 1px solid var(--border); }
 .pagination { display: flex; align-items: center; justify-content: flex-end; gap: 12px; padding: 14px 20px; border-top: 1px solid var(--border); color: var(--muted); font-size: 12px; }
+.portfolio-analytics { margin-bottom: 24px; }
+.portfolio-chart { display: grid; gap: 14px; padding: 20px; }
+.portfolio-row { display: grid; grid-template-columns: 100px minmax(0, 1fr) 48px; align-items: center; gap: 12px; }
+.portfolio-label { color: var(--text); font-size: 12px; font-weight: 600; text-transform: uppercase; }
+.portfolio-track { height: 16px; overflow: hidden; border: 1px solid var(--border); border-radius: 4px; background: var(--surface-raised); }
+.portfolio-bar { display: block; height: 100%; border-radius: inherit; background: var(--accent); box-shadow: 0 0 12px color-mix(in srgb, var(--accent) 25%, transparent); }
+.portfolio-value { color: var(--muted); font-size: 12px; text-align: right; }
 
 .summary-grid {
   display: grid;
@@ -102,7 +109,6 @@ h2 { font-size: 15px; font-weight: 500; }
   border-radius: 8px;
   background: var(--surface);
 }
-
 .summary-card h2 { color: var(--muted); font-size: 12px; }
 .summary-card strong { display: block; margin: 16px 0 6px; font-size: 28px; font-weight: 500; }
 .summary-card p { color: var(--subtle); font-size: 11px; }
@@ -216,6 +222,13 @@ tbody td { color: var(--muted); }
 .badge.pending i { background: #e7c96a; }
 .badge.filled i { background: var(--accent); }
 .badge.canceled i, .badge.cancelled i, .badge.failed i, .badge.declined i { background: var(--negative); }
+.orders-pagination { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 20px; }
+.orders-range { color: var(--subtle); font-size: 11px; }
+.orders-page-controls { display: flex; align-items: center; gap: 4px; }
+.page-button { display: inline-grid; min-width: 30px; height: 30px; place-items: center; padding: 0 8px; border: 1px solid var(--border); border-radius: 5px; background: transparent; color: var(--muted); font-size: 11px; }
+.page-button:hover:not(:disabled), .page-button.current { border-color: var(--accent); color: var(--accent); }
+.page-button.current { background: color-mix(in srgb, var(--accent) 10%, transparent); font-weight: 700; }
+.page-button:disabled { cursor: not-allowed; opacity: 0.35; }
 .empty-state { padding: 36px 20px; color: var(--muted); font-size: 13px; text-align: center; }
 
 @media (max-width: 900px) {

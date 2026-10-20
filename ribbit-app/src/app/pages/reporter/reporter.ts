@@ -1,7 +1,7 @@
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { Component, OnInit, PLATFORM_ID, computed, inject, signal } from '@angular/core';
 import { finalize } from 'rxjs';
-import { AdminApiService, DailyMoneyMoved, TopBoughtStock } from '../../shared/services/admin-api.service';
+import { ActiveAccountAnalytics, AdminApiService, DailyMoneyMoved, TopBoughtStock } from '../../shared/services/admin-api.service';
 
 export const MONEY_WINDOW_DAYS = 30;
 
@@ -113,7 +113,6 @@ const PLOT_LEFT = 56;
 const PLOT_RIGHT = 760;
 const BASELINE = 220;
 const PLOT_HEIGHT = 190;
-
 @Component({
   selector: 'app-reporter',
   standalone: true,
@@ -127,6 +126,7 @@ export class Reporter implements OnInit {
 
   readonly isLoading = signal(false);
   readonly topBoughtStocks = signal<TopBoughtStock[]>([]);
+  readonly activeAccounts = signal<ActiveAccountAnalytics[]>([]);
 
   readonly moneyLoading = signal(false);
   readonly moneyError = signal(false);
@@ -156,6 +156,11 @@ export class Reporter implements OnInit {
       next: stocks => this.topBoughtStocks.set(stocks),
       error: () => this.topBoughtStocks.set([])
     });
+
+    this.adminApi.getMostActiveAccounts().subscribe({
+      next: accounts => this.activeAccounts.set(accounts),
+      error: () => this.activeAccounts.set([])
+    });
   }
 
   // 60 days in one call: the last 30 for the chart, the 30 before for the comparison.
@@ -173,6 +178,20 @@ export class Reporter implements OnInit {
 
   get maximumVolume(): number {
     return Math.max(...this.topBoughtStocks().map(stock => stock.totalVolume), 1);
+  }
+
+  get maximumAccountValue(): number {
+    return Math.max(...this.activeAccounts().map(account => account.totalTradedValue), 1);
+  }
+
+  accountBarWidth(value: number): number {
+    return (value / this.maximumAccountValue) * 100;
+  }
+
+  get topActiveAccounts(): ActiveAccountAnalytics[] {
+    return [...this.activeAccounts()]
+      .sort((left, right) => Number(right.totalTradedValue) - Number(left.totalTradedValue))
+      .slice(0, 5);
   }
 
   volumeBarX(index: number): number {
