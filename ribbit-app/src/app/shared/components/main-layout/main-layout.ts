@@ -60,14 +60,14 @@ export class MainLayout implements OnInit, OnDestroy {
 
   get visibleNavigation(): NavigationItem[] {
     if (this.authService.isReporter()) {
-      return this.navigation.filter(item => item.id !== 'admin');
+      return this.navigation.filter(item => !item.id.startsWith('admin'));
     }
 
     if (this.authService.isAdmin()) {
       return this.navigation.filter(item => item.id.startsWith('admin'));
     }
 
-    return this.navigation.filter(item => item.id !== 'admin');
+    return this.navigation.filter(item => !item.id.startsWith('admin'));
   }
 
   get isAdminUser(): boolean {

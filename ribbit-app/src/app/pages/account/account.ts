@@ -18,13 +18,6 @@ interface UserProfile {
   address: string;
 }
 
-interface PreferenceSettings {
-  emailNotifications: boolean;
-  orderConfirmations: boolean;
-  tradeAlerts: boolean;
-  accountNotifications: boolean;
-}
-
 interface AccountInfo {
   accountId: number;
   balance: number;
@@ -87,13 +80,6 @@ export class Account implements OnInit {
   readonly isSavingProfile = signal(false);
   readonly changePasswordStep = signal<ChangePasswordStep>('form');
   readonly showChangePasswordModal = signal(false);
-  readonly preferences = signal<PreferenceSettings>({
-    emailNotifications: true,
-    orderConfirmations: true,
-    tradeAlerts: true,
-    accountNotifications: false
-  });
-
   // Form state
   editFirstName = '';
   editLastName = '';
@@ -477,15 +463,6 @@ export class Account implements OnInit {
 
   finishPasswordChange(): void {
     this.closeChangePasswordModal();
-  }
-
-  // Preferences toggle methods
-  togglePreference(key: keyof PreferenceSettings): void {
-    const current = this.preferences();
-    this.preferences.set({
-      ...current,
-      [key]: !current[key]
-    });
   }
 
   // Navigation
