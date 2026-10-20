@@ -1,8 +1,9 @@
 import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { Observable } from 'rxjs';
+import { map, Observable } from 'rxjs';
 
 import { environment } from '../../environments/environment';
+import { readToken } from '../interceptors/auth.interceptor';
 
 @Injectable({
   providedIn: 'root'
@@ -55,6 +56,15 @@ export class InstrumentsApiService {
     );
   }
 
+  getNews(): Observable<MarketNews[]> {
+    return this.http.get<MarketNews[] | { news?: MarketNews[] }>(
+      `${environment.springUrl}/instruments/news`,
+      { headers: this.createAuthHeaders() }
+    ).pipe(
+      map(response => Array.isArray(response) ? response : response.news ?? [])
+    );
+  }
+
   private createAuthHeaders(): HttpHeaders {
     const token = this.resolveAuthToken();
 
@@ -68,16 +78,7 @@ export class InstrumentsApiService {
   }
 
   private resolveAuthToken(): string | null {
-    if (typeof window === 'undefined') {
-      return null;
-    }
-
-    const storedToken = window.localStorage.getItem('token')
-      ?? window.localStorage.getItem('authToken')
-      ?? window.localStorage.getItem('jwtToken')
-      ?? window.localStorage.getItem('jwt');
-
-    return storedToken?.trim().replace(/^Bearer\s+/i, '').replace(/^"|"$/g, '') || null;
+    return readToken();
   }
 }
 
@@ -89,6 +90,12 @@ export interface InstrumentApiResponse {
   currency: string;
   price: number;
   quote_time: string;
+}
+
+export interface MarketNews {
+  author: string;
+  headline: string;
+  url: string;
 }
 
 // Rows from GET /instruments: price and quote_time are null until a quote exists.

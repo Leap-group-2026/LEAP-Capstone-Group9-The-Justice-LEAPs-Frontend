@@ -37,7 +37,8 @@ export class App {
       transactions: 'Transactions',
       account: 'Account',
       admin: 'Admin',
-      reporter: 'Reporter'
+      reporter: 'Reporter',
+      'trading-trends': 'Trading trends'
     };
     return titleMap[path] || 'Dashboard';
   }
