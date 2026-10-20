@@ -10,6 +10,18 @@ import { environment } from '../../environments/environment';
 export class InstrumentsApiService {
   private readonly http = inject(HttpClient);
 
+  // GET /instruments is paginated; pageSize is the number of rows per page.
+  getAll(pageNum = 1, pageSize = 100): Observable<InstrumentListItemApiResponse[]> {
+    const params = new HttpParams()
+      .set('pageNum', pageNum)
+      .set('pageSize', pageSize);
+
+    return this.http.get<InstrumentListItemApiResponse[]>(
+      `${environment.springUrl}/instruments`,
+      { headers: this.createAuthHeaders(), params }
+    );
+  }
+
   getByTicker(ticker: string): Observable<InstrumentApiResponse> {
     return this.http.get<InstrumentApiResponse>(
       `${environment.springUrl}/instruments/${this.encodeInstrumentReference(ticker)}`,
@@ -77,4 +89,10 @@ export interface InstrumentApiResponse {
   currency: string;
   price: number;
   quote_time: string;
+}
+
+// Rows from GET /instruments: price and quote_time are null until a quote exists.
+export interface InstrumentListItemApiResponse extends Omit<InstrumentApiResponse, 'price' | 'quote_time'> {
+  price: number | null;
+  quote_time: string | null;
 }

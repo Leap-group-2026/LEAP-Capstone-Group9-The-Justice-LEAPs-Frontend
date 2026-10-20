@@ -19,39 +19,73 @@ import {
 } from '@angular/forms';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router } from '@angular/router';
-import { InstrumentsApiService } from '../../shared/services/instruments-api.service';
+import { HttpErrorResponse } from '@angular/common/http';
+import {
+  EMPTY,
+  Subscription,
+  catchError,
+  filter,
+  map,
+  of,
+  switchMap,
+  take,
+  takeWhile,
+  timer
+} from 'rxjs';
+import {
+  InstrumentListItemApiResponse,
+  InstrumentsApiService
+} from '../../shared/services/instruments-api.service';
+import { OrdersApiService } from '../../shared/services/orders-api.service';
+import { CurrentAccountService } from '../../shared/services/current-account.service';
+import { TransactionsService } from '../../shared/services/transactions.service';
+import { OrderStatus, PositionDto } from '../../shared/services/transactions.models';
 
 type Side = 'Buy' | 'Sell';
-type OrderType = 'Market' | 'Limit';
 type Step = 'entry' | 'review' | 'success';
-type Field = 'symbol' | 'quantity' | 'limitPrice';
+type Field = 'symbol' | 'quantity';
+
+const CATALOG_PAGE_SIZE = 100;
+const CATALOG_MAX_PAGES = 50;
+const ORDER_POLL_INTERVAL_MS = 2_000;
+const ORDER_POLL_MAX_ATTEMPTS = 30;
 
 export interface Instrument {
   readonly symbol: string;
+  readonly instrumentId: number;
   readonly name: string;
-  readonly priceCents: number;
-  readonly changePct: number;
-  readonly owned: number;
-  readonly exchange: string;
   readonly assetType: string;
+  readonly priceCents: number | null;
 }
 
 export interface OrderSnapshot {
   readonly side: Side;
   readonly instrument: Instrument;
   readonly quantity: number;
-  readonly type: OrderType;
-  readonly priceCents: number;
+  readonly priceCents: number | null;
   readonly totalCents: number;
   readonly cashAfterCents: number;
-  readonly timeInForce: 'Day';
 }
 
-export interface MockSubmission {
-  readonly id: string;
-  readonly status: 'Submitted';
+export interface OrderSubmission {
+  readonly orderId: number;
+  readonly status: OrderStatus;
   readonly order: OrderSnapshot;
-  readonly submittedAt: string;
+  readonly createdAt: string;
+}
+
+function toPriceCents(price: number | null | undefined): number | null {
+  return typeof price === 'number' && Number.isFinite(price) ? Math.round(price * 100) : null;
+}
+
+function toInstrument(item: InstrumentListItemApiResponse): Instrument {
+  return Object.freeze({
+    symbol: item.ticker,
+    instrumentId: item.instrument_id,
+    name: item.asset_name,
+    assetType: item.asset_type,
+    priceCents: toPriceCents(item.price)
+  });
 }
 
 const wholeShares: ValidatorFn = (
@@ -68,18 +102,6 @@ const wholeShares: ValidatorFn = (
     : { wholeShares: true };
 };
 
-function parseUsdCents(input: string): number | null {
-  const value = input.trim();
-
-  if (!/^\d+(?:\.\d{1,2})?$/.test(value)) return null;
-
-  const [dollars, fraction = ''] = value.split('.');
-  const cents =
-    Number(dollars) * 100 + Number(fraction.padEnd(2, '0'));
-
-  return Number.isSafeInteger(cents) && cents > 0 ? cents : null;
-}
-
 @Component({
   selector: 'app-trade',
   standalone: true,
@@ -91,56 +113,21 @@ export class Trade {
   private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
   private readonly instrumentsApi = inject(InstrumentsApiService);
+  private readonly ordersApi = inject(OrdersApiService);
+  private readonly transactions = inject(TransactionsService);
+  private readonly currentAccount = inject(CurrentAccountService);
 
-  readonly cashCents = this.readStoredBalance() * 100;
+  readonly account = this.currentAccount.account;
+  readonly accountError = signal(false);
+  readonly instruments = signal<readonly Instrument[]>([]);
+  readonly catalogLoading = signal(true);
+  readonly catalogError = signal(false);
+  readonly positions = signal<readonly PositionDto[] | null>(null);
 
-  readonly instruments: readonly Instrument[] = Object.freeze([
-    Object.freeze({
-      symbol: 'AAPL',
-      assetType: 'Stock',
-      name: 'Apple Inc.',
-      priceCents: 22_842,
-      changePct: 0.84,
-      owned: 80,
-      exchange: 'NASDAQ'
-    }),
-    Object.freeze({
-      symbol: 'NVDA',
-      assetType: 'Stock',
-      name: 'NVIDIA Corporation',
-      priceCents: 14_287,
-      changePct: 2.45,
-      owned: 120,
-      exchange: 'NASDAQ'
-    }),
-    Object.freeze({
-      symbol: 'MSFT',
-      assetType: 'Stock',
-      name: 'Microsoft Corporation',
-      priceCents: 42_560,
-      changePct: -0.37,
-      owned: 40,
-      exchange: 'NASDAQ'
-    }),
-    Object.freeze({
-      symbol: 'SPY',
-      assetType: 'ETF',
-      name: 'SPDR S&P 500 ETF Trust',
-      priceCents: 58_921,
-      changePct: 0.12,
-      owned: 60,
-      exchange: 'NYSE ARCA'
-    }),
-    Object.freeze({
-      symbol: 'TSLA',
-      assetType: 'Stock',
-      name: 'Tesla, Inc.',
-      priceCents: 24_850,
-      changePct: -1.92,
-      owned: 30,
-      exchange: 'NASDAQ'
-    })
-  ]);
+  get cashCents(): number | null {
+    const balance = this.account()?.balance;
+    return typeof balance === 'number' && Number.isFinite(balance) ? Math.round(balance * 100) : null;
+  }
 
   readonly icons: Record<string, string> = {
     arrow: 'M5 12h14 M13 6l6 6-6 6',
@@ -150,7 +137,9 @@ export class Trade {
   readonly step = signal<Step>('entry');
   readonly attempted = signal(false);
   readonly reviewSnapshot = signal<OrderSnapshot | null>(null);
-  readonly submission = signal<MockSubmission | null>(null);
+  readonly submission = signal<OrderSubmission | null>(null);
+  readonly submitting = signal(false);
+  readonly submitError = signal('');
   readonly searchQuery = signal('');
   readonly dropdownOpen = signal(false);
   readonly activeIndex = signal(-1);
@@ -161,12 +150,7 @@ export class Trade {
   readonly chartSize = signal({ width: 400, height: 200 });
 
   private chartResizeObserver?: ResizeObserver;
-  private submissionCount = 0;
-
-  private readStoredBalance(): number {
-    const balance = Number(typeof localStorage === 'undefined' ? null : localStorage.getItem('balance'));
-    return Number.isFinite(balance) ? Math.round(balance) : 0;
-  }
+  private pollSubscription?: Subscription;
 
   private readonly currencyFormatter = new Intl.NumberFormat('en-US', {
     style: 'currency',
@@ -185,7 +169,7 @@ export class Trade {
           Validators.required,
           control =>
             !control.value ||
-            this.instruments.some(item => item.symbol === control.value)
+            this.instruments().some(item => item.symbol === control.value)
               ? null
               : { unknownInstrument: true }
         ]
@@ -193,12 +177,7 @@ export class Trade {
       quantity: new FormControl('', {
         nonNullable: true,
         validators: [Validators.required, wholeShares]
-      }),
-      orderType: new FormControl<OrderType>('Market', {
-        nonNullable: true,
-        validators: [Validators.required]
-      }),
-      limitPrice: new FormControl('0.00', { nonNullable: true })
+      })
     },
     { validators: [control => this.validateOrder(control)] }
   );
@@ -226,6 +205,7 @@ export class Trade {
       .subscribe(symbol => {
         if (symbol) {
           this.loadChart(symbol);
+          this.refreshPrice(symbol);
         } else {
           this.resetChart();
         }
@@ -239,23 +219,63 @@ export class Trade {
           this.step.set('entry');
         }
       });
+
+    this.loadCatalog();
+    this.loadAccount();
   }
 
   get selectedInstrument(): Instrument | undefined {
-    return this.instruments.find(
+    return this.instruments().find(
       item => item.symbol === this.form.controls.symbol.value
     );
   }
 
   get filteredInstruments(): Instrument[] {
     const query = this.searchQuery().toLowerCase().trim();
-    if (!query) return Array.from(this.instruments);
+    const all = this.instruments();
+    if (!query) return [...all];
 
-    return this.instruments.filter(
+    return all.filter(
       instrument =>
         instrument.symbol.toLowerCase().includes(query) ||
         instrument.name.toLowerCase().includes(query)
     );
+  }
+
+  get accountLabel(): string {
+    const account = this.account();
+    return account ? `Account #${account.accountId}` : '—';
+  }
+
+  // Cash and positions are both needed to validate an order.
+  get accountReady(): boolean {
+    return this.cashCents !== null && this.positions() !== null;
+  }
+
+  ownedShares(symbol: string): number | null {
+    const positions = this.positions();
+    if (!positions) return null;
+
+    return positions
+      .filter(position => position.ticker === symbol)
+      .reduce((total, position) => total + position.quantity, 0);
+  }
+
+  get selectedOwned(): number | null {
+    const instrument = this.selectedInstrument;
+    return instrument ? this.ownedShares(instrument.symbol) : null;
+  }
+
+  // The backend has no change %, so it is derived from the current price and the previous daily close.
+  get selectedChangePct(): number | null {
+    const instrument = this.selectedInstrument;
+    const prices = this.chartPrices();
+    if (!instrument || instrument.priceCents === null || prices.length < 2) return null;
+
+    const previousClose = prices[prices.length - 2];
+    if (!previousClose) return null;
+
+    return ((instrument.priceCents / 100 - previousClose) / previousClose) * 100;
   }
 
   get chartGeometry() {
@@ -331,14 +351,8 @@ export class Trade {
     return this.form.controls.side.value;
   }
 
-  get isLimit(): boolean {
-    return this.form.controls.orderType.value === 'Limit';
-  }
-
   get priceCents(): number | null {
-    return this.isLimit
-      ? parseUsdCents(this.form.controls.limitPrice.value)
-      : this.selectedInstrument?.priceCents ?? null;
+    return this.selectedInstrument?.priceCents ?? null;
   }
 
   get estimatedCents(): number | null {
@@ -357,7 +371,9 @@ export class Trade {
   }
 
   get cashAfterCents(): number | null {
+    const cash = this.cashCents;
     if (
+      cash === null ||
       this.estimatedCents === null ||
       this.form.hasError('insufficientFunds') ||
       this.form.hasError('exceedsOwned')
@@ -365,18 +381,24 @@ export class Trade {
       return null;
     }
 
-    return this.cashCents +
+    return cash +
       (this.side === 'Sell' ? this.estimatedCents : -this.estimatedCents);
   }
 
   get maximumBuyQuantity(): number | null {
-    return this.priceCents
-      ? Math.floor(this.cashCents / this.priceCents)
+    const cash = this.cashCents;
+    const price = this.priceCents;
+    return cash !== null && price
+      ? Math.floor(cash / price)
       : null;
   }
 
   get fundsShortfall(): number {
-    return Math.max(0, (this.estimatedCents ?? 0) - this.cashCents);
+    const cash = this.cashCents;
+    const estimated = this.estimatedCents;
+    if (cash === null || estimated === null) return 0;
+
+    return Math.max(0, estimated - cash);
   }
 
   get displayedOrder(): OrderSnapshot | null {
@@ -386,15 +408,12 @@ export class Trade {
   }
 
   get errorSummary(): string[] {
-    const messages = (['symbol', 'quantity', 'limitPrice'] as const)
+    const messages = (['symbol', 'quantity'] as const)
       .map(field => this.fieldError(field))
       .filter(Boolean);
 
     if (this.form.hasError('invalidSide')) {
       messages.push('Choose Buy or Sell.');
-    }
-    if (this.form.hasError('invalidOrderType')) {
-      messages.push('Choose Market or Limit.');
     }
 
     return messages;
@@ -422,22 +441,13 @@ export class Trade {
         return 'Enter a whole number of shares, at least 1.';
       }
       if (this.form.hasError('exceedsOwned')) {
-        return `You own ${this.selectedInstrument?.owned ?? 0} shares. Short selling is not supported.`;
+        return `You own ${this.selectedOwned ?? 0} shares. Short selling is not supported.`;
       }
       if (this.form.hasError('insufficientFunds')) {
         return 'Estimated order value exceeds your available cash.';
       }
       if (this.form.hasError('unsafeTotal')) {
         return 'Enter a smaller quantity to calculate a valid total.';
-      }
-    }
-
-    if (field === 'limitPrice' && this.isLimit) {
-      if (this.form.hasError('requiredPrice')) {
-        return 'Limit price is required for a Limit order.';
-      }
-      if (this.form.hasError('invalidPrice')) {
-        return 'Enter a price greater than $0.00 with up to 2 decimal places.';
       }
     }
 
@@ -459,20 +469,8 @@ export class Trade {
     this.form.controls.side.setValue(side);
   }
 
-  selectType(type: OrderType): void {
-    this.form.controls.orderType.setValue(type);
-  }
-
   selectInstrument(symbol: string): void {
     this.form.controls.symbol.setValue(symbol);
-
-    const instrument = this.instruments.find(item => item.symbol === symbol);
-    if (instrument && Number(this.form.controls.limitPrice.value) === 0) {
-      this.form.controls.limitPrice.setValue(
-        (instrument.priceCents / 100).toFixed(2)
-      );
-    }
-
     this.closeDropdown();
   }
 
@@ -599,6 +597,7 @@ export class Trade {
 
   reviewOrder(): void {
     this.attempted.set(true);
+    this.submitError.set('');
     this.form.markAllAsTouched();
     this.form.updateValueAndValidity();
 
@@ -609,6 +608,7 @@ export class Trade {
 
     if (
       this.form.invalid ||
+      !this.accountReady ||
       !instrument ||
       price === null ||
       total === null ||
@@ -621,11 +621,9 @@ export class Trade {
       side: this.side,
       instrument,
       quantity: Number(this.form.controls.quantity.value),
-      type: this.form.controls.orderType.value,
       priceCents: price,
       totalCents: total,
-      cashAfterCents: remaining,
-      timeInForce: 'Day'
+      cashAfterCents: remaining
     }));
 
     this.step.set('review');
@@ -640,36 +638,62 @@ export class Trade {
 
   confirmOrder(): void {
     const order = this.reviewSnapshot();
+    const account = this.account();
 
-    if (this.step() !== 'review' || !order) return;
+    if (
+      this.step() !== 'review' ||
+      !order ||
+      !account ||
+      !this.accountReady ||
+      this.submitting()
+    ) {
+      return;
+    }
 
-    this.submissionCount += 1;
+    this.submitting.set(true);
+    this.submitError.set('');
 
-    const result: MockSubmission = Object.freeze({
-      id: `SIM-20261008-${String(this.submissionCount).padStart(3, '0')}`,
-      status: 'Submitted',
-      order,
-      submittedAt: new Date().toISOString()
-    });
-
-    this.submission.set(result);
-    this.step.set('success');
-    this.focusHeading();
+    this.ordersApi
+      .placeOrder({
+        side: order.side === 'Buy' ? 'BUY' : 'SELL',
+        accountId: account.accountId,
+        instrumentId: order.instrument.instrumentId,
+        quantity: order.quantity
+      })
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: response => {
+          this.submitting.set(false);
+          this.submission.set({
+            orderId: response.order_id,
+            status: 'PENDING',
+            order,
+            createdAt: response.created_at
+          });
+          this.step.set('success');
+          this.focusHeading();
+          this.pollOrderStatus(account.accountId, response.order_id);
+        },
+        error: (error: unknown) => {
+          this.submitting.set(false);
+          this.submitError.set(this.describeOrderError(error));
+        }
+      });
   }
 
   newOrder(): void {
+    this.pollSubscription?.unsubscribe();
     this.step.set('entry');
     this.reviewSnapshot.set(null);
     this.submission.set(null);
+    this.submitError.set('');
     this.attempted.set(false);
     this.searchQuery.set('');
 
     this.form.reset({
       side: 'Buy',
       symbol: '',
-      quantity: '',
-      orderType: 'Market',
-      limitPrice: '0.00'
+      quantity: ''
     });
 
     this.focusHeading();
@@ -686,11 +710,8 @@ export class Trade {
     if (value.side !== 'Buy' && value.side !== 'Sell') {
       errors['invalidSide'] = true;
     }
-    if (value.orderType !== 'Market' && value.orderType !== 'Limit') {
-      errors['invalidOrderType'] = true;
-    }
 
-    const instrument = this.instruments.find(
+    const instrument = this.instruments().find(
       item => item.symbol === value.symbol
     );
 
@@ -701,37 +722,146 @@ export class Trade {
       Number.isSafeInteger(quantity) &&
       quantity > 0;
 
-    let price: number | null = instrument?.priceCents ?? null;
+    const price = instrument?.priceCents ?? null;
 
-    if (value.orderType === 'Limit') {
-      const limitText = String(value.limitPrice ?? '').trim();
-      price = parseUsdCents(limitText);
-
-      if (!limitText) errors['requiredPrice'] = true;
-      else if (price === null) errors['invalidPrice'] = true;
-    }
-
-    if (
-      instrument &&
-      validQuantity &&
-      value.side === 'Sell' &&
-      quantity > instrument.owned
-    ) {
-      errors['exceedsOwned'] = true;
+    if (instrument && validQuantity && value.side === 'Sell') {
+      const owned = this.ownedShares(instrument.symbol);
+      if (owned !== null && quantity > owned) {
+        errors['exceedsOwned'] = true;
+      }
     }
 
     if (instrument && validQuantity && price !== null) {
       const total = quantity * price;
+      const cash = this.cashCents;
 
       if (!Number.isSafeInteger(total)) {
         errors['unsafeTotal'] = true;
-      } else if (value.side === 'Buy' && total > this.cashCents) {
+      } else if (value.side === 'Buy' && cash !== null && total > cash) {
         errors['insufficientFunds'] = true;
       }
     }
 
     return Object.keys(errors).length ? errors : null;
   }
+
+  private loadCatalog(): void {
+    const collected: Instrument[] = [];
+
+    const fetchPage = (pageNum: number): void => {
+      this.instrumentsApi
+        .getAll(pageNum, CATALOG_PAGE_SIZE)
+        .pipe(takeUntilDestroyed(this.destroyRef))
+        .subscribe({
+          next: page => {
+            collected.push(...page.map(toInstrument));
+
+            if (page.length === CATALOG_PAGE_SIZE && pageNum < CATALOG_MAX_PAGES) {
+              fetchPage(pageNum + 1);
+              return;
+            }
+
+            this.instruments.set(collected);
+            this.catalogLoading.set(false);
+          },
+          error: () => {
+            this.catalogError.set(true);
+            this.catalogLoading.set(false);
+          }
+        });
+    };
+
+    fetchPage(1);
+  }
+
+  private loadAccount(refresh = false): void {
+    this.currentAccount
+      .load(refresh)
+      .pipe(
+        switchMap(account =>
+          account
+            ? this.transactions.getPositions(account.accountId)
+            : of([] as PositionDto[])
+        ),
+        takeUntilDestroyed(this.destroyRef)
+      )
+      .subscribe({
+        next: positions => {
+          this.positions.set(positions);
+          this.accountError.set(false);
+          this.form.updateValueAndValidity({ emitEvent: false });
+        },
+        error: () => this.accountError.set(true)
+      });
+  }
+
+  private refreshPrice(symbol: string): void {
+    this.instrumentsApi
+      .getByTicker(symbol)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: quote => {
+          const priceCents = toPriceCents(quote.price);
+          this.instruments.update(list =>
+            list.map(item => (item.symbol === symbol ? Object.freeze({ ...item, priceCents }) : item))
+          );
+        }
+      });
+  }
+
+  // Orders fill asynchronously, so poll the account's order history until the status is final.
+  private pollOrderStatus(accountId: number, orderId: number): void {
+    this.pollSubscription?.unsubscribe();
+
+    this.pollSubscription = timer(ORDER_POLL_INTERVAL_MS, ORDER_POLL_INTERVAL_MS)
+      .pipe(
+        take(ORDER_POLL_MAX_ATTEMPTS),
+        switchMap(() =>
+          this.ordersApi.getOrderHistory(accountId).pipe(catchError(() => EMPTY))
+        ),
+        map(orders => orders.find(order => order.orderId === orderId)?.status),
+        filter((status): status is string => status !== undefined),
+        takeWhile(status => status === 'PENDING', true),
+        takeUntilDestroyed(this.destroyRef)
+      )
+      .subscribe(status => this.applyOrderStatus(orderId, status as OrderStatus));
+  }
+
+  private applyOrderStatus(orderId: number, status: OrderStatus): void {
+    const current = this.submission();
+    if (!current || current.orderId !== orderId) return;
+
+    this.submission.set({ ...current, status });
+
+    if (status === 'FILLED') {
+      this.loadAccount(true);
+    }
+  }
+
+  private describeOrderError(error: unknown): string {
+    if (error instanceof HttpErrorResponse) {
+      if (error.status === 0) {
+        return 'Could not reach the trading service. Check your connection and try again.';
+      }
+      if (error.status === 401 || error.status === 403) {
+        return 'Your session has expired. Sign in again to place orders.';
+      }
+
+      const body: unknown = error.error;
+      const fieldName =
+        typeof body === 'object' && body !== null
+          ? (body as { fieldName?: unknown }).fieldName
+          : undefined;
+
+      if (fieldName === 'balance') return 'Insufficient funds for this order.';
+      if (fieldName === 'market_hours') {
+        return 'The market is closed. Orders are accepted Monday to Friday, 9:30 AM to 4:00 PM ET.';
+      }
+    }
+
+    return 'The order could not be placed. Please try again.';
+  }
+
 
   private focusHeading(): void {
     queueMicrotask(() => {
