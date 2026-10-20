@@ -24,7 +24,6 @@ export class Admin implements OnInit {
   readonly userLookupError = signal('');
   readonly portfolioSizes = signal<PortfolioSizeCount[]>([]);
   readonly closingAccountId = signal<number | null>(null);
-  readonly ordersPageSize = 10;
 
   ngOnInit(): void {
     if (isPlatformBrowser(this.platformId)) {
@@ -39,7 +38,6 @@ export class Admin implements OnInit {
       .subscribe({
         next: overview => {
           this.overview.set(overview);
-          this.ordersPage.set(1);
         },
         error: response => {
           this.errorMessage.set(
@@ -69,7 +67,7 @@ export class Admin implements OnInit {
   }
 
   get filledOrders(): number {
-    return this.orders.filter(order => order.status === 'FILLED').length;
+    return this.overview().orders.filter(order => order.status === 'FILLED').length;
   }
 
   get maximumPortfolioCount(): number {
@@ -78,21 +76,6 @@ export class Admin implements OnInit {
 
   portfolioBarWidth(count: number): number {
     return (count / this.maximumPortfolioCount) * 100;
-  }
-
-  toggleOrders(): void {
-    this.showOrders.update(isVisible => !isVisible);
-  }
-
-  toggleTransactions(): void {
-    this.showTransactions.update(isVisible => !isVisible);
-  }
-
-  onAccountFilterChange(event: Event): void {
-    const value = (event.target as HTMLSelectElement).value;
-    this.selectedAccountId.set(value ? Number(value) : null);
-    this.ordersPage.set(1);
-    this.transactionsPage.set(1);
   }
 
   searchUser(): void {
