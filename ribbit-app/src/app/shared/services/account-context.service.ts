@@ -47,16 +47,22 @@ export class AccountContextService {
   readonly isLoading = signal(false);
   readonly loadError = signal('');
   readonly accountUpdated = new Subject<AccountContextItem>();
+
+  clear(): void {
+    this.accounts.set([]);
+    this.selectedAccount.set(null);
+    this.isLoading.set(false);
+    this.loadError.set('');
+  }
   readonly frozenNoticeRequested = new Subject<number>();
 
   loadAccounts(): void {
     const token = typeof window === 'undefined' ? null : window.localStorage.getItem('token');
-    const userId = this.resolveUserId(token);
-    if (!token || userId === null || this.isLoading() || this.accounts().length > 0) return;
+    if (!token || this.isLoading() || this.accounts().length > 0) return;
 
     this.isLoading.set(true);
     this.loadError.set('');
-    this.http.get<AccountContextItem[]>(`${environment.springUrl}/accounts/user/${userId}`, {
+    this.http.get<AccountContextItem[]>(`${environment.springUrl}/user/accounts`, {
       headers: new HttpHeaders({ Authorization: `Bearer ${token}` })
     }).subscribe({
       next: (accounts) => {
@@ -66,6 +72,10 @@ export class AccountContextService {
         const selected = activeAccounts.find(account => account.accountId === storedId)
           ?? [...activeAccounts].sort((left, right) => left.accountId - right.accountId)[0]
           ?? null;
+        console.info('[account-debug] header accounts:', accounts);
+        console.info('[account-debug] header active IDs:', activeAccounts.map(account => account.accountId),
+          'stored accountId:', storedId,
+          'selected accountId:', selected?.accountId ?? null);
         if (selected) {
           this.setSelectedAccount(selected, false);
           if (selected.accountFrozen) this.requestFrozenNotice(selected.accountId);
@@ -192,15 +202,4 @@ export class AccountContextService {
       : new HttpHeaders();
   }
 
-  private resolveUserId(token: string | null): number | null {
-    if (!token) return null;
-    try {
-      const encodedPayload = token.split('.')[1];
-      const payload = JSON.parse(atob(encodedPayload.replace(/-/g, '+').replace(/_/g, '/')));
-      const userId = Number(payload.sub);
-      return Number.isInteger(userId) && userId > 0 ? userId : null;
-    } catch {
-      return null;
-    }
-  }
 }

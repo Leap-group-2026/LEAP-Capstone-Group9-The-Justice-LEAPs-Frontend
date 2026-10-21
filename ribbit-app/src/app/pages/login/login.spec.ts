@@ -4,6 +4,7 @@ import { TestBed } from '@angular/core/testing';
 import { Router, provideRouter } from '@angular/router';
 import { environment } from '../../environments/environment';
 import { AuthService } from '../../shared/services/auth.service';
+import { AccountContextService } from '../../shared/services/account-context.service';
 import { Login } from './login';
 
 const SPRING = environment.springUrl;
@@ -42,6 +43,9 @@ describe('Login', () => {
   // Regression: the layout reads isLoggedIn, so it must be true by the time the first page opens.
   it('marks the user as logged in before navigating to the dashboard', () => {
     const auth = TestBed.inject(AuthService);
+    const accountContext = TestBed.inject(AccountContextService);
+    accountContext.accounts.set([{ accountId: 99, userId: 1, balance: 0, portfolioSize: '', tradeType: '', createdAt: '', accountActive: true }]);
+    accountContext.selectedAccount.set(accountContext.accounts()[0]);
     expect(auth.isLoggedIn().isLoggedIn).toBe(false);
 
     let loggedInWhenNavigating: boolean | undefined;
@@ -58,13 +62,16 @@ describe('Login', () => {
     http.expectOne(`${SPRING}/user`).flush({ name: 'Jo Client', email: 'jo@example.com', address: '1 Test St' });
     http.expectOne(`${SPRING}/user/accounts`).flush([{ accountId: 3 }]);
     http.expectOne(`${SPRING}/accounts/3`).flush({
-      accountId: 3, balance: 1000, portfolio_size: 'BALANCED', trade_type: 'Passive',
+      accountId: 40, balance: 1000, portfolio_size: 'BALANCED', trade_type: 'Passive',
       created_at: '2024-09-01T10:15:00', account_active: true
     });
 
     expect(navigate).toHaveBeenCalledWith(['/dashboard']);
     expect(loggedInWhenNavigating).toBe(true);
     expect(auth.isLoggedIn().user).toEqual({ email: 'jo@example.com', name: 'Jo Client' });
+    expect(localStorage.getItem('accountId')).toBe('3');
+    expect(accountContext.accounts()).toEqual([]);
+    expect(accountContext.selectedAccount()).toBeNull();
   });
 
   it('stays logged out when the password is wrong', () => {
