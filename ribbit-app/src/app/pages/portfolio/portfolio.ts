@@ -79,6 +79,7 @@ export class Portfolio implements OnInit {
   availableCash = this.readStoredBalance();
   private readonly apiPortfolioValue = signal(0);
   portfolioValueLoading = true;
+  positionsLoading = signal(true);
 
   ngOnInit(): void {
     if (isPlatformBrowser(this.platformId)) {
@@ -339,6 +340,7 @@ export class Portfolio implements OnInit {
 
     if (!accessToken || !Number.isInteger(storedAccountId) || storedAccountId <= 0) {
       console.warn('Missing token or account ID; skipped positions lookup.');
+      this.positionsLoading.set(false);
       return;
     }
 
@@ -353,6 +355,12 @@ export class Portfolio implements OnInit {
       )
       .subscribe({
         next: positions => {
+          if (positions.length === 0) {
+            this.holdings = [];
+            this.positionsLoading.set(false);
+            return;
+          }
+
           forkJoin(
             positions.map(position => this.getCurrentPrice(position).pipe(
               map(currentPrice => ({ position, currentPrice }))
@@ -370,11 +378,12 @@ export class Portfolio implements OnInit {
               .sort((first, second) =>
                 this.marketValue(second) - this.marketValue(first)
               );
-            console.log('Positions loaded:', this.holdings.length);
+            this.positionsLoading.set(false);
           });
         },
         error: error => {
           console.error('Positions lookup failed:', error);
+          this.positionsLoading.set(false);
         }
       });
   }
