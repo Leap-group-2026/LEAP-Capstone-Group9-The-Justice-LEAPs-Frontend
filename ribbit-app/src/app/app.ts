@@ -38,6 +38,7 @@ export class App {
       orders: 'Orders',
       transactions: 'Transactions',
       account: 'Account',
+      news: 'Ribbit News',
       admin: 'Admin',
       reporter: 'Trending data',
       'trading-trends': 'Trading trends'
