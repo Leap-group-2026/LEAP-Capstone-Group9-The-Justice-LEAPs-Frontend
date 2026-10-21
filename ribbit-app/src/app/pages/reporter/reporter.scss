@@ -106,6 +106,16 @@ h1 { margin: 0; font-size: 32px; font-weight: 500; }
 .volume-svg-leader { fill: var(--accent-light, var(--accent)); opacity: 1; }
 .chart-message { display: grid; min-height: 210px; place-items: center; color: var(--subtle); font-size: 11px; text-transform: uppercase; }
 
+.portfolio-chart { display: flex; align-items: center; gap: 28px; padding: 24px; }
+.portfolio-pie { position: relative; flex: 0 0 148px; width: 148px; height: 148px; border-radius: 50%; }
+.portfolio-pie::after { content: ''; position: absolute; inset: 31%; border-radius: 50%; background: var(--surface); }
+.portfolio-legend { display: grid; flex: 1; gap: 12px; min-width: 0; }
+.portfolio-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.portfolio-label { display: flex; align-items: center; gap: 8px; color: var(--text); font-size: 12px; font-weight: 600; text-transform: uppercase; }
+.portfolio-label i { width: 8px; height: 8px; border-radius: 50%; }
+.portfolio-value { color: var(--muted); font-size: 12px; text-align: right; }
+.portfolio-value small { color: var(--subtle); font-size: 10px; font-weight: 400; }
+
 @media (max-width: 900px) {
   .analytics-grid { grid-template-columns: 1fr; }
 }

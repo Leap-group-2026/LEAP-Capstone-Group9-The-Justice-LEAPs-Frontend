@@ -379,7 +379,7 @@ export class Portfolio implements OnInit {
   }
 
   private getCurrentPrice(position: AccountPosition) {
-    const instrumentRequest = position.ticker.includes('/')
+    const instrumentRequest = this.usesPairPrice(position)
       ? this.instrumentsApi.getForexPrice(position.ticker)
       : this.instrumentsApi.getByTicker(position.ticker);
     const fallbackPrice = position.quantity > 0
@@ -416,7 +416,7 @@ export class Portfolio implements OnInit {
   private getHoldingType(position: AccountPosition): Holding['type'] {
     const assetType = position.asset_type.toUpperCase();
 
-    if (assetType.includes('FOREX') || position.ticker.includes('/')) {
+    if (assetType.includes('FOREX')) {
       return 'Forex';
     }
 
@@ -425,6 +425,11 @@ export class Portfolio implements OnInit {
     }
 
     return 'Stock';
+  }
+
+  private usesPairPrice(position: AccountPosition): boolean {
+    const assetType = position.asset_type.toUpperCase();
+    return assetType.includes('FOREX');
   }
 
   private readAccountId(): number | null {

@@ -145,7 +145,7 @@ describe('Admin user lookup', () => {
     admin.ngOnInit();
 
     // The page also loads its overview; answer it so only the lookup is under test
-    for (const path of ['/admin/orders', '/admin/accounts', '/admin/users', '/admin/transactions', '/admin/analytics/portfolio-sizes']) {
+    for (const path of ['/admin/orders', '/admin/accounts', '/admin/users', '/admin/transactions']) {
       http.expectOne(`${SPRING}${path}`).flush([]);
     }
     http.expectOne(`${SPRING}/admin/users/42`).flush(jane);

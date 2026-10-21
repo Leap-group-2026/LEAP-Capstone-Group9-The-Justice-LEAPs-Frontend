@@ -1,7 +1,7 @@
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { Component, OnInit, PLATFORM_ID, computed, inject, signal } from '@angular/core';
 import { finalize } from 'rxjs';
-import { ActiveAccountAnalytics, AdminApiService, DailyMoneyMoved, OrderStatusCount, TopBoughtStock } from '../../shared/services/admin-api.service';
+import { ActiveAccountAnalytics, AdminAccount, AdminApiService, DailyMoneyMoved, OrderStatusCount, PortfolioSizeCount, TopBoughtStock } from '../../shared/services/admin-api.service';
 
 export const MONEY_WINDOW_DAYS = 30;
 export const ORDER_ACTIVITY_DAYS = 30;
@@ -133,6 +133,7 @@ export class Reporter implements OnInit {
   readonly isLoading = signal(false);
   readonly topBoughtStocks = signal<TopBoughtStock[]>([]);
   readonly activeAccounts = signal<ActiveAccountAnalytics[]>([]);
+  readonly portfolioSizes = signal<PortfolioSizeCount[]>([]);
   readonly orderActivityLoading = signal(false);
   readonly orderStatusCounts = signal<OrderStatusCount[]>([]);
   readonly orderStatusSummary = computed<OrderStatusSummary[]>(() => {
@@ -180,6 +181,11 @@ export class Reporter implements OnInit {
       error: () => this.activeAccounts.set([])
     });
 
+    this.adminApi.getAccounts().subscribe({
+      next: accounts => this.portfolioSizes.set(this.countPortfolioSizes(accounts)),
+      error: () => this.portfolioSizes.set([])
+    });
+
     this.loadOrderActivity();
 
   }
@@ -213,6 +219,46 @@ export class Reporter implements OnInit {
 
   get maximumAccountValue(): number {
     return Math.max(...this.activeAccounts().map(account => account.totalTradedValue), 1);
+  }
+
+  get totalPortfolioAccounts(): number {
+    return this.portfolioSizes().reduce((sum, item) => sum + item.accountCount, 0);
+  }
+
+  private countPortfolioSizes(accounts: AdminAccount[]): PortfolioSizeCount[] {
+    const counts = new Map<string, number>();
+    for (const account of accounts) {
+      const portfolioSize = account.portfolioSize?.trim();
+      if (portfolioSize) counts.set(portfolioSize, (counts.get(portfolioSize) ?? 0) + 1);
+    }
+
+    return [...counts.entries()]
+      .map(([portfolioSize, accountCount]) => ({ portfolioSize, accountCount }))
+      .sort((left, right) => right.accountCount - left.accountCount);
+  }
+
+  portfolioPieStyle(): string {
+    const colors = ['#c1ff39', '#69c6c9', '#e7c96a', '#8f9be8', '#f08e85'];
+    const total = this.portfolioSizes().reduce((sum, item) => sum + item.accountCount, 0);
+    if (!total) return 'conic-gradient(#293029 0 100%)';
+
+    let start = 0;
+    const stops = this.portfolioSizes().map((item, index) => {
+      const end = start + (item.accountCount / total) * 100;
+      const stop = `${colors[index % colors.length]} ${start}% ${end}%`;
+      start = end;
+      return stop;
+    });
+    return `conic-gradient(${stops.join(', ')})`;
+  }
+
+  portfolioColor(index: number): string {
+    return ['#c1ff39', '#69c6c9', '#e7c96a', '#8f9be8', '#f08e85'][index % 5];
+  }
+
+  portfolioPercentage(count: number): number {
+    const total = this.portfolioSizes().reduce((sum, item) => sum + item.accountCount, 0);
+    return total ? Math.round((count / total) * 100) : 0;
   }
 
   accountBarWidth(value: number): number {

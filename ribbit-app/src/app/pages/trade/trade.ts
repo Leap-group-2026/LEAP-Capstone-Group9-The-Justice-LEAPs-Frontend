@@ -770,7 +770,11 @@ export class Trade {
         .pipe(takeUntilDestroyed(this.destroyRef))
         .subscribe({
           next: page => {
-            collected.push(...page.map(toInstrument));
+            collected.push(
+              ...page
+                .filter(item => !item.asset_type.toUpperCase().includes('FOREX'))
+                .map(toInstrument)
+            );
 
             if (page.length === CATALOG_PAGE_SIZE && pageNum < CATALOG_MAX_PAGES) {
               fetchPage(pageNum + 1);
