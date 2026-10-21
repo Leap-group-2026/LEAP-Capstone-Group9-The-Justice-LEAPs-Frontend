@@ -16,6 +16,8 @@ import {
 const NOW = new Date('2026-10-19T16:00:00Z');
 const MONEY_URL = `${environment.springUrl}/admin/analytics/money-moved`;
 const TOP_URL = `${environment.springUrl}/admin/analytics/top-bought`;
+const ACTIVE_ACCOUNTS_URL = `${environment.springUrl}/admin/analytics/active-accounts`;
+const ORDER_STATUSES_URL = `${environment.springUrl}/admin/analytics/order-statuses`;
 
 const ROWS = [
   { date: '2026-08-20', buyTotal: 999, sellTotal: 0, orders: 1 },     // outside both windows
@@ -96,6 +98,8 @@ describe('Reporter money moved block', () => {
     const fixture = TestBed.createComponent(Reporter);
     fixture.detectChanges();
     http.expectOne(TOP_URL).flush([]);
+    http.expectOne(ACTIVE_ACCOUNTS_URL).flush([]);
+    http.expectOne(ORDER_STATUSES_URL).flush([]);
     return fixture;
   }
 

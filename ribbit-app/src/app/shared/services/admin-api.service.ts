@@ -77,6 +77,12 @@ export interface ActiveAccountAnalytics {
   sellCount: number;
 }
 
+export interface OrderStatusCount {
+  status: string;
+  orderCount: number;
+  percentage: number;
+}
+
 // GET /admin/analytics/money-moved: one row per day with filled orders (days without fills are omitted)
 export interface DailyMoneyMoved {
   date: string;       // YYYY-MM-DD, Eastern time
@@ -157,6 +163,12 @@ export class AdminApiService {
     return this.http.get<DailyMoneyMoved[]>(`${this.apiBaseUrl}/admin/analytics/money-moved`, {
       headers: this.authHeaders(),
       params: { days }
+    });
+  }
+
+  getOrderStatuses(): Observable<OrderStatusCount[]> {
+    return this.http.get<OrderStatusCount[]>(`${this.apiBaseUrl}/admin/analytics/order-statuses`, {
+      headers: this.authHeaders()
     });
   }
 

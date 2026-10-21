@@ -60,6 +60,7 @@ export class Admin implements OnInit {
         }
       }
     });
+
   }
 
   get pendingOrders(): number {
