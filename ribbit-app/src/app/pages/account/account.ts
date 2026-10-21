@@ -467,6 +467,11 @@ export class Account implements OnInit {
 
   // Navigation
   navigate(destination: string): void {
+    if (destination === 'logout') {
+      this.authService.logout();
+      this.router.navigate(['/login']);
+      return;
+    }
     this.router.navigate([`/${destination}`]);
   }
 }

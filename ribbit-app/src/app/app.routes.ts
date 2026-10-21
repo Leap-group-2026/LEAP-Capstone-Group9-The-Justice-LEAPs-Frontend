@@ -13,15 +13,17 @@ import { Reporter } from './pages/reporter/reporter';
 import { AdminOrders } from './pages/admin-orders/admin-orders';
 import { AdminTransactions } from './pages/admin-transactions/admin-transactions';
 import { AdminFrozenAccounts } from './pages/admin-frozen-accounts/admin-frozen-accounts';
+import { AdminUsers } from './pages/admin-users/admin-users';
 import { TradingTrends } from './pages/trading-trends/trading-trends';
 import { adminGuard } from './shared/guards/admin.guard';
 import { reporterGuard } from './shared/guards/reporter.guard';
 import { authGuard } from './shared/guards/auth.guard';
+import { guestGuard } from './shared/guards/guest.guard';
 
 export const routes: Routes = [
   { path: '', redirectTo: '/login', pathMatch: 'full' },
-  { path: 'login', component: Login },
-  { path: 'admin-login', component: Login },
+  { path: 'login', component: Login, canActivate: [guestGuard] },
+  { path: 'admin-login', component: Login, canActivate: [guestGuard] },
   { path: 'signup', component: Signup },
   { path: 'forgot-password', component: ResetPassword },
   { path: 'dashboard', component: Dashboard, canActivate: [authGuard] },
@@ -35,6 +37,7 @@ export const routes: Routes = [
   { path: 'admin/orders', component: AdminOrders, canActivate: [authGuard, adminGuard] },
   { path: 'admin/transactions', component: AdminTransactions, canActivate: [authGuard, adminGuard] },
   { path: 'admin/frozen-accounts', component: AdminFrozenAccounts, canActivate: [authGuard, adminGuard] },
+  { path: 'admin/users', component: AdminUsers, canActivate: [authGuard, adminGuard] },
   { path: 'trading-trends', component: TradingTrends, canActivate: [authGuard] },
   { path: '**', redirectTo: '/login' },
 ];

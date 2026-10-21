@@ -97,6 +97,7 @@ describe('Reporter money moved block', () => {
   async function render() {
     const fixture = TestBed.createComponent(Reporter);
     fixture.detectChanges();
+    // The page loads every reporter chart at once; these tests are about money moved only
     http.expectOne(TOP_URL).flush([]);
     http.expectOne(ACTIVE_ACCOUNTS_URL).flush([]);
     http.expectOne(ORDER_STATUSES_URL).flush([]);

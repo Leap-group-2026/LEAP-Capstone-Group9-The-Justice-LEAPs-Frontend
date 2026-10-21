@@ -20,6 +20,10 @@ const SESSION_DATA_KEYS = [
   'tradeType', 'portfolioSize', 'createdAt', 'accountActive', 'adminRole'
 ];
 
+// Roles an admin-login token can carry. A token with any other role (e.g. 'client') is never
+// treated as an admin, whatever is stored in localStorage.
+const ADMIN_FAMILY_ROLES = ['admin', 'super admin', 'superadmin', 'analyst', 'reporter', 'reporter/analyst'];
+
 export interface AuthState {
   isLoggedIn: boolean;
   user: { email: string; name: string } | null;
@@ -190,19 +194,23 @@ export class AuthService {
       return false;
     }
 
+    // No token, no role: a leftover adminRole alone grants nothing.
     const token = window.localStorage.getItem('token');
-    const storedRole = window.localStorage.getItem('adminRole');
-    if (!token && !storedRole) {
+    if (!token) {
       return false;
     }
 
     try {
-      const payload = token
-        ? JSON.parse(this.decodeTokenPayload(token)) as { role?: string; roles?: string[] }
-        : {};
-      const roles = [storedRole, payload.role, ...(payload.roles ?? [])]
+      const payload = JSON.parse(this.decodeTokenPayload(token)) as { role?: string; roles?: string[] };
+      const tokenRoles = [payload.role, ...(payload.roles ?? [])]
         .filter((role): role is string => !!role)
         .map(role => this.normalizeRole(role));
+
+      // The stored role only narrows an admin token down to admin or reporter (the token itself
+      // says 'admin' for both); it can never turn a client token into an admin.
+      const storedRole = window.localStorage.getItem('adminRole');
+      const isAdminToken = tokenRoles.some(role => ADMIN_FAMILY_ROLES.includes(role));
+      const roles = storedRole && isAdminToken ? [this.normalizeRole(storedRole)] : tokenRoles;
 
       return roles.some(role => expectedRoles.includes(role));
     } catch {

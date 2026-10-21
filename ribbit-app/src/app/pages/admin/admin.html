@@ -12,12 +12,30 @@
   <div class="panel-heading">
     <div class="section-title">
       <h2 id="user-lookup-heading">User lookup</h2>
-      <span>BY EMAIL</span>
+      <span>BY EMAIL, USER ID OR ACCOUNT ID</span>
     </div>
   </div>
   <form class="lookup-form" (submit)="$event.preventDefault(); searchUser()">
-    <label for="user-email">Email address</label>
-    <input id="user-email" type="email" [value]="userEmail()" (input)="userEmail.set($any($event.target).value)" required>
+    <div class="lookup-field">
+      <label for="search-type">Search by</label>
+      <select id="search-type" [value]="searchType()" (change)="setSearchType($any($event.target).value)">
+        <option value="email">Email</option>
+        <option value="userId">User ID</option>
+        <option value="accountId">Account ID</option>
+      </select>
+    </div>
+    <div class="lookup-field">
+      @switch (searchType()) {
+        @case ('email') {
+          <label for="search-term">Email address</label>
+          <input id="search-term" type="email" placeholder="jane@example.com" [value]="searchTerm()" (input)="searchTerm.set($any($event.target).value)" required>
+        }
+        @default {
+          <label for="search-term">{{ searchType() === 'userId' ? 'User ID' : 'Account ID' }}</label>
+          <input id="search-term" type="text" inputmode="numeric" [placeholder]="searchType() === 'userId' ? 'e.g. 42' : 'e.g. 7'" [value]="searchTerm()" (input)="searchTerm.set($any($event.target).value)" required>
+        }
+      }
+    </div>
     <button class="button secondary" type="submit" [disabled]="userLookupLoading()">
       {{ userLookupLoading() ? 'Searching...' : 'Search' }}
     </button>
@@ -26,6 +44,14 @@
     <p class="lookup-error" role="alert">{{ userLookupError() }}</p>
   }
   @if (userLookup(); as user) {
+    @if (matchedAccount(); as account) {
+      <div class="matched-account">
+        <span class="matched-kicker">ACCOUNT #{{ account.accountId }}</span>
+        <strong>{{ formatCurrency(account.balance) }}</strong>
+        <span class="account-status" [class]="'account-status ' + accountStatus(account).toLowerCase()">{{ accountStatus(account) }}</span>
+        <span>{{ account.portfolioSize }} · {{ account.tradeType }} · opened {{ formatDate(account.createdAt) }}</span>
+      </div>
+    }
     <div class="user-result">
       <div><strong>{{ user.name }}</strong><span>{{ user.email }}</span></div>
       <div><span>User ID</span><strong>#{{ user.userId }}</strong></div>
@@ -36,10 +62,10 @@
       <h3>Accounts</h3>
       @if (user.accounts.length) {
         @for (account of user.accounts; track account.accountId) {
-          <div class="lookup-account">
+          <div class="lookup-account" [class.matched]="matchedAccount()?.accountId === account.accountId">
             <strong>#{{ account.accountId }}</strong>
             <div class="lookup-account-details">
-              <span>{{ formatCurrency(account.balance) }} · {{ account.accountActive ? 'Active' : 'Closed' }}</span>
+              <span>{{ formatCurrency(account.balance) }} · {{ accountStatus(account) }}</span>
             </div>
             <div class="lookup-account-actions">
               <a [routerLink]="['/admin/orders']" [queryParams]="{ accountId: account.accountId }">View Orders</a>

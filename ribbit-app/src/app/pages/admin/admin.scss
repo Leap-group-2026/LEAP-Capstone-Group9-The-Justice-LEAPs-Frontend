@@ -78,6 +78,8 @@ h2 { font-size: 15px; font-weight: 500; }
 .user-lookup { overflow: hidden; }
 .lookup-form { display: flex; align-items: end; gap: 12px; padding: 18px 20px; }
 .lookup-form label { color: var(--muted); font-size: 12px; }
+.lookup-field { display: grid; gap: 6px; }
+.lookup-form select { min-height: 36px; padding: 7px 32px 7px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface-raised); color: var(--text); font: inherit; font-size: 12px; }
 .lookup-form input { min-width: 280px; min-height: 36px; padding: 7px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface-raised); color: var(--text); font: inherit; font-size: 12px; }
 .lookup-error { padding: 0 20px 18px; color: var(--negative); font-size: 12px; }
 .user-result { display: grid; grid-template-columns: 1.5fr repeat(3, 1fr); gap: 16px; padding: 18px 20px; border-top: 1px solid var(--border); }
@@ -279,5 +281,16 @@ tbody td { color: var(--muted); }
   .lookup-form, .user-result { align-items: stretch; grid-template-columns: 1fr; flex-direction: column; }
   .lookup-account { grid-template-columns: 1fr; gap: 8px; }
   .lookup-account-actions { justify-content: flex-start; }
-  .lookup-form input { min-width: 0; width: 100%; }
+  .lookup-form input, .lookup-form select { min-width: 0; width: 100%; }
 }
+
+/* Account ID search: the account found, shown above its owner */
+.matched-account { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 16px; margin: 0 20px 4px; padding: 14px 16px; border: 1px solid var(--border); border-left: 3px solid var(--accent); border-radius: 6px; background: var(--surface-raised); }
+.matched-account span { color: var(--muted); font-size: 11px; }
+.matched-account strong { font-size: 16px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.matched-kicker { color: var(--accent) !important; font-weight: 700; letter-spacing: 0.06em; }
+.account-status { padding: 2px 8px; border: 1px solid var(--border); border-radius: 999px; }
+.account-status.active { color: var(--accent) !important; border-color: color-mix(in srgb, var(--accent) 45%, transparent); }
+.account-status.frozen { color: #dfbd71 !important; border-color: color-mix(in srgb, #dfbd71 45%, transparent); }
+.account-status.closed { color: var(--negative) !important; border-color: color-mix(in srgb, var(--negative) 45%, transparent); }
+.lookup-account.matched { margin: 0 -10px; padding-inline: 10px; border-radius: 4px; background: color-mix(in srgb, var(--accent) 7%, transparent); }
