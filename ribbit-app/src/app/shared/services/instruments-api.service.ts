@@ -56,6 +56,24 @@ export class InstrumentsApiService {
     );
   }
 
+  getCryptoBarNumbers(
+    symbol: string,
+    timeframe: string,
+    start: string,
+    end: string
+  ): Observable<number[]> {
+    const params = new HttpParams()
+      .set('symbols', symbol)
+      .set('timeframe', timeframe)
+      .set('start', start)
+      .set('end', end);
+
+    return this.http.get<number[]>(
+      `${environment.springUrl}/instruments/crypto-bars`,
+      { headers: this.createAuthHeaders(), params }
+    );
+  }
+
   getNews(): Observable<MarketNews[]> {
     return this.http.get<MarketNews[] | { news?: MarketNews[] }>(
       `${environment.springUrl}/instruments/news`,

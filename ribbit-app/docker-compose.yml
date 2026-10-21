@@ -1,0 +1,11 @@
+services:
+  ribbit-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8083:8083"
+    environment:
+      PORT: 8083
+      NODE_ENV: production
+    restart: unless-stopped

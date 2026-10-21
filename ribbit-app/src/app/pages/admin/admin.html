@@ -3,7 +3,7 @@
     <h1 id="admin-heading">Admin workspace</h1>
     <p>Monitor users, accounts, and trading activity.</p>
   </div>
-  <button class="button secondary" type="button" (click)="loadOverview()" [disabled]="isLoading()">
+  <button class="button refresh-button" type="button" (click)="loadOverview()" [disabled]="isLoading()">
     {{ isLoading() ? 'Loading...' : 'Refresh' }}
   </button>
 </section>
@@ -45,8 +45,8 @@
               <a [routerLink]="['/admin/orders']" [queryParams]="{ accountId: account.accountId }">View Orders</a>
               <a [routerLink]="['/admin/transactions']" [queryParams]="{ accountId: account.accountId }">View Transactions</a>
               @if (account.accountActive) {
-                <button class="close-account-button" type="button" (click)="closeAccount(account.accountId)" [disabled]="closingAccountId() !== null">
-                  {{ closingAccountId() === account.accountId ? 'Freezing...' : 'Freeze Account' }}
+                <button class="freeze-toggle-button" [class.unfreeze-button]="account.accountFrozen" type="button" (click)="toggleAccountFreeze(account.accountId, account.accountFrozen)" [disabled]="closingAccountId() !== null">
+                  {{ closingAccountId() === account.accountId ? (account.accountFrozen ? 'Unfreezing...' : 'Freezing...') : (account.accountFrozen ? 'Unfreeze Account' : 'Freeze Account') }}
                 </button>
               }
             </div>

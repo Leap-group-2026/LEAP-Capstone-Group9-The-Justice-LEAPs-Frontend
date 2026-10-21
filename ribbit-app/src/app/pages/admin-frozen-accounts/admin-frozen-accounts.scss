@@ -1,0 +1,38 @@
+:host {
+  display: block;
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 32px clamp(18px, 4vw, 48px) 56px;
+}
+
+.page-intro {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 28px;
+}
+
+.page-intro h1 { margin: 4px 0 8px; }
+.page-intro p:not(.eyebrow) { margin: 0; color: var(--muted); }
+.eyebrow { margin: 0; color: var(--accent); font-size: 0.7rem; font-weight: 800; letter-spacing: 0.08em; }
+.frozen-list { padding: 24px; }
+.panel-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 18px; }
+.panel-heading h2 { margin: 4px 0 0; }
+.panel-heading > strong { color: var(--accent); font-size: 1.5rem; }
+.account-list { display: grid; gap: 10px; }
+.account-row { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 16px; border: 1px solid var(--border); background: var(--surface-raised, rgba(255,255,255,.03)); }
+.account-row div { display: grid; gap: 5px; }
+.account-row span { color: var(--muted); font-size: 0.85rem; }
+.empty-state, .muted { color: var(--muted); }
+.error-notice { margin-bottom: 18px; }
+.refresh-button { min-height: 36px; padding: 8px 14px; border: 1px solid var(--border); border-radius: 6px; background: transparent; color: var(--muted); font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; }
+.refresh-button:hover { border-color: var(--accent); color: var(--accent); background: rgba(193, 255, 57, 0.06); }
+.unfreeze-button { min-height: 34px; padding: 8px 13px; border: 1px solid #536f2a; border-radius: 6px; background: #17200f; color: var(--accent); font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
+.unfreeze-button:hover { border-color: var(--accent); background: #202c13; color: #efffc7; }
+.unfreeze-button:disabled, .refresh-button:disabled { cursor: wait; opacity: 0.6; }
+
+@media (max-width: 640px) {
+  .page-intro, .account-row { align-items: stretch; flex-direction: column; }
+  .account-row .button { width: 100%; }
+}

@@ -2,6 +2,7 @@ import { HttpBackend, HttpClient } from '@angular/common/http';
 import { Injectable, inject, signal } from '@angular/core';
 import { environment } from '../../environments/environment';
 import { clearToken, readToken } from '../interceptors/auth.interceptor';
+import { AccountContextService } from './account-context.service';
 
 export interface StoredUser {
   name: string;
@@ -34,6 +35,7 @@ export interface AuthState {
 export class AuthService {
   // Bypasses the interceptor: logout must not trigger a refresh or a redirect of its own
   private readonly http = new HttpClient(inject(HttpBackend));
+  private readonly accountContext = inject(AccountContextService);
 
   private authState = signal<AuthState>({
     isLoggedIn: this.hasStoredSession(),
@@ -45,6 +47,8 @@ export class AuthService {
   readonly isLoggedIn = this.authState.asReadonly();
 
   login(email: string, name = ''): void {
+    // The account list belongs to the authenticated user, so discard any prior user's context.
+    this.accountContext.clear();
     this.authState.set({
       isLoggedIn: true,
       user: { email, name }
@@ -80,6 +84,7 @@ export class AuthService {
 
   clearSession(): void {
     clearToken();
+    this.accountContext.clear();
     if (typeof localStorage !== 'undefined') {
       for (const key of SESSION_DATA_KEYS) {
         localStorage.removeItem(key);

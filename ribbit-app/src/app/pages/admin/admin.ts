@@ -91,14 +91,18 @@ export class Admin implements OnInit {
     });
   }
 
-  closeAccount(accountId: number): void {
-    if (this.closingAccountId() !== null || !window.confirm(`Freeze account #${accountId}?`)) return;
+  toggleAccountFreeze(accountId: number, frozen: boolean): void {
+    const action = frozen ? 'Unfreeze' : 'Freeze';
+    if (this.closingAccountId() !== null || !window.confirm(`${action} account #${accountId}?`)) return;
 
     this.closingAccountId.set(accountId);
     this.userLookupError.set('');
-    this.adminApi.freezeAccount(accountId).pipe(finalize(() => this.closingAccountId.set(null))).subscribe({
+    const request = frozen
+      ? this.adminApi.unfreezeAccount(accountId)
+      : this.adminApi.freezeAccount(accountId);
+    request.pipe(finalize(() => this.closingAccountId.set(null))).subscribe({
       next: () => this.searchUser(),
-      error: response => this.userLookupError.set(response.error || 'Unable to freeze this account.')
+      error: response => this.userLookupError.set(response.error || `Unable to ${action.toLowerCase()} this account.`)
     });
   }
 

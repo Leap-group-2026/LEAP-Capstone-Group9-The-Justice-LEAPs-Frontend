@@ -383,6 +383,45 @@ app-session-timer + .profile { margin-left: 0; }
   padding: 32px;
 }
 
+.frozen-account-banner {
+  position: fixed;
+  z-index: 20;
+  top: var(--header-height, 64px);
+  left: var(--sidebar-width);
+  right: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 24px;
+  color: #f6dfb1;
+  background: #241d12;
+  border-bottom: 1px solid #80612e;
+  font-size: 0.82rem;
+}
+
+.frozen-account-banner strong { color: #ffd27d; white-space: nowrap; }
+.frozen-account-banner span { flex: 1; color: #d9c398; }
+.frozen-account-banner button { min-height: 28px; padding: 5px 10px; border: 1px solid #80612e; border-radius: 5px; background: transparent; color: #ffd27d; font-size: 0.76rem; font-weight: 700; cursor: pointer; }
+.frozen-account-banner button:hover { border-color: #ffd27d; background: #332714; }
+.frozen-account-backdrop { position: fixed; z-index: 29; inset: 0; background: rgba(3, 5, 4, .72); backdrop-filter: blur(3px); }
+.frozen-account-modal { position: fixed; z-index: 30; top: 50%; left: 50%; width: min(92vw, 520px); overflow: hidden; transform: translate(-50%, -50%); border: 1px solid #80612e; border-radius: 10px; background: var(--surface, #111612); color: var(--text, #f4f7f4); box-shadow: 0 24px 70px rgba(0, 0, 0, .52); }
+.frozen-account-modal::before { display: block; height: 4px; background: #d59b3d; content: ''; }
+.frozen-account-modal .modal-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 22px 24px 12px; }
+.frozen-account-modal h2 { margin: 0; color: #ffd27d; font-size: 20px; font-weight: 600; }
+.frozen-account-modal .modal-close { width: 32px; height: 32px; border: 1px solid var(--border); border-radius: 5px; background: transparent; color: var(--muted); font-size: 20px; line-height: 1; cursor: pointer; }
+.frozen-account-modal .modal-close:hover { border-color: #ffd27d; color: #ffd27d; }
+.frozen-account-modal .modal-body { display: grid; gap: 10px; padding: 8px 24px 22px; color: var(--muted); font-size: 13px; line-height: 1.55; }
+.frozen-account-modal .modal-body p { margin: 0; }
+.frozen-account-modal .modal-actions { display: flex; justify-content: flex-end; padding: 0 24px 24px; }
+.frozen-account-modal .modal-actions .button { min-height: 36px; padding: 8px 16px; border: 1px solid #80612e; border-radius: 6px; background: #d59b3d; color: #241d12; font-weight: 700; cursor: pointer; }
+.frozen-account-modal .modal-actions .button:hover { background: #ffd27d; }
+.frozen-account-modal + * { position: relative; }
+
+@media (max-width: 768px) {
+  .frozen-account-banner { left: 0; top: var(--header-height, 64px); padding: 10px 14px; }
+  .frozen-account-banner span { display: none; }
+}
+
 .mobile-menu, .sidebar-backdrop { display: none; }
 
 @media (min-width: 1700px) {

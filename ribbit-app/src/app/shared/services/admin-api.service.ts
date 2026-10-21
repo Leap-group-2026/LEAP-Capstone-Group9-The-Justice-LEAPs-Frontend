@@ -23,6 +23,7 @@ export interface AdminAccount {
   tradeType: string;
   createdAt: string;
   accountActive: boolean;
+  accountFrozen: boolean;
 }
 
 export interface AdminUser {
@@ -108,6 +109,12 @@ export class AdminApiService {
     });
   }
 
+  getAccounts(): Observable<AdminAccount[]> {
+    return this.http.get<AdminAccount[]>(`${this.apiBaseUrl}/admin/accounts`, {
+      headers: this.authHeaders()
+    });
+  }
+
   getOrders(): Observable<AdminOrder[]> {
     return this.http.get<AdminOrder[]>(`${this.apiBaseUrl}/admin/orders`, {
       headers: this.authHeaders()
@@ -122,6 +129,13 @@ export class AdminApiService {
 
   freezeAccount(accountId: number): Observable<string> {
     return this.http.patch(`${this.apiBaseUrl}/accounts/freeze/${accountId}`, null, {
+      headers: this.authHeaders(),
+      responseType: 'text'
+    });
+  }
+
+  unfreezeAccount(accountId: number): Observable<string> {
+    return this.http.patch(`${this.apiBaseUrl}/accounts/unfreeze/${accountId}`, null, {
       headers: this.authHeaders(),
       responseType: 'text'
     });

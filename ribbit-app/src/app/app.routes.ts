@@ -12,6 +12,7 @@ import { Admin } from './pages/admin/admin';
 import { Reporter } from './pages/reporter/reporter';
 import { AdminOrders } from './pages/admin-orders/admin-orders';
 import { AdminTransactions } from './pages/admin-transactions/admin-transactions';
+import { AdminFrozenAccounts } from './pages/admin-frozen-accounts/admin-frozen-accounts';
 import { TradingTrends } from './pages/trading-trends/trading-trends';
 import { adminGuard } from './shared/guards/admin.guard';
 import { reporterGuard } from './shared/guards/reporter.guard';
@@ -34,6 +35,7 @@ export const routes: Routes = [
   { path: 'reporter', component: Reporter, canActivate: [authGuard, reporterGuard] },
   { path: 'admin/orders', component: AdminOrders, canActivate: [authGuard, adminGuard] },
   { path: 'admin/transactions', component: AdminTransactions, canActivate: [authGuard, adminGuard] },
+  { path: 'admin/frozen-accounts', component: AdminFrozenAccounts, canActivate: [authGuard, adminGuard] },
   { path: 'trading-trends', component: TradingTrends, canActivate: [authGuard] },
   { path: '**', redirectTo: '/login' },
 ];

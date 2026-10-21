@@ -243,12 +243,17 @@ export class Login {
             .map((account) => account.accountId)
             .filter((accountId) => Number.isFinite(accountId));
 
+          console.info('[account-debug] login accounts:', accounts);
+          console.info('[account-debug] login account IDs:', accountIds);
+
           if (!accountIds.length) {
             return throwError(() => new Error('No account found for user'));
           }
 
           const accountId = Math.min(...accountIds);
           localStorage.setItem('accountId', String(accountId));
+          console.info('[account-debug] login selected lowest account:', accountId,
+            'stored accountId:', localStorage.getItem('accountId'));
 
           return this.http.get<AccountResponse>(
             `${environment.springUrl}/accounts/${accountId}`,
@@ -260,7 +265,8 @@ export class Login {
           );
         }),
         tap((account) => {
-          localStorage.setItem('accountId', String(account.accountId));
+          console.info('[account-debug] account detail response:', account,
+            'stored accountId:', localStorage.getItem('accountId'));
           localStorage.setItem('tradeType', account.tradeType ?? account.trade_type ?? '');
           localStorage.setItem('balance', String(account.balance));
           localStorage.setItem('portfolioSize', account.portfolio_size);
