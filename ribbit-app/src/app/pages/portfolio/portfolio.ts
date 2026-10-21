@@ -25,6 +25,7 @@ export type PortfolioDestination =
   | 'logout';
 
 type HoldingFilter = 'all' | 'stocks' | 'crypto' | 'forex';
+const MAX_ALLOCATION_POSITIONS = 8;
 
 export interface Holding {
   symbol: string;
@@ -251,6 +252,16 @@ export class Portfolio implements OnInit {
     });
 
     return `conic-gradient(${stops.join(', ')})`;
+  }
+
+  get displayedAllocation(): AllocationItem[] {
+    const items = this.allocation;
+    const cash = items.find(item => item.label === 'Cash');
+    const positions = items
+      .filter(item => item.label !== 'Cash')
+      .slice(0, MAX_ALLOCATION_POSITIONS);
+
+    return cash ? [...positions, cash] : positions;
   }
 
   get allocationDescription(): string {

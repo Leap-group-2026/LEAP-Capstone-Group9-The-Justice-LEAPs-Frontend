@@ -11,6 +11,7 @@ import { InstrumentApiResponse, InstrumentsApiService } from '../../shared/servi
 import { PortfolioValueService } from '../../shared/services/portfolio-value.service';
 import { PortfolioSnapshot, PortfolioSnapshotsApiService } from '../../shared/services/portfolio-snapshots-api.service';
 import { AccountContextService } from '../../shared/services/account-context.service';
+import { OrderHistoryApiResponse, OrdersApiService } from '../../shared/services/orders-api.service';
 
 type Period = '3D' | '1W' | '1M' | '3M' | '1Y' | 'ALL';
 type Destination =
@@ -47,7 +48,7 @@ interface Order {
   side: 'Buy' | 'Sell';
   quantity: number;
   price: number;
-  status: 'Pending' | 'Filled' | 'Cancelled';
+  status: 'Pending' | 'Filled' | 'Cancelled' | 'Rejected';
   date: string;
   time: string;
 }
@@ -72,6 +73,7 @@ export class Dashboard implements OnInit {
   private readonly portfolioValueService = inject(PortfolioValueService);
   private readonly portfolioSnapshotsApi = inject(PortfolioSnapshotsApiService);
   private readonly accountContext = inject(AccountContextService);
+  private readonly ordersApi = inject(OrdersApiService);
   private readonly destroyRef = inject(DestroyRef);
 
   selectedPeriod: Period = '1M';
@@ -115,6 +117,7 @@ export class Dashboard implements OnInit {
     this.performanceError = false;
     this.snapshots = [];
     this.loadPositions();
+    this.loadOrders(accountId);
 
     this.portfolioValueService.getPortfolioValue(accountId).subscribe({
       next: value => {
@@ -196,6 +199,74 @@ export class Dashboard implements OnInit {
       });
   }
 
+  private loadOrders(accountId: number): void {
+    this.ordersApi.getOrderHistory(accountId).subscribe({
+      next: apiOrders => {
+        this.orders = apiOrders
+          .map(order => this.mapApiOrder(order))
+          .sort((first, second) => Date.parse(second.date) - Date.parse(first.date))
+          .slice(0, 4);
+      },
+      error: error => {
+        console.error('Unable to load dashboard orders', error);
+        this.orders = [];
+      }
+    });
+  }
+
+  private mapApiOrder(order: OrderHistoryApiResponse): Order {
+    const timestamp = this.parseBackendDate(order.executedAt) ?? this.parseBackendDate(order.createdAt);
+
+    return {
+      id: `ORD-${order.orderId}`,
+      instrument: (order.ticker || '').toUpperCase(),
+      type: 'Market',
+      side: (order.side || '').toUpperCase() === 'SELL' ? 'Sell' : 'Buy',
+      quantity: Number(order.quantity) || 0,
+      price: Number(order.pricePerUnit) || 0,
+      status: this.mapOrderStatus(order.status),
+      date: timestamp ? this.toLocalIsoDate(timestamp) : '',
+      time: timestamp
+        ? new Intl.DateTimeFormat('en-US', {
+            hour: 'numeric',
+            minute: '2-digit',
+            hour12: true,
+            timeZoneName: 'short'
+          }).format(timestamp)
+        : 'N/A'
+    };
+  }
+
+  private parseBackendDate(value: string | null | undefined): Date | null {
+    if (!value) return null;
+
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  }
+
+  private toLocalIsoDate(date: Date): string {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
+  private mapOrderStatus(status: string): Order['status'] {
+    switch ((status || '').toUpperCase()) {
+      case 'FILLED':
+        return 'Filled';
+      case 'CANCELED':
+      case 'CANCELLED':
+        return 'Cancelled';
+      case 'DECLINED':
+      case 'FAILED':
+      case 'REJECTED':
+        return 'Rejected';
+      default:
+        return 'Pending';
+    }
+  }
+
   private getCurrentPrice(position: AccountPosition) {
     const instrumentRequest = this.usesPairPrice(position)
       ? this.instrumentsApi.getForexPrice(position.ticker)
@@ -234,52 +305,7 @@ export class Dashboard implements OnInit {
   // to lowest, and keep only the first five before assigning this.holdings.
   
 
-  readonly orders: Order[] = [
-    {
-      id: 'RBT-1048',
-      instrument: 'TSLA',
-      type: 'Limit',
-      side: 'Buy',
-      quantity: 10,
-      price: 240,
-      status: 'Pending',
-      date: '2026-10-07',
-      time: '2:18 PM ET'
-    },
-    {
-      id: 'RBT-1047',
-      instrument: 'AAPL',
-      type: 'Market',
-      side: 'Buy',
-      quantity: 10,
-      price: 226.80,
-      status: 'Filled',
-      date: '2026-10-07',
-      time: '10:42 AM ET'
-    },
-    {
-      id: 'RBT-1046',
-      instrument: 'MSFT',
-      type: 'Limit',
-      side: 'Sell',
-      quantity: 5,
-      price: 430,
-      status: 'Cancelled',
-      date: '2026-10-06',
-      time: '3:05 PM ET'
-    },
-    {
-      id: 'RBT-1045',
-      instrument: 'NVDA',
-      type: 'Market',
-      side: 'Buy',
-      quantity: 20,
-      price: 140.50,
-      status: 'Filled',
-      date: '2026-10-06',
-      time: '11:16 AM ET'
-    }
-  ];
+  orders: Order[] = [];
 
   readonly icons: Record<string, string> = {
     external: 'M7 17 17 7 M7 7h10v10',
