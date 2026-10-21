@@ -136,10 +136,6 @@ export class Login {
     this.isSubmitting.set(true);
     this.loginError.set('');
 
-    if (this.isAdminLogin) {
-      this.authService.setAdminRole('');
-    }
-
     this.http
       .post<LoginResponse>(
         `${environment.authUrl}/auth/${this.isAdminLogin ? 'adminLogin' : 'login'}`,
@@ -157,6 +153,11 @@ export class Login {
             return throwError(() => new Error('Missing access token'));
           }
 
+          // The credentials were accepted, so end whatever session this browser already had:
+          // logout() revokes it on the server (using the old token, still stored at this point)
+          // and clearSession() wipes the old token, profile, account data and adminRole.
+          // A wrong password never gets here, so a failed attempt doesn't log anyone out.
+          this.authService.logout();
           storeTokens(accessToken, response.refreshToken);
 
           if (this.isAdminLogin) {

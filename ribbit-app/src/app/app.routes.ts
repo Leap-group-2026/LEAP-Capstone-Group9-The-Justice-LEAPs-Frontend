@@ -16,11 +16,12 @@ import { TradingTrends } from './pages/trading-trends/trading-trends';
 import { adminGuard } from './shared/guards/admin.guard';
 import { reporterGuard } from './shared/guards/reporter.guard';
 import { authGuard } from './shared/guards/auth.guard';
+import { guestGuard } from './shared/guards/guest.guard';
 
 export const routes: Routes = [
   { path: '', redirectTo: '/login', pathMatch: 'full' },
-  { path: 'login', component: Login },
-  { path: 'admin-login', component: Login },
+  { path: 'login', component: Login, canActivate: [guestGuard] },
+  { path: 'admin-login', component: Login, canActivate: [guestGuard] },
   { path: 'signup', component: Signup },
   { path: 'forgot-password', component: ResetPassword },
   { path: 'dashboard', component: Dashboard, canActivate: [authGuard] },

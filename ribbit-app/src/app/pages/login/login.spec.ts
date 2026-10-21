@@ -80,4 +80,61 @@ describe('Login', () => {
     expect(login.loginError()).toBe('Login failed, username or password is incorrect.');
     expect(navigate).not.toHaveBeenCalled();
   });
+
+  // Regression: an admin signed in, the URL was edited to /login, and a client signed in on top.
+  // The admin's stored role survived and the client was shown the admin interface.
+  it('a client login after an admin login is not treated as admin, and ends the admin session', () => {
+    const auth = TestBed.inject(AuthService);
+    const url = vi.spyOn(TestBed.inject(Router), 'url', 'get');
+    const tokenFor = (role: string, sub: string) =>
+      makeToken({ sub, role, exp: Math.floor(Date.now() / 1000) + 1800 });
+    const adminToken = tokenFor('admin', '7');
+
+    url.mockReturnValue('/admin-login');
+    const admin = TestBed.runInInjectionContext(() => new Login());
+    admin.form.setValue({ email: 'boss@example.com', password: 'x', rememberEmail: false });
+    admin.submit();
+    http.expectOne(`${environment.authUrl}/auth/adminLogin`)
+      .flush({ accessToken: adminToken, refreshToken: 'r1', role: 'admin' });
+    expect(auth.isAdmin()).toBe(true);
+
+    url.mockReturnValue('/login');
+    const client = TestBed.runInInjectionContext(() => new Login());
+    client.form.setValue({ email: 'jo@example.com', password: 'x', rememberEmail: false });
+    client.submit();
+    http.expectOne(`${environment.authUrl}/auth/login`)
+      .flush({ accessToken: tokenFor('client', '42'), refreshToken: 'r2' });
+
+    // The admin's session is revoked on the server, with the admin's own token
+    const logout = http.expectOne(`${environment.authUrl}/auth/logout`);
+    expect(logout.request.headers.get('Authorization')).toBe(`Bearer ${adminToken}`);
+    logout.flush({});
+
+    http.expectOne(`${SPRING}/user`).flush({ name: 'Jo', email: 'jo@example.com', address: 'x' });
+    http.expectOne(`${SPRING}/user/accounts`).flush([{ accountId: 3 }]);
+    http.expectOne(`${SPRING}/accounts/3`)
+      .flush({ accountId: 3, balance: 1, portfolio_size: 'B', created_at: 'x', account_active: true });
+
+    expect(localStorage.getItem('adminRole')).toBeNull();
+    expect(localStorage.getItem('refreshToken')).toBe('r2');
+    expect(auth.isAdmin()).toBe(false);
+    expect(auth.isReporter()).toBe(false);
+    expect(navigate).toHaveBeenLastCalledWith(['/dashboard']);
+  });
+
+  it('a wrong password leaves the current session alone', () => {
+    const existing = makeToken({ sub: '7', role: 'admin', exp: Math.floor(Date.now() / 1000) + 1800 });
+    localStorage.setItem('token', existing);
+    localStorage.setItem('adminRole', 'admin');
+
+    const login = TestBed.runInInjectionContext(() => new Login());
+    login.form.setValue({ email: 'jo@example.com', password: 'wrong', rememberEmail: false });
+    login.submit();
+    http.expectOne(`${environment.authUrl}/auth/login`)
+      .flush({ statusCode: 401, message: 'Invalid email or password' }, { status: 401, statusText: 'Unauthorized' });
+
+    http.expectNone(`${environment.authUrl}/auth/logout`);
+    expect(localStorage.getItem('token')).toBe(existing);
+    expect(localStorage.getItem('adminRole')).toBe('admin');
+  });
 });
