@@ -67,6 +67,7 @@ export class MainLayout implements OnInit, OnDestroy {
     { id: 'transactions', label: 'Transactions', icon: 'history' },
     { id: 'account', label: 'Account', icon: 'account' },
     { id: 'admin', label: 'Admin', icon: 'admin' },
+    { id: 'admin/users', label: 'Users', icon: 'account' },
     { id: 'admin/orders', label: 'Orders', icon: 'orders' },
     { id: 'admin/transactions', label: 'Transactions', icon: 'history' },
     { id: 'admin/frozen-accounts', label: 'Frozen accounts', icon: 'admin' },

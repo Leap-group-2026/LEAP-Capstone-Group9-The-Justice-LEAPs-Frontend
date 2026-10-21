@@ -44,7 +44,7 @@ describe('Login', () => {
   it('marks the user as logged in before navigating to the dashboard', () => {
     const auth = TestBed.inject(AuthService);
     const accountContext = TestBed.inject(AccountContextService);
-    accountContext.accounts.set([{ accountId: 99, userId: 1, balance: 0, portfolioSize: '', tradeType: '', createdAt: '', accountActive: true }]);
+    accountContext.accounts.set([{ accountId: 99, userId: 1, balance: 0, portfolioSize: '', tradeType: '', createdAt: '', accountActive: true, accountFrozen: false }]);
     accountContext.selectedAccount.set(accountContext.accounts()[0]);
     expect(auth.isLoggedIn().isLoggedIn).toBe(false);
 

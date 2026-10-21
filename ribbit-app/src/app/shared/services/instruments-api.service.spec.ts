@@ -22,10 +22,14 @@ describe('InstrumentsApiService', () => {
     controller = TestBed.inject(HttpTestingController);
   });
 
+  // Reset even when verify() throws, so one failing test can't break the specs after it
   afterEach(() => {
     localStorage.clear();
-    controller.verify();
-    TestBed.resetTestingModule();
+    try {
+      controller.verify();
+    } finally {
+      TestBed.resetTestingModule();
+    }
   });
 
   it('requests instruments with the default pagination', () => {
@@ -72,10 +76,13 @@ describe('InstrumentsApiService', () => {
   it('sends all crypto bar query parameters to the crypto bars endpoint', () => {
     service.getCryptoBarNumbers('BTC/USD', '1Day', '2026-01-01', '2026-01-31').subscribe();
 
-    const request = controller.expectOne(
-      `${environment.springUrl}/instruments/crypto-bars?symbols=BTC%2FUSD&timeframe=1Day&start=2026-01-01&end=2026-01-31`
-    );
+    // Checked by value: Angular leaves "/" unencoded in query strings (symbols=BTC/USD), which is valid
+    const request = controller.expectOne(req => req.url === `${environment.springUrl}/instruments/crypto-bars`);
     expect(request.request.method).toBe('GET');
+    expect(request.request.params.get('symbols')).toBe('BTC/USD');
+    expect(request.request.params.get('timeframe')).toBe('1Day');
+    expect(request.request.params.get('start')).toBe('2026-01-01');
+    expect(request.request.params.get('end')).toBe('2026-01-31');
     request.flush([10, 20, 30]);
   });
 

@@ -467,6 +467,13 @@ export class Account implements OnInit {
 
   // Navigation
   navigate(destination: string): void {
+    if (destination === 'logout') {
+      // Same as the sidebar: end the session (server + local) before leaving. Navigating to
+      // "/logout" alone only hit the catch-all route, so nothing was cleared.
+      this.authService.logout();
+      this.router.navigate(['/login']);
+      return;
+    }
     this.router.navigate([`/${destination}`]);
   }
 }

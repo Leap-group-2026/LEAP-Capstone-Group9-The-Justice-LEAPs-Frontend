@@ -58,6 +58,15 @@ export interface AdminUserLookup {
   accounts: AdminAccount[];
 }
 
+// GET /admin/users: a user's profile without password hash, SSN hash or reset code
+export interface AdminUserSummary {
+  userId: number;
+  name: string;
+  email: string;
+  dateOfBirth: string;
+  address: string;
+}
+
 export interface PortfolioSizeCount {
   portfolioSize: string;
   accountCount: number;
@@ -157,6 +166,26 @@ export class AdminApiService {
     return this.http.get<DailyMoneyMoved[]>(`${this.apiBaseUrl}/admin/analytics/money-moved`, {
       headers: this.authHeaders(),
       params: { days }
+    });
+  }
+
+  getUsers(): Observable<AdminUserSummary[]> {
+    return this.http.get<AdminUserSummary[]>(`${this.apiBaseUrl}/admin/users`, {
+      headers: this.authHeaders()
+    });
+  }
+
+  // Profile plus every account; 404 when no user has this id
+  findUserById(userId: number): Observable<AdminUserLookup> {
+    return this.http.get<AdminUserLookup>(`${this.apiBaseUrl}/admin/users/${userId}`, {
+      headers: this.authHeaders()
+    });
+  }
+
+  // Includes closed and frozen accounts; 404 when no account has this id
+  getAccountById(accountId: number): Observable<AdminAccount> {
+    return this.http.get<AdminAccount>(`${this.apiBaseUrl}/admin/accounts/account/${accountId}`, {
+      headers: this.authHeaders()
     });
   }
 
