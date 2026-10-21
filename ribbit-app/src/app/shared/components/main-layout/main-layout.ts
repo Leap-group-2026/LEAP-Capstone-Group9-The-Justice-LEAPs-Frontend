@@ -71,19 +71,20 @@ export class MainLayout implements OnInit, OnDestroy {
     { id: 'admin/orders', label: 'Orders', icon: 'orders' },
     { id: 'admin/transactions', label: 'Transactions', icon: 'history' },
     { id: 'admin/frozen-accounts', label: 'Frozen accounts', icon: 'admin' },
+    { id: 'reporter', label: 'Trending data', icon: 'trends' },
     { id: 'trading-trends', label: 'Trading trends', icon: 'trends' }
   ];
 
   get visibleNavigation(): NavigationItem[] {
     if (this.authService.isReporter()) {
-      return this.navigation.filter(item => !item.id.startsWith('admin'));
+      return this.navigation.filter(item => item.id === 'reporter');
     }
 
     if (this.authService.isAdmin()) {
       return this.navigation.filter(item => item.id.startsWith('admin'));
     }
 
-    return this.navigation.filter(item => !item.id.startsWith('admin'));
+    return this.navigation.filter(item => !item.id.startsWith('admin') && item.id !== 'reporter');
   }
 
   get isAdminUser(): boolean {

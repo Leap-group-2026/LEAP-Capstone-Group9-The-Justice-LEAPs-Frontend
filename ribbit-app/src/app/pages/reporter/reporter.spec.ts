@@ -17,6 +17,7 @@ const NOW = new Date('2026-10-19T16:00:00Z');
 const MONEY_URL = `${environment.springUrl}/admin/analytics/money-moved`;
 const TOP_URL = `${environment.springUrl}/admin/analytics/top-bought`;
 const ACTIVE_ACCOUNTS_URL = `${environment.springUrl}/admin/analytics/active-accounts`;
+const ACCOUNTS_URL = `${environment.springUrl}/admin/accounts`;
 const ORDER_STATUSES_URL = `${environment.springUrl}/admin/analytics/order-statuses`;
 
 const ROWS = [
@@ -100,6 +101,7 @@ describe('Reporter money moved block', () => {
     // The page loads every reporter chart at once; these tests are about money moved only
     http.expectOne(TOP_URL).flush([]);
     http.expectOne(ACTIVE_ACCOUNTS_URL).flush([]);
+    http.expectOne(ACCOUNTS_URL).flush([]);
     http.expectOne(ORDER_STATUSES_URL).flush([]);
     return fixture;
   }

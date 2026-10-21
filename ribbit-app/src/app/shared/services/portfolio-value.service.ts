@@ -37,7 +37,7 @@ export class PortfolioValueService {
           }
 
           const priceRequests = positions.map(position =>
-            this.getInstrument(position.ticker).pipe(
+            this.getInstrument(position).pipe(
               map(instrument => this.isForex(position)
                 ? position.total_price
                 : instrument.price * position.quantity)
@@ -51,14 +51,17 @@ export class PortfolioValueService {
       );
   }
 
-  private getInstrument(ticker: string): Observable<InstrumentApiResponse> {
-    return ticker.includes('/')
-      ? this.instrumentsApi.getForexPrice(ticker)
-      : this.instrumentsApi.getByTicker(ticker);
+  private getInstrument(position: PositionApiResponse): Observable<InstrumentApiResponse> {
+    const assetType = position.asset_type?.toUpperCase() ?? '';
+    const usesPairPrice = assetType.includes('FOREX');
+
+    return usesPairPrice
+      ? this.instrumentsApi.getForexPrice(position.ticker)
+      : this.instrumentsApi.getByTicker(position.ticker);
   }
 
   private isForex(position: PositionApiResponse): boolean {
-    return position.asset_type?.toUpperCase().includes('FOREX') ?? position.ticker.includes('/');
+    return position.asset_type?.toUpperCase().includes('FOREX') ?? false;
   }
 
   private createAuthHeaders(): HttpHeaders {

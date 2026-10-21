@@ -77,7 +77,7 @@
           rel="noopener noreferrer"
         >
           <span class="news-prefix">Market News:</span>
-          <span class="news-headline">{{ news[activeNewsIndex].headline }}</span>
+          <span class="news-headline">{{ news[activeNewsIndex].headline | slice:0:120 }}{{ news[activeNewsIndex].headline.length > 120 ? '...' : '' }}</span>
         </a>
         <button
           class="news-arrow"
@@ -143,28 +143,26 @@
         </button>
     </div>
 
-    @if (!isReporterUser) {
-      <nav aria-label="Main navigation">
-          @for (item of visibleNavigation; track item.id) {
-            <button
-              class="nav-item"
-              type="button"
-                [routerLink]="'/' + item.id"
-                routerLinkActive="active"
-                [routerLinkActiveOptions]="{ paths: 'exact', queryParams: 'ignored', fragment: 'ignored', matrixParams: 'ignored' }"
-                ariaCurrentWhenActive="page"
-              [title]="sidebarCollapsed ? item.label : ''"
-            >
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path [attr.d]="icons[item.icon]"/>
-              </svg>
-              @if (!sidebarCollapsed) {
-                <span>{{ item.label }}</span>
-              }
-            </button>
+    <nav aria-label="Main navigation">
+        @for (item of visibleNavigation; track item.id) {
+          <button
+            class="nav-item"
+            type="button"
+              [routerLink]="'/' + item.id"
+              routerLinkActive="active"
+              [routerLinkActiveOptions]="{ paths: 'exact', queryParams: 'ignored', fragment: 'ignored', matrixParams: 'ignored' }"
+              ariaCurrentWhenActive="page"
+            [title]="sidebarCollapsed ? item.label : ''"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path [attr.d]="icons[item.icon]"/>
+            </svg>
+            @if (!sidebarCollapsed) {
+              <span>{{ item.label }}</span>
+            }
+          </button>
           }
-      </nav>
-    }
+    </nav>
 
     <div class="sidebar-bottom">
         <div class="market-status" [class.collapsed]="sidebarCollapsed">

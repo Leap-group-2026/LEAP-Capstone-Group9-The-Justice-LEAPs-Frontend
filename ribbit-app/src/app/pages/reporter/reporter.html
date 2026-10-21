@@ -97,6 +97,33 @@
 		</div>
 	</article>
 
+	<article class="panel analytics-panel" aria-labelledby="portfolio-size-heading">
+		<div class="panel-heading">
+			<div class="section-title">
+				<h2 id="portfolio-size-heading">Account portfolio sizes</h2>
+				<span>ACCOUNT MIX</span>
+			</div>
+			<span class="chart-count">{{ totalPortfolioAccounts }} ACCOUNTS</span>
+		</div>
+		@if (portfolioSizes().length > 0) {
+			<div class="portfolio-chart" role="img" aria-label="Active accounts grouped by portfolio size">
+				<div class="portfolio-pie" [style.background]="portfolioPieStyle()" aria-hidden="true"></div>
+				<div class="portfolio-legend">
+					@for (item of portfolioSizes(); track item.portfolioSize; let index = $index) {
+						<div class="portfolio-row">
+							<span class="portfolio-label"><i [style.background]="portfolioColor(index)"></i>{{ item.portfolioSize }}</span>
+							<strong class="portfolio-value">{{ item.accountCount | number }} <small>{{ portfolioPercentage(item.accountCount) }}%</small></strong>
+						</div>
+					}
+				</div>
+			</div>
+		} @else if (isLoading()) {
+			<div class="chart-message">Loading portfolio sizes...</div>
+		} @else {
+			<div class="chart-message">No portfolio size data available.</div>
+		}
+	</article>
+
 	<article class="panel analytics-panel money-panel" aria-labelledby="money-moved-heading">
 		<div class="panel-heading">
 			<div class="section-title">

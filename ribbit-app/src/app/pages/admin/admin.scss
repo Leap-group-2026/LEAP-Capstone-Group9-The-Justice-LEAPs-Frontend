@@ -101,14 +101,6 @@ h2 { font-size: 15px; font-weight: 500; }
 .freeze-toggle-button.unfreeze-button:hover { border-color: var(--accent); background: #202c13; color: #efffc7; }
 .freeze-toggle-button:disabled { cursor: wait; opacity: 0.6; }
 .pagination { display: flex; align-items: center; justify-content: flex-end; gap: 12px; padding: 14px 20px; border-top: 1px solid var(--border); color: var(--muted); font-size: 12px; }
-.portfolio-analytics { margin-bottom: 24px; }
-.portfolio-chart { display: grid; gap: 14px; padding: 20px; }
-.portfolio-row { display: grid; grid-template-columns: 100px minmax(0, 1fr) 48px; align-items: center; gap: 12px; }
-.portfolio-label { color: var(--text); font-size: 12px; font-weight: 600; text-transform: uppercase; }
-.portfolio-track { height: 16px; overflow: hidden; border: 1px solid var(--border); border-radius: 4px; background: var(--surface-raised); }
-.portfolio-bar { display: block; height: 100%; border-radius: inherit; background: var(--accent); box-shadow: 0 0 12px color-mix(in srgb, var(--accent) 25%, transparent); }
-.portfolio-value { color: var(--muted); font-size: 12px; text-align: right; }
-
 .summary-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
