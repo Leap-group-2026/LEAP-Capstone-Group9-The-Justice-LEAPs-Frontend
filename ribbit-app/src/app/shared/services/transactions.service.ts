@@ -2,6 +2,7 @@ import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable, map } from 'rxjs';
 import { environment } from '../../environments/environment';
+import { readToken } from '../interceptors/auth.interceptor';
 import {
   AccountDetailDto,
   AccountDto,
@@ -177,7 +178,7 @@ export class TransactionsService {
   }
 
   private createAuthHeaders(): HttpHeaders {
-    const storedToken = typeof window === 'undefined' ? null : window.localStorage.getItem('token');
+    const storedToken = readToken();
     const token = storedToken?.trim().replace(/^Bearer\s+/i, '').replace(/^"|"$/g, '') || null;
     return token ? new HttpHeaders({ Authorization: `Bearer ${token}` }) : new HttpHeaders();
   }

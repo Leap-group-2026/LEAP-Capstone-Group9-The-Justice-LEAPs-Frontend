@@ -7,6 +7,7 @@ import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { forkJoin, map, of, catchError } from 'rxjs';
 import { environment } from '../../environments/environment';
+import { readToken } from '../../shared/interceptors/auth.interceptor';
 import { AuthService } from '../../shared/services/auth.service';
 import { InstrumentApiResponse, InstrumentsApiService } from '../../shared/services/instruments-api.service';
 import { PortfolioValueService } from '../../shared/services/portfolio-value.service';
@@ -333,7 +334,7 @@ export class Portfolio implements OnInit {
   }
 
   private loadPositions(): void {
-    const accessToken = localStorage.getItem('token');
+    const accessToken = readToken();
     const storedAccountId = Number(localStorage.getItem('accountId'));
 
     if (!accessToken || !Number.isInteger(storedAccountId) || storedAccountId <= 0) {

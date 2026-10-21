@@ -49,6 +49,7 @@ describe('authInterceptor', () => {
 
   afterEach(() => {
     localStorage.clear();
+    sessionStorage.clear();
     try {
       controller.verify();
     } finally {
@@ -64,7 +65,7 @@ describe('authInterceptor', () => {
   }
 
   it('adds the bearer token to Spring requests but not to login', () => {
-    localStorage.setItem('token', validToken);
+    sessionStorage.setItem('token', validToken);
 
     http.get(`${environment.springUrl}/user/accounts`).subscribe();
     http.post(`${environment.authUrl}/auth/login`, {}).subscribe();
@@ -83,7 +84,7 @@ describe('authInterceptor', () => {
     const error = failWith401(`${environment.springUrl}/instruments/NVDA`);
 
     expect(error?.status).toBe(401);
-    expect(localStorage.getItem('token')).toBe(validToken);
+    expect(sessionStorage.getItem('token')).toBe(validToken);
     expect(navigate).not.toHaveBeenCalled();
   });
 
@@ -93,7 +94,7 @@ describe('authInterceptor', () => {
     const error = failWith401(`${environment.springUrl}/user/accounts`);
 
     expect(error?.status).toBe(401);
-    expect(localStorage.getItem('token')).toBeNull();
+    expect(sessionStorage.getItem('token')).toBeNull();
     expect(navigate).toHaveBeenCalledWith(['/login']);
   });
 
@@ -140,6 +141,7 @@ describe('authInterceptor with BR-03 sessions', () => {
 
   afterEach(() => {
     localStorage.clear();
+    sessionStorage.clear();
     try {
       controller.verify();
     } finally {
@@ -168,8 +170,8 @@ describe('authInterceptor with BR-03 sessions', () => {
     retry.flush([{ accountId: 1 }]);
 
     expect(result).toEqual([{ accountId: 1 }]);
-    expect(localStorage.getItem('token')).toBe(newToken);
-    expect(localStorage.getItem('refreshToken')).toBe('refresh-2');
+    expect(sessionStorage.getItem('token')).toBe(newToken);
+    expect(sessionStorage.getItem('refreshToken')).toBe('refresh-2');
     expect(navigate).not.toHaveBeenCalled();
   });
 
@@ -203,8 +205,8 @@ describe('authInterceptor with BR-03 sessions', () => {
     await settle();
 
     expect(error?.status).toBe(401);
-    expect(localStorage.getItem('token')).toBeNull();
-    expect(localStorage.getItem('refreshToken')).toBeNull();
+    expect(sessionStorage.getItem('token')).toBeNull();
+    expect(sessionStorage.getItem('refreshToken')).toBeNull();
     expect(navigate).toHaveBeenCalledWith(['/login']);
   });
 
@@ -221,7 +223,7 @@ describe('authInterceptor with BR-03 sessions', () => {
     await settle();
 
     expect(error?.status).toBe(401);
-    expect(localStorage.getItem('refreshToken')).toBe('refresh-1');
+    expect(sessionStorage.getItem('refreshToken')).toBe('refresh-1');
     expect(navigate).not.toHaveBeenCalled();
   });
 
@@ -234,8 +236,8 @@ describe('authInterceptor with BR-03 sessions', () => {
       const ended = springError(code);
       controller.expectOne(accounts).flush(ended.body, ended.opts);
 
-      expect(localStorage.getItem('token')).toBeNull();
-      expect(localStorage.getItem('refreshToken')).toBeNull();
+      expect(sessionStorage.getItem('token')).toBeNull();
+      expect(sessionStorage.getItem('refreshToken')).toBeNull();
       expect(navigate).toHaveBeenCalledWith(['/login']);
     });
 
@@ -284,7 +286,7 @@ describe('authInterceptor with BR-03 sessions', () => {
     controller.expectOne(`${accounts}?503`).flush({ error: 'session_store_unavailable' }, { status: 503, statusText: 'Unavailable' });
     controller.expectOne(`${accounts}?403`).flush(null, { status: 403, statusText: 'Forbidden' });
 
-    expect(localStorage.getItem('token')).toBe(validToken);
+    expect(sessionStorage.getItem('token')).toBe(validToken);
     expect(navigate).not.toHaveBeenCalled();
   });
 });
@@ -292,6 +294,7 @@ describe('authInterceptor with BR-03 sessions', () => {
 describe('AuthService.logout', () => {
   afterEach(() => {
     localStorage.clear();
+    sessionStorage.clear();
     TestBed.resetTestingModule();
   });
 
@@ -309,8 +312,8 @@ describe('AuthService.logout', () => {
     const logout = controller.expectOne(`${environment.authUrl}/auth/logout`);
     expect(logout.request.method).toBe('POST');
     expect(logout.request.headers.get('Authorization')).toBe(`Bearer ${validToken}`);
-    expect(localStorage.getItem('token')).toBeNull();
-    expect(localStorage.getItem('refreshToken')).toBeNull();
+    expect(sessionStorage.getItem('token')).toBeNull();
+    expect(sessionStorage.getItem('refreshToken')).toBeNull();
     expect(localStorage.getItem('email')).toBeNull();
     expect(localStorage.getItem('balance')).toBeNull();
     logout.flush({ message: 'Logout successful' });

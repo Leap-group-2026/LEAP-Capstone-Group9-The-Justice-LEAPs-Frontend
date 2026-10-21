@@ -3,6 +3,7 @@ import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { map, Observable, Subject, tap } from 'rxjs';
 import { environment } from '../../environments/environment';
+import { readToken } from '../interceptors/auth.interceptor';
 
 export interface AccountContextItem {
   accountId: number;
@@ -57,7 +58,7 @@ export class AccountContextService {
   readonly frozenNoticeRequested = new Subject<number>();
 
   loadAccounts(): void {
-    const token = typeof window === 'undefined' ? null : window.localStorage.getItem('token');
+    const token = readToken();
     if (!token || this.isLoading() || this.accounts().length > 0) return;
 
     this.isLoading.set(true);
@@ -196,7 +197,7 @@ export class AccountContextService {
   }
 
   private createAuthHeaders(): HttpHeaders {
-    const token = typeof window === 'undefined' ? null : window.localStorage.getItem('token');
+    const token = readToken();
     return token
       ? new HttpHeaders({ Authorization: `Bearer ${token}` })
       : new HttpHeaders();

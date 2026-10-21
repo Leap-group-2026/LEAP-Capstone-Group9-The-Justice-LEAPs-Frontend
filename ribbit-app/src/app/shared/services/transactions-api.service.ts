@@ -3,6 +3,7 @@ import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 
 import { environment } from '../../environments/environment';
+import { readToken } from '../interceptors/auth.interceptor';
 
 export interface CurrencyExchangeRequest {
   baseAndExchange: string;
@@ -25,7 +26,7 @@ export class TransactionsApiService {
   }
 
   private createAuthHeaders(): HttpHeaders {
-    const storedToken = typeof window === 'undefined' ? null : window.localStorage.getItem('token');
+    const storedToken = readToken();
     const token = storedToken?.trim().replace(/^Bearer\s+/i, '').replace(/^"|"$/g, '') || null;
     return token ? new HttpHeaders({ Authorization: `Bearer ${token}` }) : new HttpHeaders();
   }

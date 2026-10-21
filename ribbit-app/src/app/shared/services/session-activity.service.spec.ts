@@ -20,6 +20,7 @@ describe('SessionActivityService', () => {
   afterEach(() => {
     vi.useRealTimers();
     localStorage.clear();
+    sessionStorage.clear();
     TestBed.resetTestingModule();
   });
 
@@ -58,7 +59,7 @@ describe('SessionActivityService', () => {
   });
 
   it('sends nothing when logged out', () => {
-    localStorage.removeItem('token');
+    sessionStorage.removeItem('token');
     vi.advanceTimersByTime(10 * 60_000);
     input();
     controller.expectNone(keepAlive);

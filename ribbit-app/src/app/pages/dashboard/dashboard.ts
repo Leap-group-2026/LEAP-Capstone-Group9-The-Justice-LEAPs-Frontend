@@ -1,6 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { environment } from '../../environments/environment';
+import { readToken } from '../../shared/interceptors/auth.interceptor';
 import { Component, inject, OnInit, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { catchError, forkJoin, map, of } from 'rxjs';
@@ -117,7 +118,7 @@ export class Dashboard implements OnInit {
     });
   }
   private loadPositions(): void {
-    const accessToken = localStorage.getItem('token');
+    const accessToken = readToken();
     const accountId = this.readAccountId();
 
     if (!accessToken || accountId === null) {
