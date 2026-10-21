@@ -25,6 +25,7 @@ describe('InstrumentsApiService', () => {
   // Reset even when verify() throws, so one failing test can't break the specs after it
   afterEach(() => {
     localStorage.clear();
+    sessionStorage.clear();
     try {
       controller.verify();
     } finally {

@@ -107,7 +107,7 @@ export class AuthService {
       return false;
     }
 
-    const token = window.localStorage.getItem('token')
+    const token = window.sessionStorage.getItem('token')
       ?.trim()
       .replace(/^Bearer\s+/i, '')
       .replace(/^"|"$/g, '');
@@ -133,7 +133,7 @@ export class AuthService {
   }
 
   private hasStoredSession(): boolean {
-    return typeof localStorage !== 'undefined' && Boolean(localStorage.getItem('token'));
+    return typeof sessionStorage !== 'undefined' && Boolean(sessionStorage.getItem('token'));
   }
 
   private readStoredAuthUser(): AuthState['user'] {
@@ -195,7 +195,7 @@ export class AuthService {
     }
 
     // No token, no role: a leftover adminRole alone grants nothing.
-    const token = window.localStorage.getItem('token');
+    const token = window.sessionStorage.getItem('token');
     if (!token) {
       return false;
     }

@@ -51,6 +51,7 @@ describe('SessionTimer', () => {
   afterEach(() => {
     vi.useRealTimers();
     localStorage.clear();
+    sessionStorage.clear();
     try {
       http.verify();
     } finally {
@@ -106,7 +107,7 @@ describe('SessionTimer', () => {
     await fixture.whenStable();
 
     expect(time()).toBe('30:00');
-    expect(localStorage.getItem('refreshToken')).toBe('refresh-2');
+    expect(sessionStorage.getItem('refreshToken')).toBe('refresh-2');
     expect(button()!.disabled).toBe(false);
   });
 
@@ -126,8 +127,8 @@ describe('SessionTimer', () => {
     http.expectOne(REFRESH_URL).flush({ message: 'Session has ended' }, { status: 401, statusText: 'Unauthorized' });
     await fixture.whenStable();
 
-    expect(localStorage.getItem('token')).toBeNull();
-    expect(localStorage.getItem('refreshToken')).toBeNull();
+    expect(sessionStorage.getItem('token')).toBeNull();
+    expect(sessionStorage.getItem('refreshToken')).toBeNull();
     expect(localStorage.getItem('email')).toBeNull();
     expect(navigate).toHaveBeenCalledWith(['/login']);
   });
@@ -141,8 +142,8 @@ describe('SessionTimer', () => {
     await fixture.whenStable();
 
     expect(el().querySelector('.label')?.textContent?.trim()).toBe("CAN'T REACH SERVER");
-    expect(localStorage.getItem('token')).toBe(token);
-    expect(localStorage.getItem('refreshToken')).toBe('refresh-1');
+    expect(sessionStorage.getItem('token')).toBe(token);
+    expect(sessionStorage.getItem('refreshToken')).toBe('refresh-1');
     expect(navigate).not.toHaveBeenCalled();
     expect(button()!.disabled).toBe(false);
   });

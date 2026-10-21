@@ -22,6 +22,7 @@ describe('App', () => {
 
   afterEach(() => {
     localStorage.clear();
+    sessionStorage.clear();
     TestBed.resetTestingModule();
   });
 

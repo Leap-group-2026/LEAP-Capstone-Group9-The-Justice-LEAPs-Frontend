@@ -24,6 +24,7 @@ describe('Login', () => {
 
   beforeEach(() => {
     localStorage.clear();
+    sessionStorage.clear();
     TestBed.configureTestingModule({
       providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])]
     });
@@ -33,6 +34,7 @@ describe('Login', () => {
 
   afterEach(() => {
     localStorage.clear();
+    sessionStorage.clear();
     try {
       http.verify();
     } finally {
@@ -123,7 +125,7 @@ describe('Login', () => {
       .flush({ accountId: 3, balance: 1, portfolio_size: 'B', created_at: 'x', account_active: true });
 
     expect(localStorage.getItem('adminRole')).toBeNull();
-    expect(localStorage.getItem('refreshToken')).toBe('r2');
+    expect(sessionStorage.getItem('refreshToken')).toBe('r2');
     expect(auth.isAdmin()).toBe(false);
     expect(auth.isReporter()).toBe(false);
     expect(navigate).toHaveBeenLastCalledWith(['/dashboard']);
@@ -141,7 +143,7 @@ describe('Login', () => {
       .flush({ statusCode: 401, message: 'Invalid email or password' }, { status: 401, statusText: 'Unauthorized' });
 
     http.expectNone(`${environment.authUrl}/auth/logout`);
-    expect(localStorage.getItem('token')).toBe(existing);
+    expect(sessionStorage.getItem('token')).toBe(existing);
     expect(localStorage.getItem('adminRole')).toBe('admin');
   });
 });

@@ -2,6 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { forkJoin, Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
+import { readToken } from '../interceptors/auth.interceptor';
 
 export interface AdminOrder {
   order_id: number;
@@ -215,9 +216,7 @@ export class AdminApiService {
   }
 
   private authHeaders(): HttpHeaders {
-    const token = typeof window === 'undefined'
-      ? null
-      : window.localStorage.getItem('token');
+    const token = readToken();
 
     return token
       ? new HttpHeaders({ Authorization: `Bearer ${token}` })

@@ -7,6 +7,7 @@ import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { forkJoin, map, of, catchError } from 'rxjs';
 import { environment } from '../../environments/environment';
+import { readToken } from '../../shared/interceptors/auth.interceptor';
 import { AuthService } from '../../shared/services/auth.service';
 import { InstrumentApiResponse, InstrumentsApiService } from '../../shared/services/instruments-api.service';
 import { PortfolioValueService } from '../../shared/services/portfolio-value.service';
@@ -24,6 +25,7 @@ export type PortfolioDestination =
   | 'logout';
 
 type HoldingFilter = 'all' | 'stocks' | 'crypto' | 'forex';
+const MAX_ALLOCATION_POSITIONS = 8;
 
 export interface Holding {
   symbol: string;
@@ -252,6 +254,16 @@ export class Portfolio implements OnInit {
     return `conic-gradient(${stops.join(', ')})`;
   }
 
+  get displayedAllocation(): AllocationItem[] {
+    const items = this.allocation;
+    const cash = items.find(item => item.label === 'Cash');
+    const positions = items
+      .filter(item => item.label !== 'Cash')
+      .slice(0, MAX_ALLOCATION_POSITIONS);
+
+    return cash ? [...positions, cash] : positions;
+  }
+
   get allocationDescription(): string {
     if (!this.allocation.length) return 'No portfolio allocation yet.';
 
@@ -334,7 +346,7 @@ export class Portfolio implements OnInit {
   }
 
   private loadPositions(): void {
-    const accessToken = localStorage.getItem('token');
+    const accessToken = readToken();
     const storedAccountId = Number(localStorage.getItem('accountId'));
 
     if (!accessToken || !Number.isInteger(storedAccountId) || storedAccountId <= 0) {

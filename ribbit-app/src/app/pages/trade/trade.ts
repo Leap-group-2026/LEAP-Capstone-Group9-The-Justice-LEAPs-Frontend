@@ -50,6 +50,7 @@ const CATALOG_PAGE_SIZE = 100;
 const CATALOG_MAX_PAGES = 50;
 const ORDER_POLL_INTERVAL_MS = 2_000;
 const ORDER_POLL_MAX_ATTEMPTS = 30;
+const UNSUPPORTED_TRADE_SYMBOLS = new Set(['BNB/USD']);
 
 export interface Instrument {
   readonly symbol: string;
@@ -772,7 +773,10 @@ export class Trade {
           next: page => {
             collected.push(
               ...page
-                .filter(item => !item.asset_type.toUpperCase().includes('FOREX'))
+                .filter(item =>
+                  !item.asset_type.toUpperCase().includes('FOREX') &&
+                  !UNSUPPORTED_TRADE_SYMBOLS.has(item.ticker)
+                )
                 .map(toInstrument)
             );
 

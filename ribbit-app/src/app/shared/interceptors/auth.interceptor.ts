@@ -24,7 +24,7 @@ interface TokenPair {
 
 export function readToken(): string | null {
   try {
-    return localStorage.getItem(TOKEN_KEY);
+    return sessionStorage.getItem(TOKEN_KEY);
   } catch {
     return null;
   }
@@ -32,7 +32,7 @@ export function readToken(): string | null {
 
 export function readRefreshToken(): string | null {
   try {
-    return localStorage.getItem(REFRESH_TOKEN_KEY);
+    return sessionStorage.getItem(REFRESH_TOKEN_KEY);
   } catch {
     return null;
   }
@@ -40,9 +40,9 @@ export function readRefreshToken(): string | null {
 
 export function storeTokens(accessToken: string, refreshToken?: string): void {
   try {
-    localStorage.setItem(TOKEN_KEY, accessToken);
+    sessionStorage.setItem(TOKEN_KEY, accessToken);
     if (refreshToken) {
-      localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
+      sessionStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
     }
   } catch {
 
@@ -51,8 +51,8 @@ export function storeTokens(accessToken: string, refreshToken?: string): void {
 
 export function clearToken(): void {
   try {
-    localStorage.removeItem(TOKEN_KEY);
-    localStorage.removeItem(REFRESH_TOKEN_KEY);
+    sessionStorage.removeItem(TOKEN_KEY);
+    sessionStorage.removeItem(REFRESH_TOKEN_KEY);
   } catch {
 
   }

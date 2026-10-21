@@ -12,7 +12,7 @@ import { finalize, map, Observable, of, switchMap, tap, throwError, timeout } fr
 import { environment } from '../../environments/environment';
 import { AuthService } from '../../shared/services/auth.service';
 import { ThemeService } from '../../shared/services/theme.service';
-import { storeTokens } from '../../shared/interceptors/auth.interceptor';
+import { readToken, storeTokens } from '../../shared/interceptors/auth.interceptor';
 
 export interface LoginCredentials {
   email: string;
@@ -175,7 +175,7 @@ export class Login {
         }),
         switchMap((user) =>
           user
-            ? this.loadAccount(localStorage.getItem('token')!).pipe(map(() => user))
+            ? this.loadAccount(readToken()!).pipe(map(() => user))
             : of(null)
         ),
         finalize(() => this.isSubmitting.set(false))

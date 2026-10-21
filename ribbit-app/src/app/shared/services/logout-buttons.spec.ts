@@ -46,6 +46,7 @@ describe('Logout buttons', () => {
 
   afterEach(() => {
     localStorage.clear();
+    sessionStorage.clear();
     try {
       http.verify();
     } finally {
@@ -74,7 +75,7 @@ describe('Logout buttons', () => {
   it('Account page still navigates normally for other destinations', () => {
     TestBed.runInInjectionContext(() => new Account()).navigate('dashboard');
     http.expectNone(`${environment.authUrl}/auth/logout`);
-    expect(localStorage.getItem('token')).toBe(token);
+    expect(sessionStorage.getItem('token')).toBe(token);
     expect(navigate).toHaveBeenCalledWith(['/dashboard']);
   });
 

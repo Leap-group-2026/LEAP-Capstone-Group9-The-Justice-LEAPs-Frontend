@@ -32,6 +32,7 @@ describe('guestGuard', () => {
 
   afterEach(() => {
     localStorage.clear();
+    sessionStorage.clear();
     TestBed.resetTestingModule();
   });
 

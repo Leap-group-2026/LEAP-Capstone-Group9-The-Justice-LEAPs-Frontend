@@ -6,6 +6,7 @@ import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { finalize, firstValueFrom } from 'rxjs';
 import { OrdersApiService, OrderHistoryApiResponse } from '../../shared/services/orders-api.service';
 import { environment } from '../../environments/environment';
+import { readToken } from '../../shared/interceptors/auth.interceptor';
 import { AuthService } from '../../shared/services/auth.service';
 
 type OrderStatus = 'Pending' | 'Filled' | 'Cancelled' | 'Rejected';
@@ -450,7 +451,7 @@ export class Orders implements OnInit {
       return storedAccountId;
     }
 
-    if (!localStorage.getItem('token')) {
+    if (!readToken()) {
       return null;
     }
 

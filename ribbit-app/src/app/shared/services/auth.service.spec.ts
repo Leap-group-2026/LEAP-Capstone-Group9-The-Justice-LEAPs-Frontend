@@ -13,6 +13,7 @@ function tokenWithRole(role: string): string {
 describe('AuthService roles', () => {
   function service(token: string | null, adminRole: string | null): AuthService {
     localStorage.clear();
+    sessionStorage.clear();
     if (token) localStorage.setItem('token', token);
     if (adminRole) localStorage.setItem('adminRole', adminRole);
     TestBed.configureTestingModule({ providers: [provideHttpClient(), provideHttpClientTesting()] });
@@ -21,6 +22,7 @@ describe('AuthService roles', () => {
 
   afterEach(() => {
     localStorage.clear();
+    sessionStorage.clear();
     TestBed.resetTestingModule();
   });
 

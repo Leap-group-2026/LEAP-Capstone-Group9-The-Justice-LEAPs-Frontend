@@ -2,6 +2,7 @@ import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
+import { readToken } from '../interceptors/auth.interceptor';
 
 export interface PortfolioSnapshot {
   portfolioSnapshotId: number;
@@ -15,7 +16,7 @@ export class PortfolioSnapshotsApiService {
   private readonly http = inject(HttpClient);
 
   getByAccountId(accountId: number): Observable<PortfolioSnapshot[]> {
-    const token = typeof window === 'undefined' ? null : window.localStorage.getItem('token');
+    const token = readToken();
 
     return this.http.get<PortfolioSnapshot[]>(
       `${environment.springUrl}/portfolio-snapshots/account/${accountId}`,

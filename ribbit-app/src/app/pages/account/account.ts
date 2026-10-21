@@ -7,6 +7,7 @@ import { catchError, finalize, forkJoin, of } from 'rxjs';
 import { AuthService } from '../../shared/services/auth.service';
 import { AccountContextService, CreateAccountRequest } from '../../shared/services/account-context.service';
 import { environment } from '../../environments/environment';
+import { readToken } from '../../shared/interceptors/auth.interceptor';
 
 type EditProfileStep = 'view' | 'edit' | 'success';
 type ChangePasswordStep = 'form' | 'success';
@@ -39,9 +40,7 @@ export class Account implements OnInit {
   private readonly router = inject(Router);
   private readonly authService = inject(AuthService);
   private readonly accountContext = inject(AccountContextService);
-  readonly accessToken = typeof localStorage === 'undefined'
-    ? null
-    : localStorage.getItem('token');
+  readonly accessToken = readToken();
 
   // Icons
   readonly icons: Record<string, string> = {
@@ -97,9 +96,7 @@ export class Account implements OnInit {
   }
 
   private loadAccounts(): void {
-    const token = typeof localStorage === 'undefined'
-      ? null
-      : localStorage.getItem('token');
+    const token = readToken();
     const userId = this.resolveUserId(token);
 
     if (!token || userId === null) {
@@ -126,7 +123,7 @@ export class Account implements OnInit {
       return;
     }
 
-    const token = typeof localStorage === 'undefined' ? null : localStorage.getItem('token');
+    const token = readToken();
     if (!token) return;
 
     const positionRequests = accounts.map(account => this.http.get<unknown[]>(
@@ -318,7 +315,7 @@ export class Account implements OnInit {
     const name = `${this.editFirstName.trim()} ${this.editLastName.trim()}`;
     const email = this.editEmail.trim().toLowerCase();
     const address = this.editAddress.trim();
-    const token = typeof localStorage === 'undefined' ? null : localStorage.getItem('token');
+    const token = readToken();
 
     if (!token) {
       this.editFormError = 'Your session has expired. Please log in again.';
