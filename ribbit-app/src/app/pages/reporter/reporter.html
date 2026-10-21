@@ -107,7 +107,10 @@
 		</div>
 		@if (portfolioSizes().length > 0) {
 			<div class="portfolio-chart" role="img" aria-label="Active accounts grouped by portfolio size">
-				<div class="portfolio-pie" [style.background]="portfolioPieStyle()" aria-hidden="true"></div>
+				<div class="portfolio-pie" [style.background]="portfolioPieStyle()" aria-hidden="true">
+					<strong>{{ totalPortfolioAccounts }}</strong>
+					<span>ACCOUNTS</span>
+				</div>
 				<div class="portfolio-legend">
 					@for (item of portfolioSizes(); track item.portfolioSize; let index = $index) {
 						<div class="portfolio-row">
