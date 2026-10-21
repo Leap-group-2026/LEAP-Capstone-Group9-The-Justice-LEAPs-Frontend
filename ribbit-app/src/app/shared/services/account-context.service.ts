@@ -155,6 +155,7 @@ export class AccountContextService {
   private setSelectedAccount(account: AccountContextItem, refreshPage: boolean): void {
     this.selectedAccount.set(account);
     this.persistAccount(account);
+    this.accountUpdated.next(account);
 
     if (refreshPage) {
       const currentUrl = this.router.url;

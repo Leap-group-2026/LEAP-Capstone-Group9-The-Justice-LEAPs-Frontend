@@ -32,7 +32,11 @@
       <article class="summary-card portfolio-card">
         <h2>Total Portfolio Value</h2>
         <strong>
-          @if (portfolioValueLoading) {
+          @if (positionsLoading()) {
+            Loading...
+          } @else if (holdings.length === 0) {
+            {{ availableCash | currency:'USD':'symbol':'1.2-2' }}
+          } @else if (portfolioValueLoading) {
             Loading...
           } @else {
             {{ portfolioValue | currency:'USD':'symbol':'1.2-2' }}

@@ -1,13 +1,15 @@
 import { CommonModule } from '@angular/common';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { environment } from '../../environments/environment';
-import { Component, inject, OnInit, signal } from '@angular/core';
+import { Component, DestroyRef, inject, OnInit, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router } from '@angular/router';
 import { catchError, forkJoin, map, of } from 'rxjs';
 import { AuthService } from '../../shared/services/auth.service';
 import { InstrumentApiResponse, InstrumentsApiService } from '../../shared/services/instruments-api.service';
 import { PortfolioValueService } from '../../shared/services/portfolio-value.service';
 import { PortfolioSnapshot, PortfolioSnapshotsApiService } from '../../shared/services/portfolio-snapshots-api.service';
+import { AccountContextService } from '../../shared/services/account-context.service';
 
 type Period = '3D' | '1W' | '1M' | '3M' | '1Y' | 'ALL';
 type Destination =
@@ -68,26 +70,49 @@ export class Dashboard implements OnInit {
   private readonly instrumentsApi = inject(InstrumentsApiService);
   private readonly portfolioValueService = inject(PortfolioValueService);
   private readonly portfolioSnapshotsApi = inject(PortfolioSnapshotsApiService);
+  private readonly accountContext = inject(AccountContextService);
+  private readonly destroyRef = inject(DestroyRef);
 
   selectedPeriod: Period = '1M';
 
   readonly user = this.createUser();
 
   readonly snapshotLabel = 'Oct 7, 2026, 2:32 PM ET';
-  readonly availableCash = this.readStoredBalance();
+  availableCash = this.readStoredBalance();
   private readonly apiPortfolioValue = signal(0);
   portfolioValueLoading = true;
+  positionsLoading = signal(true);
   performanceLoading = true;
   performanceError = false;
   private snapshots: PerformancePoint[] = [];
 
   ngOnInit(): void {
+    this.accountContext.accountUpdated
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(account => {
+        if (account.accountId !== this.readAccountId()) return;
+        this.availableCash = account.balance;
+        this.loadAccountData();
+      });
+
+    this.loadAccountData();
+  }
+
+  private loadAccountData(): void {
     const accountId = this.readAccountId();
 
     if (accountId === null) {
       this.portfolioValueLoading = false;
+      this.positionsLoading.set(false);
+      this.performanceLoading = false;
       return;
     }
+
+    this.portfolioValueLoading = true;
+    this.positionsLoading.set(true);
+    this.performanceLoading = true;
+    this.performanceError = false;
+    this.snapshots = [];
     this.loadPositions();
 
     this.portfolioValueService.getPortfolioValue(accountId).subscribe({
@@ -122,6 +147,7 @@ export class Dashboard implements OnInit {
 
     if (!accessToken || accountId === null) {
       console.warn('Missing token or account ID; skipped positions lookup.');
+      this.positionsLoading.set(false);
       return;
     }
 
@@ -136,6 +162,11 @@ export class Dashboard implements OnInit {
       )
       .subscribe({
         next: positions => {
+          if (positions.length === 0) {
+            this.holdings = [];
+            this.positionsLoading.set(false);
+            return;
+          }
           forkJoin(
             positions.map(position => this.getCurrentPrice(position).pipe(
               map(currentPrice => ({ position, currentPrice }))
@@ -152,11 +183,14 @@ export class Dashboard implements OnInit {
               .sort((first, second) =>
                 this.marketValue(second) - this.marketValue(first)
               )
-              .slice(0, 5)
+              .slice(0, 5);
+
+            this.positionsLoading.set(false);
           });
         },
         error: error => {
           console.error('Positions lookup failed:', error);
+          this.positionsLoading.set(false);
         }
       });
   }
@@ -192,45 +226,7 @@ export class Dashboard implements OnInit {
     return Number.isFinite(balance) ? balance : 0;
   }
 
-  // TODO: Replace this hardcoded list with an initially empty Holding[].
-  // Populate it from the positions API after transforming and sorting the response.
    holdings: Holding[] = []
-    /*{
-      symbol: 'AAPL',
-      name: 'Apple Inc.',
-      quantity: 80,
-      currentPrice: 228.42,
-      averageCost: 210
-    },
-    {
-      symbol: 'NVDA',
-      name: 'NVIDIA Corporation',
-      quantity: 120,
-      currentPrice: 142.87,
-      averageCost: 120
-    },
-    {
-      symbol: 'MSFT',
-      name: 'Microsoft Corporation',
-      quantity: 40,
-      currentPrice: 425.60,
-      averageCost: 400
-    },
-    {
-      symbol: 'SPY',
-      name: 'SPDR S&P 500 ETF Trust',
-      quantity: 60,
-      currentPrice: 589.21,
-      averageCost: 550
-    },
-    {
-      symbol: 'TSLA',
-      name: 'Tesla, Inc.',
-      quantity: 30,
-      currentPrice: 248.50,
-      averageCost: 260
-    }
-  ];*/
   // TODO: Add loadPositions() near the other private helper methods.
   // Read the token and account ID, call /positions/account/{accountId},
   // transform each response into Holding, calculate market value, sort highest
