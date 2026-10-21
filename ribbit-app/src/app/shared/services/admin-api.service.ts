@@ -86,6 +86,12 @@ export interface ActiveAccountAnalytics {
   sellCount: number;
 }
 
+export interface OrderStatusCount {
+  status: string;
+  orderCount: number;
+  percentage: number;
+}
+
 // GET /admin/analytics/money-moved: one row per day with filled orders (days without fills are omitted)
 export interface DailyMoneyMoved {
   date: string;       // YYYY-MM-DD, Eastern time
@@ -185,6 +191,12 @@ export class AdminApiService {
   // Includes closed and frozen accounts; 404 when no account has this id
   getAccountById(accountId: number): Observable<AdminAccount> {
     return this.http.get<AdminAccount>(`${this.apiBaseUrl}/admin/accounts/account/${accountId}`, {
+      headers: this.authHeaders()
+    });
+  }
+
+  getOrderStatuses(): Observable<OrderStatusCount[]> {
+    return this.http.get<OrderStatusCount[]>(`${this.apiBaseUrl}/admin/analytics/order-statuses`, {
       headers: this.authHeaders()
     });
   }
