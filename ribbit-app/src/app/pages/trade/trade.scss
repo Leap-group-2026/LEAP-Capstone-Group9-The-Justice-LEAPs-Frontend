@@ -2,6 +2,18 @@
   --error: #ff9b9b;
 }
 
+:host-context(.light-theme) {
+  --background: #f5f8f3;
+  --surface: #ffffff;
+  --surface-raised: #eaf1e8;
+  --border: #c8d5c5;
+  --text: #18351f;
+  --muted: #52705a;
+  --subtle: #6f8975;
+  --accent: #287a3c;
+  --error: #c6534d;
+}
+
 * { box-sizing: border-box; }
 button, input, select { font: inherit; }
 button { cursor: pointer; }
@@ -64,7 +76,7 @@ small { display: block; font-size: 12px; color: var(--subtle); line-height: 1.6;
   border: 1px solid var(--border);
   border-radius: 8px;
   list-style: none;
-  background: #0e120f;
+  background: var(--surface-raised);
 }
 .progress li { display: flex; align-items: center; gap: 10px; color: var(--subtle); font-size: 12px; }
 .progress li > span {
@@ -252,7 +264,7 @@ small { display: block; font-size: 12px; color: var(--subtle); line-height: 1.6;
   padding: 20px;
   border: 1px solid var(--border);
   border-radius: 8px;
-  background: #0e120f;
+  background: var(--surface-raised);
 }
 .total-line { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
 .total-line > span { font-size: 14px; }
@@ -292,7 +304,7 @@ dd {
 .actions .primary { flex: 1; }
 .actions .secondary { min-width: 120px; }
 
-.notice { padding: 16px; border: 1px solid var(--border); border-radius: 8px; background: #0e120f; }
+.notice { padding: 16px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-raised); }
 .notice strong { font-size: 12px; font-weight: 500; }
 .notice p { margin-top: 8px; color: var(--muted); font-size: 11px; line-height: 1.7; }
 .error-notice { background: #f08e8509; border-color: #78433f; color: var(--error); }
@@ -344,7 +356,7 @@ dd {
   height: 250px;
   display: flex;
   flex-direction: column;
-  background: #0e120f;
+  background: var(--surface-raised);
   border: 1px solid var(--border);
   border-radius: 8px;
   padding: 24px 16px;
@@ -398,7 +410,7 @@ dd {
   align-items: center;
   gap: 12px;
   padding: 12px;
-  background: #0e120f;
+  background: var(--surface-raised);
   border: 1px solid var(--border);
   border-radius: 6px;
 }
@@ -417,7 +429,7 @@ dd {
 
 .modal-description {
   padding: 16px;
-  background: #0e120f;
+  background: var(--surface-raised);
   border: 1px solid var(--border);
   border-radius: 8px;
 }

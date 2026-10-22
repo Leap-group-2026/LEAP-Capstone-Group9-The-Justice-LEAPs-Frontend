@@ -17,7 +17,6 @@ import { readToken, storeTokens } from '../../shared/interceptors/auth.intercept
 export interface LoginCredentials {
   email: string;
   password: string;
-  rememberEmail: boolean;
 }
 
 interface LoginResponse {
@@ -51,6 +50,8 @@ interface AccountResponse {
   account_active: boolean;
 }
 
+type LoginDialog = 'help' | 'privacy' | 'terms' | 'disclosures' | null;
+
 @Component({
   selector: 'app-login',
   standalone: true,
@@ -73,6 +74,7 @@ export class Login {
   showPassword = false;
   readonly isSubmitting = signal(false);
   readonly loginError = signal('');
+  readonly activeDialog = signal<LoginDialog>(null);
 
   toggleTheme(): void {
     this.theme.toggle();
@@ -87,9 +89,16 @@ export class Login {
     password: new FormControl('', {
       nonNullable: true,
       validators: [Validators.required]
-    }),
-    rememberEmail: new FormControl(true, { nonNullable: true })
+    })
   });
+
+  openDialog(dialog: Exclude<LoginDialog, null>): void {
+    this.activeDialog.set(dialog);
+  }
+
+  closeDialog(): void {
+    this.activeDialog.set(null);
+  }
 
   readonly chartPath =
     'M0 308 L30 295 L64 302 L96 273 L126 282 L162 251 ' +

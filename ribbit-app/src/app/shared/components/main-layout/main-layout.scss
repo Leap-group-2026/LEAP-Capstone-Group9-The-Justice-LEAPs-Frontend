@@ -371,6 +371,11 @@ app-session-timer + .profile { margin-left: 0; }
 .nav-item:hover { color: var(--text); background: var(--surface); }
 .nav-item.active { color: var(--accent); background: #18200e; }
 
+:host-context(.light-theme) .nav-item.active {
+  background: #dcebd7;
+  color: #287a3c;
+}
+
 .sidebar-bottom { margin-top: auto; padding-top: 80px; }
 
 .sidebar.collapsed .sidebar-bottom {

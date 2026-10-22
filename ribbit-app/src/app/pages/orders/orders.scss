@@ -330,12 +330,9 @@ th.numeric, td.numeric {
     color: var(--accent);
   }
 
-  &.cancelled {
-    background: #3a2424;
-    color: #ff9b9b;
-  }
-
-  &.rejected {
+  &.cancelled,
+  &.rejected,
+  &.failed {
     background: #3a2424;
     color: #ff9b9b;
   }

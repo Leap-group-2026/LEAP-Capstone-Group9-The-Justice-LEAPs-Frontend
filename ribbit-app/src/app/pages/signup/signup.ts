@@ -58,6 +58,10 @@ export class Signup {
         Validators.minLength(12),
         Validators.pattern(/^(?=(?:.*[A-Z]){2})(?=(?:.*[^A-Za-z0-9_]){2,})[^_]+$/)
       ]
+    }),
+    disclosureAccepted: new FormControl(false, {
+      nonNullable: true,
+      validators: [Validators.requiredTrue]
     })
   });
 
