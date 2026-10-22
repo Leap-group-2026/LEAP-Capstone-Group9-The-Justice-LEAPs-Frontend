@@ -20,7 +20,11 @@ interface NavigationItem {
   standalone: true,
   imports: [CommonModule, SessionTimer, RouterLink, RouterLinkActive],
   templateUrl: './main-layout.html',
-  styleUrls: ['./main-layout.scss']
+  styleUrls: ['./main-layout.scss'],
+  host: {
+    '(document:click)': 'closeProfileMenuOnOutsideClick($event)',
+    '(document:keydown.escape)': 'closeProfileMenu(true)'
+  }
 })
 export class MainLayout implements OnInit, OnDestroy {
   private readonly router = inject(Router);
@@ -60,6 +64,8 @@ export class MainLayout implements OnInit, OnDestroy {
   });
 
   @ViewChild('newsItem') private newsItem?: ElementRef<HTMLElement>;
+  @ViewChild('profileMenu') private profileMenu?: ElementRef<HTMLElement>;
+  @ViewChild('profileButton') private profileButton?: ElementRef<HTMLButtonElement>;
 
   readonly navigation: NavigationItem[] = [
     { id: 'dashboard', label: 'Home', icon: 'dashboard' },
@@ -244,6 +250,24 @@ export class MainLayout implements OnInit, OnDestroy {
 
   toggleTheme(): void {
     this.theme.toggle();
+  }
+
+  // Clicks inside the menu (the toggle button or a menu item) are handled by their own buttons.
+  closeProfileMenuOnOutsideClick(event: MouseEvent): void {
+    if (!this.profileMenuOpen) return;
+    const target = event.target as Node | null;
+    if (target && this.profileMenu?.nativeElement.contains(target)) return;
+    this.closeProfileMenu();
+  }
+
+  // Escape also puts keyboard focus back on the button that opened the menu.
+  closeProfileMenu(returnFocus = false): void {
+    if (!this.profileMenuOpen) return;
+    this.profileMenuOpen = false;
+    this.changeDetectorRef.markForCheck();
+    if (returnFocus) {
+      this.profileButton?.nativeElement.focus();
+    }
   }
 
   navigateFromProfile(destination: 'account' | 'logout'): void {

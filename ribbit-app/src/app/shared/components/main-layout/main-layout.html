@@ -97,8 +97,9 @@
     <app-session-timer />
 
     @if (!isAdminUser) {
-      <div class="profile-menu">
+      <div class="profile-menu" #profileMenu>
         <button
+          #profileButton
           class="profile"
           type="button"
           aria-label="Open account menu"
