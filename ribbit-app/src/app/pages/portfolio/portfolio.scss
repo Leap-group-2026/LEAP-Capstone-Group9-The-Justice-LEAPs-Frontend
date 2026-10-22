@@ -8,6 +8,8 @@
   --subtle: #7c897f;
   --accent: #c1ff39;
   --negative: #f08e85;
+  --table-gain: #69d783;
+  --table-loss: #f07670;
   --sidebar-width: 214px;
   --header-height: 80px;
 
@@ -29,6 +31,8 @@
   --subtle: #6f8975;
   --accent: #287a3c;
   --negative: #c6534d;
+  --table-gain: #287a3c;
+  --table-loss: #a83232;
 
   .app-shell,
   .panel,
@@ -444,6 +448,9 @@ table {
   border-collapse: collapse;
   font-size: 11px;
 }
+
+.table-scroll td.positive { color: var(--table-gain) !important; }
+.table-scroll td.negative { color: var(--table-loss) !important; }
 th, td {
   padding: 16px 14px;
   border-bottom: 1px solid var(--border);

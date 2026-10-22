@@ -109,7 +109,9 @@ export class Account implements OnInit {
       { headers: new HttpHeaders({ Authorization: `Bearer ${token}` }) }
     ).subscribe({
       next: (accounts) => {
-        const activeAccounts = accounts.filter(account => account.accountActive);
+        const activeAccounts = accounts
+          .filter(account => account.accountActive)
+          .sort((left, right) => left.accountId - right.accountId);
         this.accounts.set(activeAccounts);
         this.loadPositionCounts(activeAccounts);
       },

@@ -60,6 +60,7 @@ type LoginDialog = 'help' | 'privacy' | 'terms' | 'disclosures' | null;
   styleUrls: ['./login.scss']
 })
 export class Login {
+  readonly appVersion = environment.version;
   private readonly http = inject(HttpClient);
   private readonly router = inject(Router);
   readonly theme = inject(ThemeService);

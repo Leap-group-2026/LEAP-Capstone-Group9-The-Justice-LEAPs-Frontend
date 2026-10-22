@@ -66,6 +66,7 @@ interface AccountPosition {
   styleUrls: ['./portfolio.scss']
 })
 export class Portfolio implements OnInit {
+  readonly appVersion = environment.version;
   private readonly http = inject(HttpClient);
   private readonly platformId = inject(PLATFORM_ID);
   private readonly router = inject(Router);
