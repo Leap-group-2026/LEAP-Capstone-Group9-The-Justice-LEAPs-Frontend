@@ -19,6 +19,7 @@ import {
 } from '@angular/forms';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router } from '@angular/router';
+import { environment } from '../../environments/environment';
 import { HttpErrorResponse } from '@angular/common/http';
 import {
   EMPTY,
@@ -112,6 +113,7 @@ const wholeShares: ValidatorFn = (
   styleUrls: ['./trade.scss']
 })
 export class Trade {
+  readonly appVersion = environment.version;
   private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
   private readonly instrumentsApi = inject(InstrumentsApiService);

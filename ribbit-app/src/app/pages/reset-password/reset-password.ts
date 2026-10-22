@@ -29,6 +29,7 @@ interface ResetPasswordRequest {
   styleUrls: ['./reset-password.scss']
 })
 export class ResetPassword {
+  readonly appVersion = environment.version;
   private readonly http = inject(HttpClient);
 
   readonly isRequestingCode = signal(false);
