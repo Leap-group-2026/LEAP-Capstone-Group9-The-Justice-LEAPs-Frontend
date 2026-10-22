@@ -264,6 +264,8 @@
                     [class.pending]="order.status === 'Pending'"
                     [class.filled]="order.status === 'Filled'"
                     [class.cancelled]="order.status === 'Cancelled'"
+                    [class.rejected]="order.status === 'Rejected'"
+                    [class.failed]="order.status === 'Failed'"
                   >
                     <i aria-hidden="true"></i>{{ order.status }}
                   </span>

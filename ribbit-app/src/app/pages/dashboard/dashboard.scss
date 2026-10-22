@@ -730,9 +730,11 @@ tfoot td {
     color: var(--accent);
   }
 
-  &.cancelled {
-    background: #202620;
-    color: #a2aca4;
+  &.cancelled,
+  &.rejected,
+  &.failed {
+    background: #3a2424;
+    color: #ff9b9b;
   }
 }
 
