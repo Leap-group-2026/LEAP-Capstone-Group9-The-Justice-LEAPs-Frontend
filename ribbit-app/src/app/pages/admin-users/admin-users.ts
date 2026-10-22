@@ -19,6 +19,8 @@ export class AdminUsers implements OnInit {
   readonly loading = signal(false);
   readonly error = signal('');
   readonly filter = signal('');
+  readonly currentPage = signal(1);
+  readonly pageSize = 5;
 
   // Matches name, email or user ID
   readonly filteredUsers = computed(() => {
@@ -29,6 +31,13 @@ export class AdminUsers implements OnInit {
       user.email.toLowerCase().includes(query) ||
       String(user.userId) === query.replace(/^#/, '')
     );
+  });
+
+  readonly totalPages = computed(() => Math.max(1, Math.ceil(this.filteredUsers().length / this.pageSize)));
+
+  readonly paginatedUsers = computed(() => {
+    const start = (this.currentPage() - 1) * this.pageSize;
+    return this.filteredUsers().slice(start, start + this.pageSize);
   });
 
   ngOnInit(): void {
@@ -43,11 +52,23 @@ export class AdminUsers implements OnInit {
     this.adminApi.getUsers()
       .pipe(finalize(() => this.loading.set(false)))
       .subscribe({
-        next: users => this.users.set(users),
+        next: users => {
+          this.users.set(users);
+          this.currentPage.set(1);
+        },
         error: response => this.error.set(
           response.status === 403 ? 'You do not have permission to view users.' : 'Unable to load users.'
         )
       });
+  }
+
+  setFilter(value: string): void {
+    this.filter.set(value);
+    this.currentPage.set(1);
+  }
+
+  goToPage(page: number): void {
+    this.currentPage.set(Math.min(Math.max(page, 1), this.totalPages()));
   }
 
   // "1990-01-01" -> "Jan 1, 1990", read from the string so no time zone can move it
