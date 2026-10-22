@@ -9,7 +9,7 @@ import { environment } from '../../environments/environment';
 import { readToken } from '../../shared/interceptors/auth.interceptor';
 import { AuthService } from '../../shared/services/auth.service';
 
-type OrderStatus = 'Pending' | 'Filled' | 'Cancelled' | 'Rejected';
+type OrderStatus = 'Pending' | 'Filled' | 'Cancelled' | 'Rejected' | 'Failed';
 type OrderSide = 'Buy' | 'Sell';
 type OrderType = 'Market' | 'Limit';
 
@@ -225,7 +225,7 @@ export class Orders implements OnInit {
     this.orders().filter(o => o.status === 'Filled').length
   );
   readonly cancelledOrders = computed(() => 
-    this.orders().filter(o => o.status === 'Cancelled' || o.status === 'Rejected').length
+    this.orders().filter(o => o.status === 'Cancelled' || o.status === 'Rejected' || o.status === 'Failed').length
   );
 
   ngOnInit(): void {
@@ -432,7 +432,8 @@ export class Orders implements OnInit {
       'Pending': 'pending',
       'Filled': 'filled',
       'Cancelled': 'cancelled',
-      'Rejected': 'rejected'
+      'Rejected': 'rejected',
+      'Failed': 'failed'
     };
     return statusMap[status] || '';
   }
@@ -519,8 +520,9 @@ export class Orders implements OnInit {
       case 'CANCELED':
       case 'CANCELLED':
         return 'Cancelled';
-      case 'DECLINED':
       case 'FAILED':
+        return 'Failed';
+      case 'DECLINED':
       case 'REJECTED':
         return 'Rejected';
       default:

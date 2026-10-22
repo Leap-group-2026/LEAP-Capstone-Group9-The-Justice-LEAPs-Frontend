@@ -48,7 +48,7 @@ interface Order {
   side: 'Buy' | 'Sell';
   quantity: number;
   price: number;
-  status: 'Pending' | 'Filled' | 'Cancelled' | 'Rejected';
+  status: 'Pending' | 'Filled' | 'Cancelled' | 'Rejected' | 'Failed';
   date: string;
   time: string;
 }
@@ -258,8 +258,9 @@ export class Dashboard implements OnInit {
       case 'CANCELED':
       case 'CANCELLED':
         return 'Cancelled';
-      case 'DECLINED':
       case 'FAILED':
+        return 'Failed';
+      case 'DECLINED':
       case 'REJECTED':
         return 'Rejected';
       default:
