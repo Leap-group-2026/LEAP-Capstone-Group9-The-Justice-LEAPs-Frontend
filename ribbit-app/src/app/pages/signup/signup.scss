@@ -78,6 +78,11 @@ form { margin-top: 32px; }
 .hint { margin: 8px 0 0; color: var(--subtle); font-size: 11px; line-height: 1.5; }
 .field-error { margin: 7px 0 0; color: #ff9b9b; font-size: 12px; line-height: 1.45; }
 .form-error { margin-top: 20px; }
+.disclosure { margin-top: 22px; padding: 14px 16px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); }
+.disclosure.invalid { border-color: #ff9b9b; }
+.disclosure-option { display: flex; align-items: flex-start; gap: 10px; color: var(--muted); font-size: 12px; line-height: 1.55; cursor: pointer; }
+.disclosure-option input { flex: 0 0 auto; width: 16px; height: 16px; margin: 1px 0 0; accent-color: var(--accent); }
+.disclosure .field-error { margin-left: 26px; }
 .primary-button { width: 100%; height: 56px; margin-top: 28px; padding: 0 20px; display: flex; align-items: center; justify-content: space-between; border: 0; border-radius: 8px; background: var(--accent); color: var(--background); font-size: 15px; }
 .primary-button:hover:not(:disabled) { background: #d0ff6a; text-decoration: none; }
 .sign-in-link { margin: 28px 0 0; color: var(--muted); font-size: 14px; text-align: center; }

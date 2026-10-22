@@ -212,3 +212,15 @@ $sidebar-collapsed-width: 80px;
     display: none !important;
   }
 }
+
+:host-context(.light-theme) .nav-link.active {
+  background-color: #dcebd7;
+  border: 1px solid #a9c5a8;
+  box-shadow: none;
+  color: #287a3c;
+}
+
+:host-context(.light-theme) .nav-link:focus-visible {
+  outline: 2px solid #287a3c;
+  outline-offset: 2px;
+}

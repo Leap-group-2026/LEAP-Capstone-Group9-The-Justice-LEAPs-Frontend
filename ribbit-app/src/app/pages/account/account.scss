@@ -17,6 +17,18 @@
   -webkit-font-smoothing: antialiased;
 }
 
+:host-context(.light-theme) {
+  --background: #f5f8f3;
+  --surface: #ffffff;
+  --surface-raised: #eaf1e8;
+  --border: #c8d5c5;
+  --text: #18351f;
+  --muted: #52705a;
+  --subtle: #6f8975;
+  --accent: #287a3c;
+  --negative: #c6534d;
+}
+
 * { box-sizing: border-box; }
 button, input, select { font: inherit; }
 button { cursor: pointer; }
@@ -105,9 +117,9 @@ h2 { font-size: 15px; font-weight: 500; }
 
 .panel {
   margin-bottom: 24px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--border);
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--surface);
   overflow: hidden;
 }
 

@@ -76,6 +76,16 @@
             <p class="field-error form-error" role="alert">{{ registrationError() }}</p>
           }
 
+          <div class="disclosure" [class.invalid]="form.controls.disclosureAccepted.touched && form.controls.disclosureAccepted.invalid">
+            <label class="disclosure-option" for="disclosureAccepted">
+              <input id="disclosureAccepted" type="checkbox" formControlName="disclosureAccepted" />
+              <span>By creating a Ribbit account, you agree to provide accurate information, keep your login credentials secure, and use the platform responsibly. You acknowledge that trading involves financial risks, including the potential loss of money, and that Ribbit does not guarantee investment returns. By proceeding, you confirm that you have read and agree to this disclosure.</span>
+            </label>
+            @if (form.controls.disclosureAccepted.touched && form.controls.disclosureAccepted.invalid) {
+              <p class="field-error">Please acknowledge this disclosure to create your account.</p>
+            }
+          </div>
+
           <button class="primary-button" type="submit" [disabled]="isSubmitting()" [attr.aria-busy]="isSubmitting()">
             <span>{{ isSubmitting() ? 'Creating account...' : 'Create account' }}</span>
             <span aria-hidden="true">→</span>
