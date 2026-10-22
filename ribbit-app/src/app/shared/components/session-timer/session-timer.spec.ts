@@ -21,8 +21,8 @@ describe('SessionTimer', () => {
   let navigate: ReturnType<typeof vi.spyOn>;
 
   async function render(token: string | null, refreshToken: string | null = 'refresh-1'): Promise<void> {
-    if (token) localStorage.setItem('token', token);
-    if (refreshToken) localStorage.setItem('refreshToken', refreshToken);
+    if (token) sessionStorage.setItem('token', token);
+    if (refreshToken) sessionStorage.setItem('refreshToken', refreshToken);
     TestBed.configureTestingModule({
       imports: [SessionTimer],
       providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])]
@@ -67,7 +67,7 @@ describe('SessionTimer', () => {
     expect(time()).toBe('29:25');
   });
 
-  it('highlights the last 5 minutes and shows Expired at zero', async () => {
+  it('highlights the final 5 minutes, then logs out when the access token expires', async () => {
     await render(tokenExpiringAt(START + 5 * 60_000 + 2_000));
     expect(el().querySelector('.session-timer')?.classList.contains('warn')).toBe(false);
 
@@ -76,8 +76,23 @@ describe('SessionTimer', () => {
     expect(el().querySelector('.session-timer')?.classList.contains('warn')).toBe(true);
 
     await advance(5 * 60_000);
-    expect(time()).toBe('Expired');
-    expect(el().querySelector('.session-timer')?.classList.contains('expired')).toBe(true);
+    expect(el().querySelector('.session-timer')).toBeNull();
+    expect(sessionStorage.getItem('token')).toBeNull();
+    expect(sessionStorage.getItem('refreshToken')).toBeNull();
+    expect(navigate).toHaveBeenCalledWith(['/login']);
+  });
+
+  it('logs out as soon as the JWT refresh token expires', async () => {
+    await render(
+      tokenExpiringAt(START + 30 * 60_000),
+      tokenExpiringAt(START + 2_000)
+    );
+
+    await advance(2_000);
+
+    expect(sessionStorage.getItem('token')).toBeNull();
+    expect(sessionStorage.getItem('refreshToken')).toBeNull();
+    expect(navigate).toHaveBeenCalledWith(['/login']);
   });
 
   it('shows nothing when signed out', async () => {
@@ -113,7 +128,7 @@ describe('SessionTimer', () => {
 
   it('picks up a token refreshed elsewhere (interceptor or another tab) on the next tick', async () => {
     await render(tokenExpiringAt(START + 60_000));
-    localStorage.setItem('token', tokenExpiringAt(START + 30 * 60_000));
+    sessionStorage.setItem('token', tokenExpiringAt(START + 30 * 60_000));
 
     await advance(1_000);
     expect(time()).toBe('29:59');

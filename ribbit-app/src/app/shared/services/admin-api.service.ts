@@ -4,6 +4,18 @@ import { forkJoin, Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
 import { readToken } from '../interceptors/auth.interceptor';
 
+export interface CreateAdminRequest {
+  email: string;
+  password: string;
+}
+
+export interface CreatedAdmin {
+  adminId: number;
+  role: string;
+  email: string;
+  created_at: string;
+}
+
 export interface AdminOrder {
   order_id: number;
   account_id: number;
@@ -107,6 +119,12 @@ export interface DailyMoneyMoved {
 export class AdminApiService {
   private readonly http = inject(HttpClient);
   private readonly apiBaseUrl = environment.springUrl;
+
+  createAdmin(request: CreateAdminRequest): Observable<CreatedAdmin> {
+    return this.http.post<CreatedAdmin>(`${this.apiBaseUrl}/admin`, request, {
+      headers: this.authHeaders()
+    });
+  }
 
   getOverview(): Observable<AdminOverview> {
     return forkJoin({

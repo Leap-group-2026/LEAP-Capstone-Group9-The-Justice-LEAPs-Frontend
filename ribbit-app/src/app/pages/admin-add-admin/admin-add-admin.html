@@ -1,0 +1,96 @@
+<header class="page-intro">
+  <p class="eyebrow">ADMIN WORKSPACE</p>
+  <h1>Add admin</h1>
+  <p>Create a new administrator account with its own sign-in credentials.</p>
+</header>
+
+<section class="admin-card" aria-labelledby="admin-form-title">
+  <div class="card-heading">
+    <span class="admin-badge" aria-hidden="true">+</span>
+    <div>
+      <h2 id="admin-form-title">Administrator details</h2>
+      <p>The email address will be used to sign in.</p>
+    </div>
+  </div>
+
+  <div class="success-notice" role="status" aria-live="polite">{{ successMessage() }}</div>
+  @if (errorMessage()) {
+    <p class="error-notice" role="alert">{{ errorMessage() }}</p>
+  }
+
+  <form [formGroup]="form" (ngSubmit)="submit()" [attr.aria-busy]="submitting()" novalidate>
+    <fieldset [disabled]="submitting()">
+      <div class="form-field">
+        <label for="admin-email">Email address</label>
+        <input id="admin-email" type="email" formControlName="email" autocomplete="off"
+          placeholder="admin@example.com" required
+          [attr.aria-invalid]="form.controls.email.touched && form.controls.email.invalid"
+          aria-describedby="admin-email-error" />
+        <span id="admin-email-error" class="field-error">
+          @if (form.controls.email.touched && form.controls.email.invalid) {
+            Enter a valid email address.
+          }
+        </span>
+      </div>
+
+      <div class="form-field">
+        <label for="admin-password">Password</label>
+        <div class="password-input">
+        <input id="admin-password" [type]="showPassword() ? 'text' : 'password'" formControlName="password"
+          autocomplete="new-password" required
+          [attr.aria-invalid]="form.controls.password.touched && form.controls.password.invalid"
+          aria-describedby="admin-password-error" />
+          <button type="button" class="password-toggle" (click)="showPassword.set(!showPassword())"
+            [attr.aria-label]="showPassword() ? 'Hide password' : 'Show password'"
+            [attr.aria-pressed]="showPassword()" aria-controls="admin-password">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z" />
+              <circle cx="12" cy="12" r="3" />
+              @if (showPassword()) { <path d="m3 3 18 18" /> }
+            </svg>
+          </button>
+        </div>
+        <span id="admin-password-error" class="field-error">
+          @if (form.controls.password.touched && form.controls.password.invalid) {
+            Enter a password.
+          }
+        </span>
+      </div>
+
+      <div class="form-field">
+        <label for="admin-confirm-password">Confirm password</label>
+        <div class="password-input">
+        <input id="admin-confirm-password" [type]="showConfirmPassword() ? 'text' : 'password'" formControlName="confirmPassword"
+          autocomplete="new-password" required
+          [attr.aria-invalid]="form.controls.confirmPassword.touched && (form.controls.confirmPassword.invalid || form.hasError('passwordMismatch'))"
+          aria-describedby="admin-confirm-password-error" />
+          <button type="button" class="password-toggle" (click)="showConfirmPassword.set(!showConfirmPassword())"
+            [attr.aria-label]="showConfirmPassword() ? 'Hide confirm password' : 'Show confirm password'"
+            [attr.aria-pressed]="showConfirmPassword()" aria-controls="admin-confirm-password">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z" />
+              <circle cx="12" cy="12" r="3" />
+              @if (showConfirmPassword()) { <path d="m3 3 18 18" /> }
+            </svg>
+          </button>
+        </div>
+        <span id="admin-confirm-password-error" class="field-error">
+          @if (form.controls.confirmPassword.touched) {
+            @if (form.controls.confirmPassword.hasError('required')) {
+              Confirm the password.
+            } @else if (form.hasError('passwordMismatch')) {
+              Passwords do not match.
+            }
+          }
+        </span>
+      </div>
+
+      <div class="form-footer">
+        <p>Creates a separate account. You will stay signed in as the current admin.</p>
+        <button type="submit" [disabled]="submitting()">
+          {{ submitting() ? 'Creating admin…' : 'Create admin' }}
+        </button>
+      </div>
+    </fieldset>
+  </form>
+</section>

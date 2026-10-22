@@ -14,6 +14,7 @@ import { AdminOrders } from './pages/admin-orders/admin-orders';
 import { AdminTransactions } from './pages/admin-transactions/admin-transactions';
 import { AdminFrozenAccounts } from './pages/admin-frozen-accounts/admin-frozen-accounts';
 import { AdminUsers } from './pages/admin-users/admin-users';
+import { AdminAddAdmin } from './pages/admin-add-admin/admin-add-admin';
 import { TradingTrends } from './pages/trading-trends/trading-trends';
 import { RibbitNews } from './pages/ribbit-news/ribbit-news';
 import { adminGuard } from './shared/guards/admin.guard';
@@ -40,6 +41,7 @@ export const routes: Routes = [
   { path: 'admin/transactions', component: AdminTransactions, canActivate: [authGuard, adminGuard] },
   { path: 'admin/frozen-accounts', component: AdminFrozenAccounts, canActivate: [authGuard, adminGuard] },
   { path: 'admin/users', component: AdminUsers, canActivate: [authGuard, adminGuard] },
+  { path: 'admin/add-admin', component: AdminAddAdmin, canActivate: [authGuard, adminGuard] },
   { path: 'trading-trends', component: TradingTrends, canActivate: [authGuard] },
   { path: '**', redirectTo: '/login' },
 ];
