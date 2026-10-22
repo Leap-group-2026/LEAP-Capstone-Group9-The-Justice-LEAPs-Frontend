@@ -66,6 +66,7 @@ interface PerformancePoint {
   styleUrls: ['./dashboard.scss']
 })
 export class Dashboard implements OnInit {
+  readonly appVersion = environment.version;
   private readonly http = inject(HttpClient);
   private readonly router = inject(Router);
   private readonly authService = inject(AuthService);
