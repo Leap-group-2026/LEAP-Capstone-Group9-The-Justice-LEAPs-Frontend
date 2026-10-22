@@ -36,12 +36,14 @@ export class MainLayout implements OnInit, OnDestroy {
 
   sidebarOpen = false;
   sidebarCollapsed = false;
+  profileMenuOpen = false;
   currentPage = 'dashboard';
   news: MarketNews[] = [];
   activeNewsIndex = 0;
   newsStatus: 'loading' | 'ready' | 'unavailable' = 'loading';
   newsTransition: 'next' | 'previous' | '' = '';
   marketOpen = false;
+  readonly supportModalOpen = signal(false);
   readonly frozenNoticeOpen = signal(false);
   readonly frozenNoticeAccountId = signal<number | null>(null);
   private frozenNoticeShownAccountId: number | null = null;
@@ -169,6 +171,14 @@ export class MainLayout implements OnInit, OnDestroy {
     this.frozenNoticeOpen.set(false);
   }
 
+  openSupportModal(): void {
+    this.supportModalOpen.set(true);
+  }
+
+  closeSupportModal(): void {
+    this.supportModalOpen.set(false);
+  }
+
   loadNews(): void {
     this.instrumentsApi.getNews()
       .pipe(takeUntil(this.destroy$))
@@ -234,6 +244,11 @@ export class MainLayout implements OnInit, OnDestroy {
 
   toggleTheme(): void {
     this.theme.toggle();
+  }
+
+  navigateFromProfile(destination: 'account' | 'logout'): void {
+    this.profileMenuOpen = false;
+    this.navigate(destination);
   }
 
   ngOnDestroy(): void {

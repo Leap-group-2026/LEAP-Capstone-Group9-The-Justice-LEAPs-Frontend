@@ -97,19 +97,36 @@
     <app-session-timer />
 
     @if (!isAdminUser) {
-      <button
-        class="profile"
-        type="button"
-        aria-label="Open account"
-        (click)="navigate('account')"
-      >
-        <span class="avatar">{{ user.initials }}</span>
-        <span class="profile-details">
-          <strong>{{ user.name }}</strong>
-          <small>ACCT · •••• {{ user.accountEnding }}</small>
-        </span>
-        <span aria-hidden="true">⌄</span>
-      </button>
+      <div class="profile-menu">
+        <button
+          class="profile"
+          type="button"
+          aria-label="Open account menu"
+          aria-controls="profile-menu"
+          [attr.aria-expanded]="profileMenuOpen"
+          (click)="profileMenuOpen = !profileMenuOpen"
+        >
+          <span class="avatar">{{ user.initials }}</span>
+          <span class="profile-details">
+            <strong>{{ user.name }}</strong>
+            <small>ACCT · •••• {{ user.accountEnding }}</small>
+          </span>
+          <span aria-hidden="true">⌄</span>
+        </button>
+
+        @if (profileMenuOpen) {
+          <div id="profile-menu" class="profile-dropdown" role="menu">
+            <button type="button" role="menuitem" (click)="navigateFromProfile('account')">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path [attr.d]="icons['account']"/></svg>
+              <span>Settings</span>
+            </button>
+            <button type="button" role="menuitem" (click)="navigateFromProfile('logout')">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path [attr.d]="icons['logout']"/></svg>
+              <span>Logout</span>
+            </button>
+          </div>
+        }
+      </div>
     }
   </header>
 
@@ -172,7 +189,7 @@
           }
         </div>
 
-        <button class="nav-item" type="button" (click)="navigate('account')" [title]="sidebarCollapsed ? 'Help & support' : ''">
+        <button class="nav-item" type="button" (click)="openSupportModal()" [title]="sidebarCollapsed ? 'Help & support' : ''">
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path [attr.d]="icons['support']"/>
           </svg>
@@ -219,6 +236,29 @@
       </div>
       <div class="modal-actions">
         <button class="button primary" type="button" (click)="closeFrozenNotice()">Close</button>
+      </div>
+    </div>
+  }
+
+  @if (supportModalOpen()) {
+    <div class="support-modal-backdrop" (click)="closeSupportModal()"></div>
+    <div class="support-modal" role="dialog" aria-modal="true" aria-labelledby="support-modal-title">
+      <div class="modal-header">
+        <div>
+          <span class="support-modal-eyebrow">RIBBIT SUPPORT</span>
+          <h2 id="support-modal-title">Contact customer support at:</h2>
+        </div>
+        <button class="modal-close" type="button" (click)="closeSupportModal()" aria-label="Close">×</button>
+      </div>
+      <div class="modal-body">
+        <a href="mailto:ribbittrade@gmail.com">
+          <span class="support-contact-label">Email</span>
+          <span>ribbittrade@gmail.com</span>
+        </a>
+        <a href="tel:4328389023">
+          <span class="support-contact-label">Phone number</span>
+          <span>4328389023</span>
+        </a>
       </div>
     </div>
   }
