@@ -21,8 +21,8 @@ describe('SessionTimer', () => {
   let navigate: ReturnType<typeof vi.spyOn>;
 
   async function render(token: string | null, refreshToken: string | null = 'refresh-1'): Promise<void> {
-    if (token) localStorage.setItem('token', token);
-    if (refreshToken) localStorage.setItem('refreshToken', refreshToken);
+    if (token) sessionStorage.setItem('token', token);
+    if (refreshToken) sessionStorage.setItem('refreshToken', refreshToken);
     TestBed.configureTestingModule({
       imports: [SessionTimer],
       providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])]
@@ -113,7 +113,7 @@ describe('SessionTimer', () => {
 
   it('picks up a token refreshed elsewhere (interceptor or another tab) on the next tick', async () => {
     await render(tokenExpiringAt(START + 60_000));
-    localStorage.setItem('token', tokenExpiringAt(START + 30 * 60_000));
+    sessionStorage.setItem('token', tokenExpiringAt(START + 30 * 60_000));
 
     await advance(1_000);
     expect(time()).toBe('29:59');

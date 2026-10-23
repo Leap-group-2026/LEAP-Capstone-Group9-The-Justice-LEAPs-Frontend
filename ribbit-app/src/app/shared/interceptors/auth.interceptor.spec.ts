@@ -79,7 +79,7 @@ describe('authInterceptor', () => {
   });
 
   it('keeps the session when one endpoint rejects a still-valid token', () => {
-    localStorage.setItem('token', validToken);
+    sessionStorage.setItem('token', validToken);
 
     const error = failWith401(`${environment.springUrl}/instruments/NVDA`);
 
@@ -89,7 +89,7 @@ describe('authInterceptor', () => {
   });
 
   it('logs out and redirects when the token has expired', () => {
-    localStorage.setItem('token', expiredToken);
+    sessionStorage.setItem('token', expiredToken);
 
     const error = failWith401(`${environment.springUrl}/user/accounts`);
 
@@ -153,8 +153,8 @@ describe('authInterceptor with BR-03 sessions', () => {
     ({ body: { error: code, message: 'x' }, opts: { status, statusText: 'Error' } });
 
   it('refreshes on token_expired, stores the new pair and retries with the new token', async () => {
-    localStorage.setItem('token', validToken);
-    localStorage.setItem('refreshToken', 'refresh-1');
+    sessionStorage.setItem('token', validToken);
+    sessionStorage.setItem('refreshToken', 'refresh-1');
     let result: unknown;
     http.get(accounts).subscribe(r => (result = r));
 
@@ -176,8 +176,8 @@ describe('authInterceptor with BR-03 sessions', () => {
   });
 
   it('sends one refresh for several requests that expire together', async () => {
-    localStorage.setItem('token', validToken);
-    localStorage.setItem('refreshToken', 'refresh-1');
+    sessionStorage.setItem('token', validToken);
+    sessionStorage.setItem('refreshToken', 'refresh-1');
     http.get(`${accounts}?a`).subscribe();
     http.get(`${accounts}?b`).subscribe();
 
@@ -193,8 +193,8 @@ describe('authInterceptor with BR-03 sessions', () => {
   });
 
   it('logs out when the refresh token is refused', async () => {
-    localStorage.setItem('token', validToken);
-    localStorage.setItem('refreshToken', 'refresh-1');
+    sessionStorage.setItem('token', validToken);
+    sessionStorage.setItem('refreshToken', 'refresh-1');
     let error: HttpErrorResponse | undefined;
     http.get(accounts).subscribe({ error: e => (error = e) });
 
@@ -211,8 +211,8 @@ describe('authInterceptor with BR-03 sessions', () => {
   });
 
   it('keeps the session when the auth service cannot be reached during a refresh', async () => {
-    localStorage.setItem('token', validToken);
-    localStorage.setItem('refreshToken', 'refresh-1');
+    sessionStorage.setItem('token', validToken);
+    sessionStorage.setItem('refreshToken', 'refresh-1');
     let error: HttpErrorResponse | undefined;
     http.get(accounts).subscribe({ error: e => (error = e) });
 
@@ -229,8 +229,8 @@ describe('authInterceptor with BR-03 sessions', () => {
 
   it.each(['session_revoked', 'session_idle', 'session_expired', 'session_invalid', 'token_invalid'])(
     'logs out at once on %s, even though the JWT has not expired', code => {
-      localStorage.setItem('token', validToken);
-      localStorage.setItem('refreshToken', 'refresh-1');
+      sessionStorage.setItem('token', validToken);
+      sessionStorage.setItem('refreshToken', 'refresh-1');
       http.get(accounts).subscribe({ error: () => undefined });
 
       const ended = springError(code);
@@ -245,8 +245,8 @@ describe('authInterceptor with BR-03 sessions', () => {
     const { AuthService } = await import('../services/auth.service');
     const sessionData = ['name', 'email', 'address', 'userEmail', 'accountId', 'balance',
       'tradeType', 'portfolioSize', 'createdAt', 'accountActive', 'adminRole'];
-    localStorage.setItem('token', validToken);
-    localStorage.setItem('refreshToken', 'refresh-1');
+    sessionStorage.setItem('token', validToken);
+    sessionStorage.setItem('refreshToken', 'refresh-1');
     for (const key of sessionData) {
       localStorage.setItem(key, `value-${key}`);
     }
@@ -269,7 +269,7 @@ describe('authInterceptor with BR-03 sessions', () => {
   });
 
   it('reads the code from a text response too', () => {
-    localStorage.setItem('token', validToken);
+    sessionStorage.setItem('token', validToken);
     http.get(accounts, { responseType: 'text' }).subscribe({ error: () => undefined });
 
     controller.expectOne(accounts).flush(JSON.stringify({ error: 'session_revoked', message: 'x' }),
@@ -279,7 +279,7 @@ describe('authInterceptor with BR-03 sessions', () => {
   });
 
   it('never ends the session on 503 session_store_unavailable or 403', () => {
-    localStorage.setItem('token', validToken);
+    sessionStorage.setItem('token', validToken);
     http.get(`${accounts}?503`).subscribe({ error: () => undefined });
     http.get(`${accounts}?403`).subscribe({ error: () => undefined });
 
@@ -302,8 +302,8 @@ describe('AuthService.logout', () => {
     const { AuthService } = await import('../services/auth.service');
     TestBed.configureTestingModule({ providers: [provideHttpClient(), provideHttpClientTesting()] });
     const controller = TestBed.inject(HttpTestingController);
-    localStorage.setItem('token', validToken);
-    localStorage.setItem('refreshToken', 'refresh-1');
+    sessionStorage.setItem('token', validToken);
+    sessionStorage.setItem('refreshToken', 'refresh-1');
     localStorage.setItem('email', 'jo@example.com');
     localStorage.setItem('balance', '1000');
 

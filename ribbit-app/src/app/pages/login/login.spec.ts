@@ -133,7 +133,7 @@ describe('Login', () => {
 
   it('a wrong password leaves the current session alone', () => {
     const existing = makeToken({ sub: '7', role: 'admin', exp: Math.floor(Date.now() / 1000) + 1800 });
-    localStorage.setItem('token', existing);
+    sessionStorage.setItem('token', existing);
     localStorage.setItem('adminRole', 'admin');
 
     const login = TestBed.runInInjectionContext(() => new Login());

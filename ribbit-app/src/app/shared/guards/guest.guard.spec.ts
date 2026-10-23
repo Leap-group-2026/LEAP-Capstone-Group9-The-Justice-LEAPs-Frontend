@@ -41,29 +41,29 @@ describe('guestGuard', () => {
   });
 
   it('lets a visitor with an expired token log in again', () => {
-    localStorage.setItem('token', token('client', -60));
+    sessionStorage.setItem('token', token('client', -60));
     expect(run()).toBe(true);
   });
 
   it('sends a signed-in client to the dashboard', () => {
-    localStorage.setItem('token', token('client'));
+    sessionStorage.setItem('token', token('client'));
     expect(target(run())).toBe('/dashboard');
   });
 
   it('sends a signed-in admin to the admin page', () => {
-    localStorage.setItem('token', token('admin'));
+    sessionStorage.setItem('token', token('admin'));
     localStorage.setItem('adminRole', 'admin');
     expect(target(run())).toBe('/admin');
   });
 
   it('sends a signed-in reporter to the reporter page', () => {
-    localStorage.setItem('token', token('admin'));
+    sessionStorage.setItem('token', token('admin'));
     localStorage.setItem('adminRole', 'analyst');
     expect(target(run())).toBe('/reporter');
   });
 
   it('allows the page while prerendering', () => {
-    localStorage.setItem('token', token('client'));
+    sessionStorage.setItem('token', token('client'));
     expect(run('server')).toBe(true);
   });
 
