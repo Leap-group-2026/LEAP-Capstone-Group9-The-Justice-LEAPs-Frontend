@@ -376,7 +376,7 @@ dd {
 }
 
 .chart-axis-label {
-  fill: #ffffff;
+  fill: var(--muted);
   font-family: inherit;
   font-weight: 400;
   font-style: normal;
