@@ -122,7 +122,6 @@ describe('authInterceptor with BR-03 sessions', () => {
   let navigate: ReturnType<typeof vi.spyOn>;
   const accounts = `${environment.springUrl}/user/accounts`;
   const refreshUrl = `${environment.authUrl}/auth/refresh`;
-  const newToken = makeToken({ sub: '42', role: 'client', exp: NOW_S + 1800, v: 2 });
   // Lets the Web Lock (when the browser has one) and promise hops run before asserting
   const settle = () => new Promise(resolve => setTimeout(resolve, 0));
 
@@ -152,47 +151,7 @@ describe('authInterceptor with BR-03 sessions', () => {
   const springError = (code: string, status = 401) =>
     ({ body: { error: code, message: 'x' }, opts: { status, statusText: 'Error' } });
 
-  it('refreshes on token_expired, stores the new pair and retries with the new token', async () => {
-    sessionStorage.setItem('token', validToken);
-    sessionStorage.setItem('refreshToken', 'refresh-1');
-    let result: unknown;
-    http.get(accounts).subscribe(r => (result = r));
-
-    const first = springError('token_expired');
-    controller.expectOne(accounts).flush(first.body, first.opts);
-    await settle();
-    const refresh = controller.expectOne(refreshUrl);
-    expect(refresh.request.body).toEqual({ refreshToken: 'refresh-1' });
-    refresh.flush({ accessToken: newToken, refreshToken: 'refresh-2' });
-    await settle();
-    const retry = controller.expectOne(accounts);
-    expect(retry.request.headers.get('Authorization')).toBe(`Bearer ${newToken}`);
-    retry.flush([{ accountId: 1 }]);
-
-    expect(result).toEqual([{ accountId: 1 }]);
-    expect(sessionStorage.getItem('token')).toBe(newToken);
-    expect(sessionStorage.getItem('refreshToken')).toBe('refresh-2');
-    expect(navigate).not.toHaveBeenCalled();
-  });
-
-  it('sends one refresh for several requests that expire together', async () => {
-    sessionStorage.setItem('token', validToken);
-    sessionStorage.setItem('refreshToken', 'refresh-1');
-    http.get(`${accounts}?a`).subscribe();
-    http.get(`${accounts}?b`).subscribe();
-
-    const expired = springError('token_expired');
-    controller.expectOne(`${accounts}?a`).flush(expired.body, expired.opts);
-    controller.expectOne(`${accounts}?b`).flush(expired.body, expired.opts);
-    await settle();
-    controller.expectOne(refreshUrl).flush({ accessToken: newToken, refreshToken: 'refresh-2' });
-    await settle();
-
-    controller.expectOne(`${accounts}?a`).flush([]);
-    controller.expectOne(`${accounts}?b`).flush([]);
-  });
-
-  it('logs out when the refresh token is refused', async () => {
+  it('clears the session instead of refreshing after the access token expires', async () => {
     sessionStorage.setItem('token', validToken);
     sessionStorage.setItem('refreshToken', 'refresh-1');
     let error: HttpErrorResponse | undefined;
@@ -201,30 +160,28 @@ describe('authInterceptor with BR-03 sessions', () => {
     const expired = springError('token_expired');
     controller.expectOne(accounts).flush(expired.body, expired.opts);
     await settle();
-    controller.expectOne(refreshUrl).flush({ message: 'Session has ended' }, { status: 401, statusText: 'Unauthorized' });
-    await settle();
 
     expect(error?.status).toBe(401);
+    expect(controller.match(refreshUrl)).toHaveLength(0);
     expect(sessionStorage.getItem('token')).toBeNull();
     expect(sessionStorage.getItem('refreshToken')).toBeNull();
     expect(navigate).toHaveBeenCalledWith(['/login']);
   });
 
-  it('keeps the session when the auth service cannot be reached during a refresh', async () => {
+  it('logs out without refreshing when the JWT refresh token is already expired', async () => {
+    const expiredRefreshToken = makeToken({ sub: '42', exp: NOW_S - 60 });
     sessionStorage.setItem('token', validToken);
-    sessionStorage.setItem('refreshToken', 'refresh-1');
-    let error: HttpErrorResponse | undefined;
-    http.get(accounts).subscribe({ error: e => (error = e) });
+    sessionStorage.setItem('refreshToken', expiredRefreshToken);
+    http.get(accounts).subscribe({ error: () => undefined });
 
     const expired = springError('token_expired');
     controller.expectOne(accounts).flush(expired.body, expired.opts);
     await settle();
-    controller.expectOne(refreshUrl).flush('Bad Gateway', { status: 502, statusText: 'Bad Gateway' });
-    await settle();
 
-    expect(error?.status).toBe(401);
-    expect(sessionStorage.getItem('refreshToken')).toBe('refresh-1');
-    expect(navigate).not.toHaveBeenCalled();
+    expect(controller.match(refreshUrl)).toHaveLength(0);
+    expect(sessionStorage.getItem('token')).toBeNull();
+    expect(sessionStorage.getItem('refreshToken')).toBeNull();
+    expect(navigate).toHaveBeenCalledWith(['/login']);
   });
 
   it.each(['session_revoked', 'session_idle', 'session_expired', 'session_invalid', 'token_invalid'])(

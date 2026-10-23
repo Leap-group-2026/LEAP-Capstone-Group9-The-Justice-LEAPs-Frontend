@@ -296,6 +296,11 @@ svg {
   font-size: 11px;
 }
 
+:host-context(.light-theme) .avatar {
+  background: #dcebd7;
+  color: #287a3c;
+}
+
 /* The session timer takes the free space (margin-left: auto), so the profile sits right after it. */
 app-session-timer + .profile { margin-left: 0; }
 

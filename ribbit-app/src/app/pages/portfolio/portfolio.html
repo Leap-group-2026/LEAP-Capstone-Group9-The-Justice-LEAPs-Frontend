@@ -85,13 +85,11 @@
               Loading...
             } @else if (holdings.length === 0) {
               {{ availableCash | currency }}
-            } @else if (portfolioValueLoading) {
-              Loading...
             } @else {
               {{ portfolioValue | currency }}
             }
           </strong>
-          <p>Holdings + available cash</p>
+            <p>Investments + available cash · foreign currency excluded</p>
         </article>
 
         <article class="summary-card">
@@ -128,7 +126,7 @@
         <div class="panel-heading">
           <div>
             <h2 id="allocation-title">Portfolio allocation</h2>
-            <p>Based on total portfolio value, including cash.</p>
+              <p>Investments and available cash; foreign currency is excluded.</p>
           </div>
           <span class="meta-label">USD</span>
         </div>
@@ -147,8 +145,6 @@
                   ...
                 } @else if (holdings.length === 0) {
                   {{ availableCash | currency:'USD':'symbol':'1.0-0' }}
-                } @else if (portfolioValueLoading) {
-                  ...
                 } @else {
                   {{ portfolioValue | currency:'USD':'symbol':'1.0-0' }}
                 }
@@ -157,7 +153,8 @@
             </div>
           </div>
 
-          <div class="allocation-legend">
+          <div class="allocation-legend" role="group" aria-labelledby="top-holdings-heading">
+            <h3 id="top-holdings-heading" class="allocation-heading">Top Holdings</h3>
             @for (item of displayedAllocation; track item.label) {
               <div class="allocation-row">
                 <span class="allocation-color" [style.background]="item.color"></span>
@@ -186,7 +183,7 @@
         </div>
 
         <p class="panel-note">
-          Allocation always reflects your full portfolio, not the filtered table.
+           Allocation reflects investments and cash, not the filtered table or foreign currency.
         </p>
       </section>
 
@@ -251,7 +248,6 @@
                 <option value="all">All holdings</option>
                 <option value="stocks">Stocks</option>
                 <option value="crypto">Crypto</option>
-                <option value="forex">Forex</option>
               </select>
             </div>
 
@@ -324,9 +320,9 @@
                       <td class="numeric">{{ holding.currentPrice | currency }}</td>
                       <td class="numeric">{{ marketValue(holding) | currency }}</td>
                       @if (isForex(holding)) {
-                        <td class="numeric" aria-label="Not applicable"></td>
-                        <td class="numeric" aria-label="Not applicable"></td>
-                      } @else {
+                          <td class="numeric" aria-label="Not applicable"></td>
+                          <td class="numeric" aria-label="Not applicable"></td>
+                        } @else {
                         <td
                           class="numeric"
                           [class.positive]="gain(holding) >= 0"
@@ -403,10 +399,46 @@
           }
         }
       </section>
+
+      <section class="panel foreign-currency-panel" aria-labelledby="foreign-currency-title">
+        <div class="panel-heading">
+          <div>
+            <h2 id="foreign-currency-title">Foreign currency</h2>
+            <p>Held currencies are shown separately and excluded from your portfolio total and allocation.</p>
+          </div>
+          <span class="meta-label">SEPARATE</span>
+        </div>
+
+        @if (foreignCurrencyHoldings.length > 0) {
+          <div class="foreign-currency-list">
+            @for (holding of foreignCurrencyHoldings; track holding.symbol) {
+              <article class="foreign-currency-row">
+                <div class="foreign-currency-name">
+                  <span class="instrument-mark" aria-hidden="true">{{ holding.symbol[0] }}</span>
+                  <div>
+                    <strong>{{ holding.symbol }}</strong>
+                    <small>{{ holding.name }}</small>
+                  </div>
+                </div>
+                <div class="foreign-currency-detail">
+                  <span>Total price</span>
+                  <strong>{{ marketValue(holding) | currency }}</strong>
+                </div>
+                <div class="foreign-currency-detail">
+                  <span>Exchange rate</span>
+                  <strong>{{ holding.currentPrice | number:'1.2-6' }}</strong>
+                </div>
+              </article>
+            }
+          </div>
+        } @else {
+          <p class="foreign-currency-empty">You don't have any foreign currency holdings yet.</p>
+        }
+      </section>
     }
 
     <footer class="page-footer">
-      <p>ALL VALUES IN USD · INVESTING INVOLVES RISK · VERSION {{ appVersion }}</p>
+      <p>PORTFOLIO VALUES IN USD · FOREIGN CURRENCY SHOWN SEPARATELY · INVESTING INVOLVES RISK · VERSION {{ appVersion }}</p>
       <span>Demo account</span>
     </footer>
 

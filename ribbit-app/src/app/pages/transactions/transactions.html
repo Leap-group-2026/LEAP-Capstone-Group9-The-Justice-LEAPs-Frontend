@@ -139,6 +139,7 @@
             <th scope="col">Type</th>
             <th scope="col">Description</th>
             <th scope="col" class="numeric">Amount</th>
+            <th scope="col">Currency</th>
             <th scope="col">Status</th>
             <th scope="col" class="actions-col">Actions</th>
           </tr>
@@ -160,6 +161,7 @@
               <td class="numeric" [class.positive]="transaction.amount >= 0" [class.negative]="transaction.amount < 0">
                 {{ getAmountDisplay(transaction.amount) }}
               </td>
+              <td>{{ (transaction.currency ?? '').replace('/', ' -> ') }}</td>
               <td>
                 <span class="badge" [class]="getStatusBadgeClass(transaction.status)">
                   <i></i>
@@ -183,7 +185,7 @@
 
             @if (isTransactionExpanded(transaction.id)) {
               <tr class="details-row">
-                <td colspan="7">
+                <td colspan="8">
                   <div class="transaction-details">
                     <div class="details-grid">
                       <div class="detail-item">

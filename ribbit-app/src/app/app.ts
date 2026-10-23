@@ -45,6 +45,7 @@ export class App {
     };
     if (path === 'admin' && adminSection === 'orders') return 'Admin Orders';
     if (path === 'admin' && adminSection === 'transactions') return 'Admin Transactions';
+    if (path === 'admin' && adminSection === 'add-admin') return 'Admin / Add admin';
     return titleMap[path] || 'Dashboard';
   }
 }
