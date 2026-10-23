@@ -8,6 +8,7 @@ import { AuthService, StoredUser } from '../../services/auth.service';
 import { AccountContextService, accountLabel } from '../../services/account-context.service';
 import { InstrumentsApiService, MarketNews } from '../../services/instruments-api.service';
 import { ThemeService } from '../../services/theme.service';
+import { TutorialService } from '../../services/tutorial.service';
 
 interface NavigationItem {
   id: string;
@@ -35,6 +36,7 @@ export class MainLayout implements OnInit, OnDestroy {
   // "Savings · #8", or "#8" when unnamed
   readonly accountLabel = accountLabel;
   readonly theme = inject(ThemeService);
+  readonly tutorial = inject(TutorialService);
   private readonly destroy$ = new Subject<void>();
 
   @Input() pageTitle = '';
@@ -139,6 +141,7 @@ export class MainLayout implements OnInit, OnDestroy {
 
     if (!this.authService.isAdmin() && !this.authService.isReporter()) {
       this.accountContext.loadAccounts();
+      this.tutorial.startForFirstLogin(this.user.email);
     }
     this.updateCurrentPage();
     this.updateMarketStatus();
@@ -276,6 +279,11 @@ export class MainLayout implements OnInit, OnDestroy {
   navigateFromProfile(destination: 'account' | 'logout'): void {
     this.profileMenuOpen = false;
     this.navigate(destination);
+  }
+
+  openTutorialFromProfile(): void {
+    this.profileMenuOpen = false;
+    this.tutorial.start();
   }
 
   ngOnDestroy(): void {

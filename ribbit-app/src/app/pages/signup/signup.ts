@@ -10,6 +10,7 @@ import {
 import { RouterLink } from '@angular/router';
 import { finalize, timeout } from 'rxjs';
 import { environment } from '../../environments/environment';
+import { TutorialService } from '../../shared/services/tutorial.service';
 
 interface RegistrationResponse {
   message?: string;
@@ -24,6 +25,7 @@ interface RegistrationResponse {
 })
 export class Signup {
   private readonly http = inject(HttpClient);
+  private readonly tutorial = inject(TutorialService);
 
   readonly isSubmitting = signal(false);
   readonly registrationError = signal('');
@@ -94,7 +96,10 @@ export class Signup {
         finalize(() => this.isSubmitting.set(false))
       )
       .subscribe({
-        next: () => this.registrationComplete.set(true),
+        next: () => {
+          this.tutorial.markRegistrationForTutorial(body.email);
+          this.registrationComplete.set(true);
+        },
         error: (error) => {
           const message = typeof error.error === 'string'
             ? error.error

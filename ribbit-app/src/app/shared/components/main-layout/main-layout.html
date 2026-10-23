@@ -16,6 +16,7 @@
     <button
       class="brand"
       type="button"
+      [class.tutorial-target]="tutorial.isOpen() && tutorial.currentStep().route === null"
       (click)="toggleTheme()"
       [attr.aria-label]="theme.isLight() ? 'Switch to dark mode' : 'Switch to light mode'"
       [title]="theme.isLight() ? 'Switch to dark mode' : 'Switch to light mode'"
@@ -120,6 +121,10 @@
               <svg viewBox="0 0 24 24" aria-hidden="true"><path [attr.d]="icons['account']"/></svg>
               <span>Settings</span>
             </button>
+            <button type="button" role="menuitem" (click)="openTutorialFromProfile()">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path [attr.d]="icons['support']"/></svg>
+              <span>Ribbit tutorial</span>
+            </button>
             <button type="button" role="menuitem" (click)="navigateFromProfile('logout')">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path [attr.d]="icons['logout']"/></svg>
               <span>Logout</span>
@@ -165,6 +170,7 @@
           <button
             class="nav-item"
             type="button"
+            [class.tutorial-target]="tutorial.isOpen() && tutorial.currentStep().route === '/' + item.id"
               [routerLink]="'/' + item.id"
               routerLinkActive="active"
               [routerLinkActiveOptions]="{ paths: 'exact', queryParams: 'ignored', fragment: 'ignored', matrixParams: 'ignored' }"
@@ -261,5 +267,30 @@
         </a>
       </div>
     </div>
+  }
+
+  @if (tutorial.isOpen()) {
+    <div class="tutorial-backdrop" aria-hidden="true"></div>
+    <section class="tutorial-card" role="dialog" aria-modal="true" aria-labelledby="tutorial-title" aria-describedby="tutorial-description">
+      <div class="tutorial-card-topline">
+        <span>RIBBIT QUICK TOUR</span>
+        <button type="button" class="tutorial-close" aria-label="Close tutorial" (click)="tutorial.close()">×</button>
+      </div>
+      <div class="tutorial-progress" aria-hidden="true">
+        <span [style.width.%]="((tutorial.stepIndex() + 1) / tutorial.steps.length) * 100"></span>
+      </div>
+      <p class="tutorial-step-count">STEP {{ tutorial.stepIndex() + 1 }} OF {{ tutorial.steps.length }}</p>
+      <h2 id="tutorial-title">{{ tutorial.currentStep().title }}</h2>
+      <p id="tutorial-description">{{ tutorial.currentStep().description }}</p>
+      <div class="tutorial-actions">
+        <button type="button" class="tutorial-skip" (click)="tutorial.close()">Skip tour</button>
+        <div>
+          <button type="button" class="tutorial-previous" [disabled]="tutorial.stepIndex() === 0" (click)="tutorial.previous()">Back</button>
+          <button type="button" class="tutorial-next" (click)="tutorial.next()">
+            {{ tutorial.stepIndex() === tutorial.steps.length - 1 ? 'Finish' : 'Next' }}
+          </button>
+        </div>
+      </div>
+    </section>
   }
 </div>
