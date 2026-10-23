@@ -363,6 +363,7 @@ h1 {
 .donut-center small { color: var(--muted); font-size: 11px; }
 
 .allocation-legend { min-width: 0; }
+.allocation-heading { font-size: 16px; font-weight: 500; color: var(--text); margin: 0; margin-bottom: 12px; }
 .allocation-row {
   display: grid;
   grid-template-columns: 8px minmax(0, 1fr) auto;

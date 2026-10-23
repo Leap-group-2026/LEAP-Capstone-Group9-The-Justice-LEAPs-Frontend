@@ -24,7 +24,7 @@ export type PortfolioDestination =
   | 'logout';
 
 type HoldingFilter = 'all' | 'stocks' | 'crypto';
-const MAX_ALLOCATION_POSITIONS = 8;
+const MAX_ALLOCATION_POSITIONS = 5;
 
 export interface Holding {
   symbol: string;
