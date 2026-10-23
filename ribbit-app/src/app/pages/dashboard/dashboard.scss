@@ -10,6 +10,8 @@
   --subtle: #7c897f;
   --accent: #c1ff39;
   --negative: #f08e85;
+  --table-gain: #69d783;
+  --table-loss: #f07670;
   --sidebar-width: 214px;
   --header-height: 80px;
 
@@ -952,3 +954,11 @@ tfoot td {
     background: linear-gradient(120deg, #e7f1e4, #ffffff);
   }
 }
+
+:host-context(.light-theme) {
+  --table-gain: #287a3c;
+  --table-loss: #a83232;
+}
+
+.table-scroll td.positive { color: var(--table-gain) !important; }
+.table-scroll td.negative { color: var(--table-loss) !important; }
