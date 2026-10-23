@@ -63,14 +63,16 @@
     @if (pagedTransactions.length) {
       <div class="table-scroll" tabindex="0" role="region" aria-label="Admin transactions table">
         <table>
-          <thead><tr><th>Transaction ID</th><th>Account</th><th>Type</th><th>Direction</th><th class="numeric">Amount</th><th>Occurred</th></tr></thead>
+          <thead><tr><th>Transaction ID</th><th>Account</th><th>Type</th><th>Direction</th><th class="numeric">Amount</th><th>Currency</th><th>Occurred</th></tr></thead>
           <tbody>
             @for (transaction of pagedTransactions; track transaction.transaction_id) {
               <tr>
                 <th scope="row" class="order-id">#{{ transaction.transaction_id }}</th>
                 <td>{{ transaction.account_id }}</td><td>{{ transaction.transaction_type }}</td>
                 <td><span class="side" [class.sell]="transaction.side === 'OUT'">{{ transaction.side }}</span></td>
-                <td class="numeric">{{ formatCurrency(transaction.amount) }}</td><td>{{ formatDate(transaction.happened_at) }}</td>
+                <td class="numeric">{{ formatCurrency(transaction.amount) }}</td>
+                <td>{{ (transaction.currency ?? '').replace('/', ' -> ') }}</td>
+                <td>{{ formatDate(transaction.happened_at) }}</td>
               </tr>
             }
           </tbody>
