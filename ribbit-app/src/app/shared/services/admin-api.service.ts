@@ -57,6 +57,7 @@ export interface AdminTransaction {
   transaction_id: number;
   transaction_type: string;
   amount: number;
+  currency?: string | null;
   side: string;
   account_id: number;
   happened_at: string;

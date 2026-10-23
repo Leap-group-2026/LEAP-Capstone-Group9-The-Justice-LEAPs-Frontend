@@ -45,6 +45,7 @@ export function toTransaction(dto: TransactionDto): Transaction | null {
       type: 'Currency Exchange',
       description: 'Currency Exchange',
       amount: dto.amount,
+      currency: dto.currency ?? null,
       status: 'Completed'
     };
   }
@@ -56,6 +57,7 @@ export function toTransaction(dto: TransactionDto): Transaction | null {
     type: isDeposit ? 'Deposit' : 'Withdrawal',
     description: isDeposit ? 'Deposit' : 'Withdrawal',
     amount: dto.side === 'IN' ? dto.amount : -dto.amount,
+    currency: dto.currency ?? null,
     // TODO(backend): transactions have no status column; every row is treated as completed.
     status: 'Completed'
   };
