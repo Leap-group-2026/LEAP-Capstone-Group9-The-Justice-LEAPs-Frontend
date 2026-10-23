@@ -38,6 +38,25 @@ npm run build
 
 Output will be in the `dist/ribbit-app` directory.
 
+## Docker deployment configuration
+
+Copy the tracked .env.example template to .env in this directory on another
+machine, then edit AUTH_URL and SPRING_URL for that deployment. FRONTEND_PORT
+sets the host port (default 8083), and APP_VERSION sets the frontend version.
+The local .env file is ignored by Git and excluded from the Docker build context.
+
+Docker Compose automatically reads .env and passes the API URLs as build arguments.
+The Dockerfile generates the Angular production environment before building, so a
+local production environment file is not required on a fresh checkout.
+Build and start the ribbit-app Compose service with the build option enabled.
+API URLs are compiled into the browser bundle: changing .env requires rebuilding
+and recreating the container, not just restarting it. These values are public;
+never put passwords, tokens, or other secrets in frontend configuration.
+
+The URLs must be reachable from users' browsers, not just from the container.
+The example private IP requires access to that network. Use HTTPS API URLs when
+hosting the frontend over HTTPS, and allow the frontend origin in backend CORS.
+
 ## Development server
 
 To start the development server, run:
