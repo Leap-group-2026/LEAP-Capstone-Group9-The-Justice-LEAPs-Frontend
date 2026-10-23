@@ -48,7 +48,7 @@
             <option
               [value]="account.accountId"
               [selected]="account.accountId === accountContext.selectedAccount()?.accountId"
-            >#{{ account.accountId }}</option>
+            >{{ accountLabel(account) }}</option>
           }
         </select>
       </div>

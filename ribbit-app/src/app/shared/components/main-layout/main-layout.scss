@@ -123,6 +123,11 @@ svg {
 
   select {
     min-width: 92px;
+    // Long account names are cut off with an ellipsis instead of stretching the top bar
+    max-width: 220px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
     padding: 4px 22px 4px 0;
     border: 0;
     background: transparent;

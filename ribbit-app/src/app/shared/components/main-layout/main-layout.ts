@@ -5,7 +5,7 @@ import { Router, RouterLink, RouterLinkActive, NavigationEnd } from '@angular/ro
 import { interval, Subject } from 'rxjs';
 import { takeUntil, filter } from 'rxjs/operators';
 import { AuthService, StoredUser } from '../../services/auth.service';
-import { AccountContextService } from '../../services/account-context.service';
+import { AccountContextService, accountLabel } from '../../services/account-context.service';
 import { InstrumentsApiService, MarketNews } from '../../services/instruments-api.service';
 import { ThemeService } from '../../services/theme.service';
 
@@ -32,6 +32,8 @@ export class MainLayout implements OnInit, OnDestroy {
   private readonly instrumentsApi = inject(InstrumentsApiService);
   private readonly changeDetectorRef = inject(ChangeDetectorRef);
   readonly accountContext = inject(AccountContextService);
+  // "Savings · #8", or "#8" when unnamed
+  readonly accountLabel = accountLabel;
   readonly theme = inject(ThemeService);
   private readonly destroy$ = new Subject<void>();
 
