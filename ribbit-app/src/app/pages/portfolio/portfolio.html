@@ -153,7 +153,8 @@
             </div>
           </div>
 
-          <div class="allocation-legend">
+          <div class="allocation-legend" role="group" aria-labelledby="top-holdings-heading">
+            <h3 id="top-holdings-heading" class="allocation-heading">Top Holdings</h3>
             @for (item of displayedAllocation; track item.label) {
               <div class="allocation-row">
                 <span class="allocation-color" [style.background]="item.color"></span>
