@@ -43,3 +43,8 @@ __screenshots__/
 .DS_Store
 Thumbs.db
 /src/app/environments/environment.ts
+
+# Local deployment configuration (keep the portable template tracked)
+.env
+.env.*
+!.env.example

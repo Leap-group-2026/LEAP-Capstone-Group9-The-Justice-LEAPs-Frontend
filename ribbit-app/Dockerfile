@@ -6,6 +6,10 @@ COPY package.json package-lock.json ./
 RUN npm ci
 
 COPY . .
+ARG APP_VERSION=1.0
+ARG AUTH_URL
+ARG SPRING_URL
+RUN node scripts/write-docker-environment.mjs
 RUN npm run build
 
 FROM node:22-alpine AS production
