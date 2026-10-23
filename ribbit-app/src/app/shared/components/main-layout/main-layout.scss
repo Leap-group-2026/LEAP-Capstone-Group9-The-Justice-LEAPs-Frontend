@@ -381,6 +381,15 @@ app-session-timer + .profile { margin-left: 0; }
 .nav-item:hover { color: var(--text); background: var(--surface); }
 .nav-item.active { color: var(--accent); background: #18200e; }
 
+.nav-item.tutorial-target,
+.brand.tutorial-target {
+  position: relative;
+  z-index: 61;
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  box-shadow: 0 0 0 6px color-mix(in srgb, var(--accent) 18%, transparent);
+}
+
 :host-context(.light-theme) .nav-item.active {
   background: #dcebd7;
   color: #287a3c;
@@ -477,6 +486,85 @@ app-session-timer + .profile { margin-left: 0; }
 .support-modal .modal-body a:hover { border-color: var(--accent); background: var(--surface-raised); transform: translateY(-1px); }
 .support-contact-label { color: var(--subtle); font-family: "IBM Plex Mono", monospace; font-size: 9px; letter-spacing: .7px; text-transform: uppercase; }
 .support-modal .modal-body a > span:last-child { font-size: 15px; font-weight: 500; }
+
+.tutorial-backdrop {
+  position: fixed;
+  z-index: 10;
+  inset: 0;
+  background: rgba(5, 10, 6, .12);
+  pointer-events: none;
+}
+
+.tutorial-card {
+  position: fixed;
+  z-index: 62;
+  right: 28px;
+  bottom: 28px;
+  width: min(390px, calc(100vw - 32px));
+  padding: 22px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, .24);
+  animation: tutorial-card-enter .2s ease-out;
+}
+
+.tutorial-card-topline,
+.tutorial-actions,
+.tutorial-actions > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.tutorial-card-topline > span,
+.tutorial-step-count {
+  color: var(--subtle);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 9px;
+  letter-spacing: .9px;
+}
+
+.tutorial-close,
+.tutorial-previous,
+.tutorial-skip {
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+}
+
+.tutorial-close { font-size: 22px; line-height: 1; }
+.tutorial-close:hover, .tutorial-skip:hover, .tutorial-previous:not(:disabled):hover { color: var(--text); }
+
+.tutorial-progress {
+  height: 4px;
+  margin: 16px 0 14px;
+  overflow: hidden;
+  border-radius: 9px;
+  background: var(--surface-raised);
+}
+
+.tutorial-progress span { display: block; height: 100%; border-radius: inherit; background: var(--accent); transition: width .2s ease; }
+.tutorial-step-count { margin: 0 0 8px; }
+.tutorial-card h2 { margin: 0 0 8px; font-size: 20px; font-weight: 600; letter-spacing: -.3px; }
+.tutorial-card > p:last-of-type { min-height: 44px; margin: 0 0 20px; color: var(--muted); font-size: 13px; line-height: 1.55; }
+.tutorial-actions { padding-top: 14px; border-top: 1px solid var(--border); }
+.tutorial-actions > div { justify-content: flex-end; }
+.tutorial-skip, .tutorial-previous, .tutorial-next { min-height: 36px; padding: 8px 12px; border-radius: 7px; font-size: 12px; }
+.tutorial-previous:disabled { cursor: default; opacity: .4; }
+.tutorial-next { border: 1px solid var(--accent); background: var(--accent); color: #102014; font-weight: 700; }
+.tutorial-next:hover { filter: brightness(1.06); }
+
+@keyframes tutorial-card-enter {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (max-width: 600px) {
+  .tutorial-card { right: 16px; bottom: 16px; padding: 18px; }
+}
 
 @keyframes support-modal-enter {
   from { opacity: 0; transform: translate(-50%, calc(-50% + 8px)); }
