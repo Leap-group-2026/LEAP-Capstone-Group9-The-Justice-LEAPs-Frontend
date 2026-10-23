@@ -579,7 +579,7 @@ h1 {
 }
 
 .chart-label {
-  fill: #ffffff;
+  fill: var(--muted);
   font-family: "Inter", system-ui, sans-serif;
   font-size: 10px;
   font-weight: 400;
