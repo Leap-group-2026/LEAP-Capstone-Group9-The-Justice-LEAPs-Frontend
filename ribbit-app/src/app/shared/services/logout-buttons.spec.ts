@@ -26,8 +26,8 @@ describe('Logout buttons', () => {
   let navigate: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
-    localStorage.setItem('token', token);
-    localStorage.setItem('refreshToken', 'refresh-1');
+    sessionStorage.setItem('token', token);
+    sessionStorage.setItem('refreshToken', 'refresh-1');
     localStorage.setItem('email', 'jo@example.com');
     localStorage.setItem('balance', '1000');
     TestBed.configureTestingModule({

@@ -57,7 +57,7 @@ describe('Login', () => {
     });
 
     const login = TestBed.runInInjectionContext(() => new Login());
-    login.form.setValue({ email: 'jo@example.com', password: 'secret', rememberEmail: true });
+    login.form.setValue({ email: 'jo@example.com', password: 'secret' });
     login.submit();
 
     http.expectOne(`${environment.authUrl}/auth/login`).flush({ accessToken: token, refreshToken: 'refresh-1' });
@@ -78,7 +78,7 @@ describe('Login', () => {
 
   it('stays logged out when the password is wrong', () => {
     const login = TestBed.runInInjectionContext(() => new Login());
-    login.form.setValue({ email: 'jo@example.com', password: 'wrong', rememberEmail: true });
+    login.form.setValue({ email: 'jo@example.com', password: 'wrong' });
     login.submit();
 
     http
@@ -101,7 +101,7 @@ describe('Login', () => {
 
     url.mockReturnValue('/admin-login');
     const admin = TestBed.runInInjectionContext(() => new Login());
-    admin.form.setValue({ email: 'boss@example.com', password: 'x', rememberEmail: false });
+    admin.form.setValue({ email: 'boss@example.com', password: 'x' });
     admin.submit();
     http.expectOne(`${environment.authUrl}/auth/adminLogin`)
       .flush({ accessToken: adminToken, refreshToken: 'r1', role: 'admin' });
@@ -109,7 +109,7 @@ describe('Login', () => {
 
     url.mockReturnValue('/login');
     const client = TestBed.runInInjectionContext(() => new Login());
-    client.form.setValue({ email: 'jo@example.com', password: 'x', rememberEmail: false });
+    client.form.setValue({ email: 'jo@example.com', password: 'x' });
     client.submit();
     http.expectOne(`${environment.authUrl}/auth/login`)
       .flush({ accessToken: tokenFor('client', '42'), refreshToken: 'r2' });
@@ -133,11 +133,11 @@ describe('Login', () => {
 
   it('a wrong password leaves the current session alone', () => {
     const existing = makeToken({ sub: '7', role: 'admin', exp: Math.floor(Date.now() / 1000) + 1800 });
-    localStorage.setItem('token', existing);
+    sessionStorage.setItem('token', existing);
     localStorage.setItem('adminRole', 'admin');
 
     const login = TestBed.runInInjectionContext(() => new Login());
-    login.form.setValue({ email: 'jo@example.com', password: 'wrong', rememberEmail: false });
+    login.form.setValue({ email: 'jo@example.com', password: 'wrong' });
     login.submit();
     http.expectOne(`${environment.authUrl}/auth/login`)
       .flush({ statusCode: 401, message: 'Invalid email or password' }, { status: 401, statusText: 'Unauthorized' });

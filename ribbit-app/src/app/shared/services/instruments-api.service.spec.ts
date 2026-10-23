@@ -46,7 +46,7 @@ describe('InstrumentsApiService', () => {
   });
 
   it('encodes ticker references and sends the bearer token', () => {
-    localStorage.setItem('token', 'test-token');
+    sessionStorage.setItem('token', 'test-token');
 
     service.getByTicker('EUR/USD').subscribe();
 

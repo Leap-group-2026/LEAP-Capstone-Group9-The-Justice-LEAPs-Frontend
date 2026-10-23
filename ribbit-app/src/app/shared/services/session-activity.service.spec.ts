@@ -13,7 +13,7 @@ describe('SessionActivityService', () => {
     vi.setSystemTime(new Date('2026-10-19T10:00:00Z'));
     TestBed.configureTestingModule({ providers: [provideHttpClient(), provideHttpClientTesting()] });
     controller = TestBed.inject(HttpTestingController);
-    localStorage.setItem('token', 'some-token');
+    sessionStorage.setItem('token', 'some-token');
     TestBed.inject(SessionActivityService).start();
   });
 

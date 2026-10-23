@@ -603,3 +603,15 @@ h2 { font-size: 15px; font-weight: 500; }
   flex-direction: column;
   gap: 20px;
 }
+
+.account-title { display: grid; gap: 2px; min-width: 0; }
+.account-title h3 { overflow-wrap: anywhere; }
+.account-number { color: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+.account-heading-actions { display: flex; align-items: center; gap: 14px; flex: none; }
+.text-action { padding: 0; border: 0; background: transparent; color: var(--accent); font: inherit; font-size: 12px; cursor: pointer; }
+.text-action:hover, .text-action:focus-visible { text-decoration: underline; }
+.rename-form { display: grid; gap: 6px; margin: 4px 0 14px; }
+.rename-form label { color: var(--muted); font-size: 12px; }
+.rename-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.rename-row .form-input { flex: 1 1 220px; min-width: 0; }
+.rename-hint { color: var(--muted); font-size: 11px; }

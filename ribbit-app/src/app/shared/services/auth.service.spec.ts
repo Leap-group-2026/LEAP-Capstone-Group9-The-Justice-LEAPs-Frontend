@@ -14,7 +14,7 @@ describe('AuthService roles', () => {
   function service(token: string | null, adminRole: string | null): AuthService {
     localStorage.clear();
     sessionStorage.clear();
-    if (token) localStorage.setItem('token', token);
+    if (token) sessionStorage.setItem('token', token);
     if (adminRole) localStorage.setItem('adminRole', adminRole);
     TestBed.configureTestingModule({ providers: [provideHttpClient(), provideHttpClientTesting()] });
     return TestBed.inject(AuthService);

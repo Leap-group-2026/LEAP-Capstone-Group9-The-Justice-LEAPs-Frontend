@@ -40,7 +40,7 @@ describe('App', () => {
   });
 
   it('wraps the routed page in the main layout when signed in', async () => {
-    localStorage.setItem('token', makeToken({ sub: '42', role: 'client', exp: Math.floor(Date.now() / 1000) + 1800 }));
+    sessionStorage.setItem('token', makeToken({ sub: '42', role: 'client', exp: Math.floor(Date.now() / 1000) + 1800 }));
     const fixture = createApp();
     await fixture.whenStable();
     const compiled = fixture.nativeElement as HTMLElement;

@@ -14,12 +14,36 @@ export interface AccountContextItem {
   createdAt: string;
   accountActive: boolean;
   accountFrozen: boolean;
+  accountName?: string | null;   // the user's own name for the account; null when unnamed
 }
 
 export interface CreateAccountRequest {
   balance: number;
   portfolioSize: string;
   tradeType: string;
+  accountName?: string;
+}
+
+// Same rules as the API: trimmed, at most 40 characters, no control characters; empty removes it.
+export const ACCOUNT_NAME_MAX_LENGTH = 40;
+
+// A user-facing problem with an account name, or null when it's fine.
+export function accountNameProblem(name: string): string | null {
+  const trimmed = name.trim();
+  if (/\p{Cc}/u.test(name)) {
+    return 'Account names can\'t contain tabs or line breaks.';
+  }
+  if ([...trimmed].length > ACCOUNT_NAME_MAX_LENGTH) {
+    return `Account names can be at most ${ACCOUNT_NAME_MAX_LENGTH} characters.`;
+  }
+  return null;
+}
+
+// "Savings · #8", or "#8" when the account has no name. The number always shows, so two accounts
+// with similar names can't be confused.
+export function accountLabel(account: { accountId: number; accountName?: string | null }): string {
+  const name = account.accountName?.trim();
+  return name ? `${name} · #${account.accountId}` : `#${account.accountId}`;
 }
 
 interface AccountApiResponse {
@@ -36,6 +60,7 @@ interface AccountApiResponse {
   account_active?: boolean;
   accountFrozen?: boolean;
   account_frozen?: boolean;
+  accountName?: string | null;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -146,6 +171,25 @@ export class AccountContextService {
     );
   }
 
+  // Sets or removes (null) the account's name, then updates the account list and the selected
+  // account so the top bar shows the new name straight away.
+  renameAccount(accountId: number, name: string | null): Observable<AccountContextItem> {
+    return this.http.patch<AccountApiResponse>(`${environment.springUrl}/accounts/rename/${accountId}`, { name }, {
+      headers: this.createAuthHeaders()
+    }).pipe(
+      map(response => this.normalizeAccount(response)),
+      tap(account => {
+        this.accounts.update(accounts => accounts.map(item =>
+          item.accountId === account.accountId ? { ...item, accountName: account.accountName } : item
+        ));
+        const selected = this.selectedAccount();
+        if (selected?.accountId === account.accountId) {
+          this.selectedAccount.set({ ...selected, accountName: account.accountName });
+        }
+      })
+    );
+  }
+
   closeAccount(accountId: number): Observable<string> {
     return this.http.patch(`${environment.springUrl}/accounts/close/${accountId}`, {}, {
       headers: this.createAuthHeaders(),
@@ -187,7 +231,8 @@ export class AccountContextService {
       tradeType: response.tradeType ?? response.trade_type ?? '',
       createdAt: response.createdAt ?? response.created_at ?? '',
       accountActive: response.accountActive ?? response.account_active ?? true,
-      accountFrozen: response.accountFrozen ?? response.account_frozen ?? false
+      accountFrozen: response.accountFrozen ?? response.account_frozen ?? false,
+      accountName: response.accountName ?? null
     };
   }
 

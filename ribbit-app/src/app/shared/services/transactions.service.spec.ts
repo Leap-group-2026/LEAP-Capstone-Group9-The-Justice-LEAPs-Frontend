@@ -177,7 +177,10 @@ describe('TransactionsService deposit/withdraw', () => {
     http = TestBed.inject(HttpTestingController);
   });
 
-  afterEach(() => http.verify());
+  afterEach(() => {
+    sessionStorage.clear();
+    http.verify();
+  });
 
   const depositResponse: FundsTransferResponse = {
     transaction: {
@@ -209,6 +212,7 @@ describe('TransactionsService deposit/withdraw', () => {
       type: 'Deposit',
       description: 'Deposit',
       amount: 250,
+      currency: null,
       status: 'Completed'
     });
   });
@@ -258,7 +262,7 @@ describe('TransactionsService deposit/withdraw', () => {
   });
 
   it('gets transactions for the stored account with the bearer token', () => {
-    localStorage.setItem('token', 'test-token');
+    sessionStorage.setItem('token', 'test-token');
     let result: TransactionDto[] | undefined;
     service.getTransactions(42).subscribe(transactions => (result = transactions));
 

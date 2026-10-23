@@ -68,7 +68,7 @@ describe('Transactions page: deposit and withdraw', () => {
   async function setup(url = '/transactions', selectedId = 42): Promise<void> {
     localStorage.clear();
     sessionStorage.clear();
-    localStorage.setItem('token', 'test-token');
+    sessionStorage.setItem('token', 'test-token');
     localStorage.setItem('accountId', String(selectedId));
     localStorage.setItem('balance', '1000');
 

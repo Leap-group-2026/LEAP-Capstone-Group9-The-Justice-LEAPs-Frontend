@@ -5,7 +5,7 @@ import { Router, RouterLink, RouterLinkActive, NavigationEnd } from '@angular/ro
 import { interval, Subject } from 'rxjs';
 import { takeUntil, filter } from 'rxjs/operators';
 import { AuthService, StoredUser } from '../../services/auth.service';
-import { AccountContextService } from '../../services/account-context.service';
+import { AccountContextService, accountLabel } from '../../services/account-context.service';
 import { InstrumentsApiService, MarketNews } from '../../services/instruments-api.service';
 import { ThemeService } from '../../services/theme.service';
 
@@ -20,7 +20,11 @@ interface NavigationItem {
   standalone: true,
   imports: [CommonModule, SessionTimer, RouterLink, RouterLinkActive],
   templateUrl: './main-layout.html',
-  styleUrls: ['./main-layout.scss']
+  styleUrls: ['./main-layout.scss'],
+  host: {
+    '(document:click)': 'closeProfileMenuOnOutsideClick($event)',
+    '(document:keydown.escape)': 'closeProfileMenu(true)'
+  }
 })
 export class MainLayout implements OnInit, OnDestroy {
   private readonly router = inject(Router);
@@ -28,6 +32,8 @@ export class MainLayout implements OnInit, OnDestroy {
   private readonly instrumentsApi = inject(InstrumentsApiService);
   private readonly changeDetectorRef = inject(ChangeDetectorRef);
   readonly accountContext = inject(AccountContextService);
+  // "Savings · #8", or "#8" when unnamed
+  readonly accountLabel = accountLabel;
   readonly theme = inject(ThemeService);
   private readonly destroy$ = new Subject<void>();
 
@@ -60,6 +66,8 @@ export class MainLayout implements OnInit, OnDestroy {
   });
 
   @ViewChild('newsItem') private newsItem?: ElementRef<HTMLElement>;
+  @ViewChild('profileMenu') private profileMenu?: ElementRef<HTMLElement>;
+  @ViewChild('profileButton') private profileButton?: ElementRef<HTMLButtonElement>;
 
   readonly navigation: NavigationItem[] = [
     { id: 'dashboard', label: 'Home', icon: 'dashboard' },
@@ -245,6 +253,24 @@ export class MainLayout implements OnInit, OnDestroy {
 
   toggleTheme(): void {
     this.theme.toggle();
+  }
+
+  // Clicks inside the menu (the toggle button or a menu item) are handled by their own buttons.
+  closeProfileMenuOnOutsideClick(event: MouseEvent): void {
+    if (!this.profileMenuOpen) return;
+    const target = event.target as Node | null;
+    if (target && this.profileMenu?.nativeElement.contains(target)) return;
+    this.closeProfileMenu();
+  }
+
+  // Escape also puts keyboard focus back on the button that opened the menu.
+  closeProfileMenu(returnFocus = false): void {
+    if (!this.profileMenuOpen) return;
+    this.profileMenuOpen = false;
+    this.changeDetectorRef.markForCheck();
+    if (returnFocus) {
+      this.profileButton?.nativeElement.focus();
+    }
   }
 
   navigateFromProfile(destination: 'account' | 'logout'): void {
