@@ -58,6 +58,12 @@
               ],
               "outputHashing": "all"
             },
+            "s3": {
+              "outputMode": "static",
+              "server": false,
+              "ssr": false,
+              "outputPath": "dist/ribbit-app-s3"
+            },
             "development": {
               "optimization": false,
               "extractLicenses": false,
