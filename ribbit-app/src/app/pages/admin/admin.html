@@ -3,31 +3,39 @@
     <h1 id="admin-heading">Admin workspace</h1>
     <p>Monitor users, accounts, and trading activity.</p>
   </div>
-  <button class="button secondary" type="button" (click)="loadOverview()" [disabled]="isLoading()">
+  <button class="button refresh-button" type="button" (click)="loadOverview()" [disabled]="isLoading()">
     {{ isLoading() ? 'Loading...' : 'Refresh' }}
   </button>
-</section>
-
-<section class="filter-bar panel" aria-label="Admin activity filters">
-  <label for="account-filter">Account</label>
-  <select id="account-filter" (change)="onAccountFilterChange($event)">
-    <option value="">All accounts</option>
-    @for (accountId of accountOptions; track accountId) {
-      <option [value]="accountId">Account #{{ accountId }}</option>
-    }
-  </select>
 </section>
 
 <section class="panel user-lookup" aria-labelledby="user-lookup-heading">
   <div class="panel-heading">
     <div class="section-title">
       <h2 id="user-lookup-heading">User lookup</h2>
-      <span>BY EMAIL</span>
+      <span>BY EMAIL, USER ID OR ACCOUNT ID</span>
     </div>
   </div>
   <form class="lookup-form" (submit)="$event.preventDefault(); searchUser()">
-    <label for="user-email">Email address</label>
-    <input id="user-email" type="email" [value]="userEmail()" (input)="userEmail.set($any($event.target).value)" required>
+    <div class="lookup-field">
+      <label for="search-type">Search by</label>
+      <select id="search-type" [value]="searchType()" (change)="setSearchType($any($event.target).value)">
+        <option value="email">Email</option>
+        <option value="userId">User ID</option>
+        <option value="accountId">Account ID</option>
+      </select>
+    </div>
+    <div class="lookup-field">
+      @switch (searchType()) {
+        @case ('email') {
+          <label for="search-term">Email address</label>
+          <input id="search-term" type="email" placeholder="jane@example.com" [value]="searchTerm()" (input)="searchTerm.set($any($event.target).value)" required>
+        }
+        @default {
+          <label for="search-term">{{ searchType() === 'userId' ? 'User ID' : 'Account ID' }}</label>
+          <input id="search-term" type="text" inputmode="numeric" [placeholder]="searchType() === 'userId' ? 'e.g. 42' : 'e.g. 7'" [value]="searchTerm()" (input)="searchTerm.set($any($event.target).value)" required>
+        }
+      }
+    </div>
     <button class="button secondary" type="submit" [disabled]="userLookupLoading()">
       {{ userLookupLoading() ? 'Searching...' : 'Search' }}
     </button>
@@ -36,6 +44,14 @@
     <p class="lookup-error" role="alert">{{ userLookupError() }}</p>
   }
   @if (userLookup(); as user) {
+    @if (matchedAccount(); as account) {
+      <div class="matched-account">
+        <span class="matched-kicker">ACCOUNT #{{ account.accountId }}</span>
+        <strong>{{ formatCurrency(account.balance) }}</strong>
+        <span class="account-status" [class]="'account-status ' + accountStatus(account).toLowerCase()">{{ accountStatus(account) }}</span>
+        <span>{{ account.portfolioSize }} · {{ account.tradeType }} · opened {{ formatDate(account.createdAt) }}</span>
+      </div>
+    }
     <div class="user-result">
       <div><strong>{{ user.name }}</strong><span>{{ user.email }}</span></div>
       <div><span>User ID</span><strong>#{{ user.userId }}</strong></div>
@@ -46,9 +62,20 @@
       <h3>Accounts</h3>
       @if (user.accounts.length) {
         @for (account of user.accounts; track account.accountId) {
-          <div class="lookup-account">
+          <div class="lookup-account" [class.matched]="matchedAccount()?.accountId === account.accountId">
             <strong>#{{ account.accountId }}</strong>
-            <span>{{ formatCurrency(account.balance) }} · {{ account.accountActive ? 'Active' : 'Closed' }}</span>
+            <div class="lookup-account-details">
+              <span>{{ formatCurrency(account.balance) }} · {{ accountStatus(account) }}</span>
+            </div>
+            <div class="lookup-account-actions">
+              <a [routerLink]="['/admin/orders']" [queryParams]="{ accountId: account.accountId }">View Orders</a>
+              <a [routerLink]="['/admin/transactions']" [queryParams]="{ accountId: account.accountId }">View Transactions</a>
+              @if (account.accountActive) {
+                <button class="freeze-toggle-button" [class.unfreeze-button]="account.accountFrozen" type="button" (click)="toggleAccountFreeze(account.accountId, account.accountFrozen)" [disabled]="closingAccountId() !== null">
+                  {{ closingAccountId() === account.accountId ? (account.accountFrozen ? 'Unfreezing...' : 'Freezing...') : (account.accountFrozen ? 'Unfreeze Account' : 'Freeze Account') }}
+                </button>
+              }
+            </div>
           </div>
         }
       } @else {
@@ -78,7 +105,7 @@
   </article>
   <article class="summary-card">
     <h2>Total Orders</h2>
-    <strong class="positive">{{ orders.length }}</strong>
+    <strong class="positive">{{ overview().orders.length }}</strong>
     <p>All user orders</p>
   </article>
   <article class="summary-card">
@@ -88,121 +115,22 @@
   </article>
   <article class="summary-card">
     <h2>Transactions</h2>
-    <strong>{{ transactions.length }}</strong>
+    <strong>{{ overview().transactions.length }}</strong>
     <p>Money movements</p>
   </article>
 </section>
 
-<section class="panel" aria-labelledby="orders-heading">
-  <div class="panel-heading">
-    <div class="section-title">
-      <h2 id="orders-heading">Recent orders</h2>
-      <span>{{ orders.length }} TOTAL</span>
-    </div>
-    <button
-      class="panel-toggle"
-      type="button"
-      (click)="toggleOrders()"
-      [attr.aria-expanded]="showOrders()"
-      aria-controls="admin-orders-table"
-      [attr.aria-label]="showOrders() ? 'Collapse orders' : 'Expand orders'"
-    >
-      <span aria-hidden="true">{{ showOrders() ? '−' : '+' }}</span>
-    </button>
-  </div>
-
-  @if (showOrders() && orders.length > 0) {
-    <div id="admin-orders-table" class="table-scroll" tabindex="0" role="region" aria-label="Admin orders table">
-      <table>
-        <thead>
-          <tr>
-            <th scope="col">Order ID</th>
-            <th scope="col">Account</th>
-            <th scope="col">Instrument</th>
-            <th scope="col">Side</th>
-            <th scope="col" class="numeric">Quantity</th>
-            <th scope="col" class="numeric">Total</th>
-            <th scope="col">Status</th>
-            <th scope="col">Created</th>
-          </tr>
-        </thead>
-        <tbody>
-          @for (order of pagedOrders; track order.order_id) {
-            <tr>
-              <th scope="row" class="order-id">#{{ order.order_id }}</th>
-              <td>{{ order.account_id }}</td>
-              <td>{{ order.instrument_id }}</td>
-              <td><span class="side" [class.sell]="order.side === 'SELL'">{{ order.side }}</span></td>
-              <td class="numeric">{{ order.quantity }}</td>
-              <td class="numeric">{{ formatCurrency(order.total_price) }}</td>
-              <td><span class="badge" [class]="statusClass(order.status)"><i></i>{{ order.status }}</span></td>
-              <td>{{ formatDate(order.created_at) }}</td>
-            </tr>
-          }
-        </tbody>
-      </table>
-    </div>
-    <div class="pagination" aria-label="Orders pagination">
-      <button class="button secondary" type="button" (click)="setOrdersPage(ordersPage() - 1)" [disabled]="ordersPage() === 1">Previous</button>
-      <span>Page {{ ordersPage() }} of {{ ordersPageCount }}</span>
-      <button class="button secondary" type="button" (click)="setOrdersPage(ordersPage() + 1)" [disabled]="ordersPage() === ordersPageCount">Next</button>
-    </div>
-  } @else if (showOrders() && !isLoading()) {
-    <div class="empty-state"><p>No orders were returned by the API.</p></div>
-  }
-</section>
-
-<section class="panel" aria-labelledby="transactions-heading">
-  <div class="panel-heading">
-    <div class="section-title">
-      <h2 id="transactions-heading">Transaction history</h2>
-      <span>{{ transactions.length }} TOTAL</span>
-    </div>
-    <button
-      class="panel-toggle"
-      type="button"
-      (click)="toggleTransactions()"
-      [attr.aria-expanded]="showTransactions()"
-      aria-controls="admin-transactions-table"
-      [attr.aria-label]="showTransactions() ? 'Collapse transactions' : 'Expand transactions'"
-    >
-      <span aria-hidden="true">{{ showTransactions() ? '−' : '+' }}</span>
-    </button>
-  </div>
-
-  @if (showTransactions() && transactions.length > 0) {
-    <div id="admin-transactions-table" class="table-scroll" tabindex="0" role="region" aria-label="Admin transaction table">
-      <table>
-        <thead>
-          <tr>
-            <th scope="col">Transaction ID</th>
-            <th scope="col">Account</th>
-            <th scope="col">Type</th>
-            <th scope="col">Direction</th>
-            <th scope="col" class="numeric">Amount</th>
-            <th scope="col">Occurred</th>
-          </tr>
-        </thead>
-        <tbody>
-          @for (transaction of pagedTransactions; track transaction.transaction_id) {
-            <tr>
-              <th scope="row" class="order-id">#{{ transaction.transaction_id }}</th>
-              <td>{{ transaction.account_id }}</td>
-              <td>{{ transaction.transaction_type }}</td>
-              <td><span class="side" [class.sell]="transaction.side === 'OUT'">{{ transaction.side }}</span></td>
-              <td class="numeric">{{ formatCurrency(transaction.amount) }}</td>
-              <td>{{ formatDate(transaction.happened_at) }}</td>
-            </tr>
-          }
-        </tbody>
-      </table>
-    </div>
-    <div class="pagination" aria-label="Transactions pagination">
-      <button class="button secondary" type="button" (click)="setTransactionsPage(transactionsPage() - 1)" [disabled]="transactionsPage() === 1">Previous</button>
-      <span>Page {{ transactionsPage() }} of {{ transactionsPageCount }}</span>
-      <button class="button secondary" type="button" (click)="setTransactionsPage(transactionsPage() + 1)" [disabled]="transactionsPage() === transactionsPageCount">Next</button>
-    </div>
-  } @else if (showTransactions() && !isLoading()) {
-    <div class="empty-state"><p>No transactions match the selected account.</p></div>
-  }
+<section class="admin-destinations" aria-label="Admin activity pages">
+  <a class="destination-card" routerLink="/admin/orders">
+    <span class="destination-kicker">ORDER MONITORING</span>
+    <strong>Orders</strong>
+    <span>Review every order across all users and accounts.</span>
+    <span class="destination-link">Open orders <span aria-hidden="true">→</span></span>
+  </a>
+  <a class="destination-card" routerLink="/admin/transactions">
+    <span class="destination-kicker">ACCOUNT ACTIVITY</span>
+    <strong>Transactions</strong>
+    <span>Inspect deposits, withdrawals, and account movements.</span>
+    <span class="destination-link">Open transactions <span aria-hidden="true">→</span></span>
+  </a>
 </section>

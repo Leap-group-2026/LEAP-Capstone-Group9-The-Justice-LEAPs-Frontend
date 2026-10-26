@@ -12,14 +12,14 @@
         </div>
         <div class="quote-item">
           <small>Day % Change</small>
-          <span class="quote" [class.accent]="instrument.changePct >= 0" [class.negative]="instrument.changePct < 0">{{ formatChange(instrument.changePct) }}</span>
+          <span class="quote" [class.accent]="(selectedChangePct ?? 0) >= 0" [class.negative]="(selectedChangePct ?? 0) < 0">{{ selectedChangePct === null ? '—' : formatChange(selectedChangePct) }}</span>
         </div>
       </div>
     } @else {
       <h1 id="trade-heading" tabindex="-1">Select an instrument to trade</h1>
     }
   </div>
-  <div class="available-cash">Available cash:<strong>{{ money(cashCents) }}</strong></div>
+  <div class="available-cash">Available cash:<strong>{{ accountReady ? money(cashCents) : '—' }}</strong></div>
 </div>
 
 <ol class="progress" aria-label="Order progress">
@@ -55,6 +55,20 @@
         <div class="panel-heading">
           <h2>Order details</h2>
         </div>
+
+        @if (catalogError()) {
+          <div class="notice error-notice" role="alert">
+            <strong>Instruments could not be loaded.</strong>
+            <p>Refresh the page to try again.</p>
+          </div>
+        }
+
+        @if (accountError()) {
+          <div class="notice error-notice" role="alert">
+            <strong>Account details could not be loaded.</strong>
+            <p>Refresh the page to try again. Orders are disabled until your account loads.</p>
+          </div>
+        }
 
         @if (attempted() && form.invalid) {
           <div class="notice error-notice" role="alert">
@@ -175,8 +189,8 @@
                 <strong>{{ money(instrument.priceCents) }}</strong>
               </div>
               <div class="info-row">
-                <span>24h change</span>
-                <strong [class.accent]="instrument.changePct >= 0" [class.negative]="instrument.changePct < 0">{{ formatChange(instrument.changePct) }}</strong>
+                <span>Day % change</span>
+                <strong [class.accent]="(selectedChangePct ?? 0) >= 0" [class.negative]="(selectedChangePct ?? 0) < 0">{{ selectedChangePct === null ? '—' : formatChange(selectedChangePct) }}</strong>
               </div>
               <div class="info-row">
                 <span>Asset type</span>
@@ -184,7 +198,7 @@
               </div>
               <div class="info-row">
                 <span>Your position</span>
-                <strong>{{ instrument.owned }} shares</strong>
+                <strong>{{ selectedOwned === null ? '—' : selectedOwned + ' shares' }}</strong>
               </div>
             </div>
           } @else {
@@ -220,14 +234,14 @@
             }
             <small id="quantity-help">
               Whole shares only · Minimum 1
-              @if (side === 'Sell' && selectedInstrument) {
-                · Maximum {{ selectedInstrument.owned }}
+              @if (side === 'Sell' && selectedOwned !== null) {
+                · Maximum {{ selectedOwned }}
               }
             </small>
           </div>
 
           <div class="field">
-            <span id="side-label" class="field-label">Order Type</span>
+            <span id="side-label" class="field-label">Side</span>
             <div class="segments" role="group" aria-labelledby="side-label">
               <button
                 type="button"
@@ -253,7 +267,7 @@
             <strong>Insufficient funds — {{ money(fundsShortfall) }} short.</strong>
             <p>
               At this price, you can buy up to {{ maximumBuyQuantity }} shares.
-              Reduce the quantity or limit price.
+              Reduce the quantity.
             </p>
           </div>
         }
@@ -272,7 +286,7 @@
           </dl>
         </div>
 
-        <button class="button primary" type="submit">
+        <button class="button primary" type="submit" [disabled]="!accountReady || catalogLoading() || !selectedInstrument || selectedInstrument.priceCents === null">
           Review Order
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path [attr.d]="icons['arrow']"/>
@@ -293,12 +307,12 @@
         >
           @if (step() === 'success') {
             <div class="panel-heading">
-              <span class="badge">SUBMITTED</span>
+              <span class="badge">{{ submission()?.status }}</span>
             </div>
 
             <div role="status">
               <h2>{{ order.side }} {{ order.quantity }} shares of {{ order.instrument.symbol }}</h2>
-              <p class="muted">{{ order.instrument.name }} · {{ order.type }} order</p>
+              <p class="muted">{{ order.instrument.name }} · {{ order.instrument.assetType }}</p>
             </div>
           } @else {
             <div class="panel-heading">
@@ -315,18 +329,18 @@
 
           <dl class="order-details">
             @if (step() === 'success') {
-              <div><dt>Order ID</dt><dd>{{ submission()?.id }}</dd></div>
+              <div><dt>Order ID</dt><dd>{{ submission()?.orderId }}</dd></div>
               <div>
                 <dt>Submitted</dt>
-                <dd>{{ submission()?.submittedAt | date:'medium' }}</dd>
+                <dd>{{ submission()?.createdAt | date:'medium' }}</dd>
               </div>
             }
-            <div><dt>Account</dt><dd>Individual · •••• 4821</dd></div>
+            <div><dt>Account</dt><dd>{{ accountLabel }}</dd></div>
             <div><dt>Buy/Sell</dt><dd class="accent">{{ order.side }}</dd></div>
             <div><dt>Instrument</dt><dd>{{ order.instrument.symbol }}</dd></div>
             <div><dt>Instrument name</dt><dd>{{ order.instrument.name }}</dd></div>
             <div><dt>Quantity</dt><dd>{{ order.quantity }} shares</dd></div>
-            <div><dt>Asset type</dt><dd>{{ order.type }}</dd></div>
+            <div><dt>Asset type</dt><dd>{{ order.instrument.assetType }}</dd></div>
             <div>
               <dt>Estimated price</dt>
               <dd>{{ money(order.priceCents) }}</dd>
@@ -357,9 +371,14 @@
           </p>
 
           @if (step() === 'review') {
+            @if (submitError()) {
+              <div class="notice error-notice" role="alert">
+                <strong>{{ submitError() }}</strong>
+              </div>
+            }
             <div class="actions">
-              <button class="button primary" type="button" (click)="confirmOrder()">
-                Confirm Order
+              <button class="button primary" type="button" [disabled]="submitting() || !accountReady" (click)="confirmOrder()">
+                {{ submitting() ? 'Submitting...' : 'Confirm Order' }}
                 <svg viewBox="0 0 24 24" aria-hidden="true">
                   <path [attr.d]="icons['arrow']"/>
                 </svg>
@@ -387,6 +406,6 @@
 </div>
 
 <footer class="page-footer">
-  ALL VALUES IN USD · INVESTING INVOLVES RISK
+  ALL VALUES IN USD · INVESTING INVOLVES RISK · VERSION {{ appVersion }}
 </footer>
 

@@ -12,12 +12,11 @@ import { finalize, map, Observable, of, switchMap, tap, throwError, timeout } fr
 import { environment } from '../../environments/environment';
 import { AuthService } from '../../shared/services/auth.service';
 import { ThemeService } from '../../shared/services/theme.service';
-import { storeTokens } from '../../shared/interceptors/auth.interceptor';
+import { readToken, storeTokens } from '../../shared/interceptors/auth.interceptor';
 
 export interface LoginCredentials {
   email: string;
   password: string;
-  rememberEmail: boolean;
 }
 
 interface LoginResponse {
@@ -51,6 +50,8 @@ interface AccountResponse {
   account_active: boolean;
 }
 
+type LoginDialog = 'help' | 'privacy' | 'terms' | 'disclosures' | null;
+
 @Component({
   selector: 'app-login',
   standalone: true,
@@ -59,6 +60,7 @@ interface AccountResponse {
   styleUrls: ['./login.scss']
 })
 export class Login {
+  readonly appVersion = environment.version;
   private readonly http = inject(HttpClient);
   private readonly router = inject(Router);
   readonly theme = inject(ThemeService);
@@ -73,6 +75,7 @@ export class Login {
   showPassword = false;
   readonly isSubmitting = signal(false);
   readonly loginError = signal('');
+  readonly activeDialog = signal<LoginDialog>(null);
 
   toggleTheme(): void {
     this.theme.toggle();
@@ -87,9 +90,16 @@ export class Login {
     password: new FormControl('', {
       nonNullable: true,
       validators: [Validators.required]
-    }),
-    rememberEmail: new FormControl(true, { nonNullable: true })
+    })
   });
+
+  openDialog(dialog: Exclude<LoginDialog, null>): void {
+    this.activeDialog.set(dialog);
+  }
+
+  closeDialog(): void {
+    this.activeDialog.set(null);
+  }
 
   readonly chartPath =
     'M0 308 L30 295 L64 302 L96 273 L126 282 L162 251 ' +
@@ -136,10 +146,6 @@ export class Login {
     this.isSubmitting.set(true);
     this.loginError.set('');
 
-    if (this.isAdminLogin) {
-      this.authService.setAdminRole('');
-    }
-
     this.http
       .post<LoginResponse>(
         `${environment.authUrl}/auth/${this.isAdminLogin ? 'adminLogin' : 'login'}`,
@@ -157,6 +163,11 @@ export class Login {
             return throwError(() => new Error('Missing access token'));
           }
 
+          // The credentials were accepted, so end whatever session this browser already had:
+          // logout() revokes it on the server (using the old token, still stored at this point)
+          // and clearSession() wipes the old token, profile, account data and adminRole.
+          // A wrong password never gets here, so a failed attempt doesn't log anyone out.
+          this.authService.logout();
           storeTokens(accessToken, response.refreshToken);
 
           if (this.isAdminLogin) {
@@ -174,7 +185,7 @@ export class Login {
         }),
         switchMap((user) =>
           user
-            ? this.loadAccount(localStorage.getItem('token')!).pipe(map(() => user))
+            ? this.loadAccount(readToken()!).pipe(map(() => user))
             : of(null)
         ),
         finalize(() => this.isSubmitting.set(false))
@@ -242,12 +253,17 @@ export class Login {
             .map((account) => account.accountId)
             .filter((accountId) => Number.isFinite(accountId));
 
+          console.info('[account-debug] login accounts:', accounts);
+          console.info('[account-debug] login account IDs:', accountIds);
+
           if (!accountIds.length) {
             return throwError(() => new Error('No account found for user'));
           }
 
           const accountId = Math.min(...accountIds);
           localStorage.setItem('accountId', String(accountId));
+          console.info('[account-debug] login selected lowest account:', accountId,
+            'stored accountId:', localStorage.getItem('accountId'));
 
           return this.http.get<AccountResponse>(
             `${environment.springUrl}/accounts/${accountId}`,
@@ -259,7 +275,8 @@ export class Login {
           );
         }),
         tap((account) => {
-          localStorage.setItem('accountId', String(account.accountId));
+          console.info('[account-debug] account detail response:', account,
+            'stored accountId:', localStorage.getItem('accountId'));
           localStorage.setItem('tradeType', account.tradeType ?? account.trade_type ?? '');
           localStorage.setItem('balance', String(account.balance));
           localStorage.setItem('portfolioSize', account.portfolio_size);

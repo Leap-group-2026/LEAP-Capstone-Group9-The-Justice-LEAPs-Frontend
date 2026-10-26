@@ -1,9 +1,10 @@
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { Component, OnInit, PLATFORM_ID, computed, inject, signal } from '@angular/core';
 import { finalize } from 'rxjs';
-import { AdminApiService, DailyMoneyMoved, TopBoughtStock } from '../../shared/services/admin-api.service';
+import { ActiveAccountAnalytics, AdminAccount, AdminApiService, DailyMoneyMoved, OrderStatusCount, PortfolioSizeCount, TopBoughtStock } from '../../shared/services/admin-api.service';
 
 export const MONEY_WINDOW_DAYS = 30;
+export const ORDER_ACTIVITY_DAYS = 30;
 
 export interface MoneyDay {
   date: string;
@@ -20,6 +21,11 @@ export interface MoneySummary {
   orders: number;
   priorTotal: number;        // the 30 days before that, for the comparison
   changePercent: number | null;
+}
+
+export interface OrderStatusSummary extends OrderStatusCount {
+  count: number;
+  percentage: number;
 }
 
 // Today's date in Eastern time, matching how the backend buckets fills.
@@ -113,7 +119,6 @@ const PLOT_LEFT = 56;
 const PLOT_RIGHT = 760;
 const BASELINE = 220;
 const PLOT_HEIGHT = 190;
-
 @Component({
   selector: 'app-reporter',
   standalone: true,
@@ -127,6 +132,20 @@ export class Reporter implements OnInit {
 
   readonly isLoading = signal(false);
   readonly topBoughtStocks = signal<TopBoughtStock[]>([]);
+  readonly activeAccounts = signal<ActiveAccountAnalytics[]>([]);
+  readonly portfolioSizes = signal<PortfolioSizeCount[]>([]);
+  readonly orderActivityLoading = signal(false);
+  readonly orderStatusCounts = signal<OrderStatusCount[]>([]);
+  readonly orderStatusSummary = computed<OrderStatusSummary[]>(() => {
+    return [...this.orderStatusCounts()]
+      .map(item => ({
+        status: item.status.toUpperCase(),
+        orderCount: Number(item.orderCount) || 0,
+        count: Number(item.orderCount) || 0,
+        percentage: Number(item.percentage) || 0
+      }))
+      .sort((left, right) => right.count - left.count);
+  });
 
   readonly moneyLoading = signal(false);
   readonly moneyError = signal(false);
@@ -156,6 +175,29 @@ export class Reporter implements OnInit {
       next: stocks => this.topBoughtStocks.set(stocks),
       error: () => this.topBoughtStocks.set([])
     });
+
+    this.adminApi.getMostActiveAccounts().subscribe({
+      next: accounts => this.activeAccounts.set(accounts),
+      error: () => this.activeAccounts.set([])
+    });
+
+    this.adminApi.getAccounts().subscribe({
+      next: accounts => this.portfolioSizes.set(this.countPortfolioSizes(accounts)),
+      error: () => this.portfolioSizes.set([])
+    });
+
+    this.loadOrderActivity();
+
+  }
+
+  loadOrderActivity(): void {
+    this.orderActivityLoading.set(true);
+    this.adminApi.getOrderStatuses()
+      .pipe(finalize(() => this.orderActivityLoading.set(false)))
+      .subscribe({
+      next: statuses => this.orderStatusCounts.set(statuses),
+      error: () => this.orderStatusCounts.set([])
+    });
   }
 
   // 60 days in one call: the last 30 for the chart, the 30 before for the comparison.
@@ -175,6 +217,60 @@ export class Reporter implements OnInit {
     return Math.max(...this.topBoughtStocks().map(stock => stock.totalVolume), 1);
   }
 
+  get maximumAccountValue(): number {
+    return Math.max(...this.activeAccounts().map(account => account.totalTradedValue), 1);
+  }
+
+  get totalPortfolioAccounts(): number {
+    return this.portfolioSizes().reduce((sum, item) => sum + item.accountCount, 0);
+  }
+
+  private countPortfolioSizes(accounts: AdminAccount[]): PortfolioSizeCount[] {
+    const counts = new Map<string, number>();
+    for (const account of accounts) {
+      const portfolioSize = account.portfolioSize?.trim();
+      if (portfolioSize) counts.set(portfolioSize, (counts.get(portfolioSize) ?? 0) + 1);
+    }
+
+    return [...counts.entries()]
+      .map(([portfolioSize, accountCount]) => ({ portfolioSize, accountCount }))
+      .sort((left, right) => right.accountCount - left.accountCount);
+  }
+
+  portfolioPieStyle(): string {
+    const colors = ['#c1ff39', '#69c6c9', '#e7c96a', '#8f9be8', '#f08e85'];
+    const total = this.portfolioSizes().reduce((sum, item) => sum + item.accountCount, 0);
+    if (!total) return 'conic-gradient(#293029 0 100%)';
+
+    let start = 0;
+    const stops = this.portfolioSizes().map((item, index) => {
+      const end = start + (item.accountCount / total) * 100;
+      const stop = `${colors[index % colors.length]} ${start}% ${end}%`;
+      start = end;
+      return stop;
+    });
+    return `conic-gradient(${stops.join(', ')})`;
+  }
+
+  portfolioColor(index: number): string {
+    return ['#c1ff39', '#69c6c9', '#e7c96a', '#8f9be8', '#f08e85'][index % 5];
+  }
+
+  portfolioPercentage(count: number): number {
+    const total = this.portfolioSizes().reduce((sum, item) => sum + item.accountCount, 0);
+    return total ? Math.round((count / total) * 100) : 0;
+  }
+
+  accountBarWidth(value: number): number {
+    return (value / this.maximumAccountValue) * 100;
+  }
+
+  get topActiveAccounts(): ActiveAccountAnalytics[] {
+    return [...this.activeAccounts()]
+      .sort((left, right) => Number(right.totalTradedValue) - Number(left.totalTradedValue))
+      .slice(0, 5);
+  }
+
   volumeBarX(index: number): number {
     const chartWidth = 720;
     const barSlot = chartWidth / Math.max(this.topBoughtStocks().length, 1);
@@ -189,6 +285,26 @@ export class Reporter implements OnInit {
 
   volumeBarHeight(volume: number): number {
     return (volume / this.maximumVolume) * 190;
+  }
+
+  get maximumOrderStatusCount(): number {
+    return Math.max(...this.orderStatusSummary().map(item => item.count), 1);
+  }
+
+  orderStatusBarX(index: number): number {
+    const chartWidth = 720;
+    const barSlot = chartWidth / Math.max(this.orderStatusSummary().length, 1);
+    return index * barSlot + barSlot * 0.2;
+  }
+
+  orderStatusBarWidth(): number {
+    const chartWidth = 720;
+    const barSlot = chartWidth / Math.max(this.orderStatusSummary().length, 1);
+    return barSlot * 0.6;
+  }
+
+  orderStatusBarHeight(count: number): number {
+    return (count / this.maximumOrderStatusCount) * 190;
   }
 
   // Money moved chart geometry

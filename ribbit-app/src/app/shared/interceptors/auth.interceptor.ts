@@ -1,7 +1,7 @@
-import { HttpBackend, HttpClient, HttpErrorResponse, HttpInterceptorFn } from '@angular/common/http';
+import { HttpClient, HttpErrorResponse, HttpInterceptorFn } from '@angular/common/http';
 import { inject } from '@angular/core';
 import { Router } from '@angular/router';
-import { Observable, catchError, defer, finalize, firstValueFrom, from, map, of, shareReplay, switchMap, throwError } from 'rxjs';
+import { Observable, catchError, defer, finalize, firstValueFrom, from, map, of, shareReplay, throwError } from 'rxjs';
 import { environment } from '../../environments/environment';
 import { AuthService } from '../services/auth.service';
 
@@ -24,7 +24,7 @@ interface TokenPair {
 
 export function readToken(): string | null {
   try {
-    return localStorage.getItem(TOKEN_KEY);
+    return sessionStorage.getItem(TOKEN_KEY);
   } catch {
     return null;
   }
@@ -32,7 +32,7 @@ export function readToken(): string | null {
 
 export function readRefreshToken(): string | null {
   try {
-    return localStorage.getItem(REFRESH_TOKEN_KEY);
+    return sessionStorage.getItem(REFRESH_TOKEN_KEY);
   } catch {
     return null;
   }
@@ -40,9 +40,9 @@ export function readRefreshToken(): string | null {
 
 export function storeTokens(accessToken: string, refreshToken?: string): void {
   try {
-    localStorage.setItem(TOKEN_KEY, accessToken);
+    sessionStorage.setItem(TOKEN_KEY, accessToken);
     if (refreshToken) {
-      localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
+      sessionStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
     }
   } catch {
 
@@ -51,8 +51,8 @@ export function storeTokens(accessToken: string, refreshToken?: string): void {
 
 export function clearToken(): void {
   try {
-    localStorage.removeItem(TOKEN_KEY);
-    localStorage.removeItem(REFRESH_TOKEN_KEY);
+    sessionStorage.removeItem(TOKEN_KEY);
+    sessionStorage.removeItem(REFRESH_TOKEN_KEY);
   } catch {
 
   }
@@ -88,7 +88,8 @@ let refreshInFlight: Observable<string | null> | null = null;
 
 
 export function refreshSession(http: HttpClient): Observable<string | null> {
-  if (!readRefreshToken()) {
+  const storedRefreshToken = readRefreshToken();
+  if (!storedRefreshToken || isJwtExpired(storedRefreshToken)) {
     return of(null);
   }
   if (refreshInFlight) {
@@ -102,7 +103,7 @@ export function refreshSession(http: HttpClient): Observable<string | null> {
       return of(current);
     }
     const refreshToken = readRefreshToken();
-    if (!refreshToken) {
+    if (!refreshToken || isJwtExpired(refreshToken)) {
       return of(null);
     }
     return http.post<TokenPair>(`${environment.authUrl}/auth/refresh`, { refreshToken }).pipe(
@@ -126,6 +127,11 @@ export function refreshSession(http: HttpClient): Observable<string | null> {
     shareReplay(1)
   );
   return refreshInFlight;
+}
+
+function isJwtExpired(token: string, nowMs = Date.now()): boolean {
+  const expiresAt = tokenExpiresAt(token);
+  return expiresAt !== null && expiresAt <= nowMs;
 }
 
 function needsToken(url: string): boolean {
@@ -153,8 +159,6 @@ function errorCode(error: HttpErrorResponse): string | undefined {
 export const authInterceptor: HttpInterceptorFn = (req, next) => {
   const router = inject(Router);
   const authService = inject(AuthService);
-  // Bypasses this interceptor, so the refresh call itself is never intercepted
-  const refreshHttp = new HttpClient(inject(HttpBackend));
   const token = readToken();
 
   const send = (accessToken: string | null) =>
@@ -180,16 +184,8 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
       const accessTokenExpired = code === 'token_expired' || (!code && (!token || isTokenExpired(token)));
 
       if (accessTokenExpired) {
-        return refreshSession(refreshHttp).pipe(
-          catchError(() => throwError(() => error)),
-          switchMap(newToken => {
-            if (!newToken) {
-              endSession();
-              return throwError(() => error);
-            }
-            return send(newToken);
-          })
-        );
+        endSession();
+        return throwError(() => error);
       }
 
       if (code && SESSION_ENDED.has(code)) {

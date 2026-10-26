@@ -2,6 +2,7 @@ import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable, map } from 'rxjs';
 import { environment } from '../../environments/environment';
+import { readToken } from '../interceptors/auth.interceptor';
 import {
   AccountDetailDto,
   AccountDto,
@@ -44,6 +45,7 @@ export function toTransaction(dto: TransactionDto): Transaction | null {
       type: 'Currency Exchange',
       description: 'Currency Exchange',
       amount: dto.amount,
+      currency: dto.currency ?? null,
       status: 'Completed'
     };
   }
@@ -55,6 +57,7 @@ export function toTransaction(dto: TransactionDto): Transaction | null {
     type: isDeposit ? 'Deposit' : 'Withdrawal',
     description: isDeposit ? 'Deposit' : 'Withdrawal',
     amount: dto.side === 'IN' ? dto.amount : -dto.amount,
+    currency: dto.currency ?? null,
     // TODO(backend): transactions have no status column; every row is treated as completed.
     status: 'Completed'
   };
@@ -177,7 +180,7 @@ export class TransactionsService {
   }
 
   private createAuthHeaders(): HttpHeaders {
-    const storedToken = typeof window === 'undefined' ? null : window.localStorage.getItem('token');
+    const storedToken = readToken();
     const token = storedToken?.trim().replace(/^Bearer\s+/i, '').replace(/^"|"$/g, '') || null;
     return token ? new HttpHeaders({ Authorization: `Bearer ${token}` }) : new HttpHeaders();
   }

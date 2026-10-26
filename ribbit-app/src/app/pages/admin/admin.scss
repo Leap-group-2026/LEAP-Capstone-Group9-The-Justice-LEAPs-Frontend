@@ -17,6 +17,18 @@
   -webkit-font-smoothing: antialiased;
 }
 
+:host-context(.light-theme) {
+  --background: #f5f8f3;
+  --surface: #ffffff;
+  --surface-raised: #eaf1e8;
+  --border: #c8d5c5;
+  --text: #18351f;
+  --muted: #52705a;
+  --subtle: #6f8975;
+  --accent: #287a3c;
+  --negative: #c6534d;
+}
+
 * { box-sizing: border-box; }
 button { font: inherit; cursor: pointer; }
 button:disabled { cursor: wait; opacity: 0.6; }
@@ -78,6 +90,8 @@ h2 { font-size: 15px; font-weight: 500; }
 .user-lookup { overflow: hidden; }
 .lookup-form { display: flex; align-items: end; gap: 12px; padding: 18px 20px; }
 .lookup-form label { color: var(--muted); font-size: 12px; }
+.lookup-field { display: grid; gap: 6px; }
+.lookup-form select { min-height: 36px; padding: 7px 32px 7px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface-raised); color: var(--text); font: inherit; font-size: 12px; }
 .lookup-form input { min-width: 280px; min-height: 36px; padding: 7px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface-raised); color: var(--text); font: inherit; font-size: 12px; }
 .lookup-error { padding: 0 20px 18px; color: var(--negative); font-size: 12px; }
 .user-result { display: grid; grid-template-columns: 1.5fr repeat(3, 1fr); gap: 16px; padding: 18px 20px; border-top: 1px solid var(--border); }
@@ -86,9 +100,19 @@ h2 { font-size: 15px; font-weight: 500; }
 .user-result strong, .lookup-account strong { font-size: 12px; font-weight: 500; }
 .lookup-accounts { padding: 0 20px 18px; }
 .lookup-accounts h3 { margin: 0 0 10px; color: var(--muted); font-size: 12px; font-weight: 500; }
-.lookup-account { grid-template-columns: 100px 1fr; padding: 10px 0; border-top: 1px solid var(--border); }
+.lookup-account { grid-template-columns: 100px minmax(0, 1fr) auto; align-items: center; padding: 10px 0; border-top: 1px solid var(--border); }
+.lookup-account-details { display: grid; gap: 8px; }
+.lookup-account-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 14px; }
+.lookup-account-actions a { color: var(--accent); font-size: 11px; text-decoration: none; }
+.lookup-account-actions a:hover { text-decoration: underline; }
+.refresh-button { border-color: var(--border); color: var(--muted); }
+.refresh-button:hover { border-color: var(--accent); color: var(--accent); background: rgba(193, 255, 57, 0.06); }
+.freeze-toggle-button { min-height: 32px; padding: 7px 12px; border: 1px solid #6c423f; border-radius: 6px; background: #211514; color: var(--negative); font: inherit; font-size: 11px; font-weight: 600; cursor: pointer; }
+.freeze-toggle-button:hover { border-color: var(--negative); background: #2a1918; color: #ffd8d4; }
+.freeze-toggle-button.unfreeze-button { border-color: #536f2a; background: #17200f; color: var(--accent); }
+.freeze-toggle-button.unfreeze-button:hover { border-color: var(--accent); background: #202c13; color: #efffc7; }
+.freeze-toggle-button:disabled { cursor: wait; opacity: 0.6; }
 .pagination { display: flex; align-items: center; justify-content: flex-end; gap: 12px; padding: 14px 20px; border-top: 1px solid var(--border); color: var(--muted); font-size: 12px; }
-
 .summary-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -102,12 +126,35 @@ h2 { font-size: 15px; font-weight: 500; }
   border-radius: 8px;
   background: var(--surface);
 }
-
 .summary-card h2 { color: var(--muted); font-size: 12px; }
 .summary-card strong { display: block; margin: 16px 0 6px; font-size: 28px; font-weight: 500; }
 .summary-card p { color: var(--subtle); font-size: 11px; }
 .accent, .positive { color: var(--accent); }
 .negative { color: var(--negative); }
+
+.admin-destinations {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.destination-card {
+  display: grid;
+  gap: 10px;
+  padding: 22px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  text-decoration: none;
+  transition: border-color 0.15s ease, transform 0.15s ease;
+}
+
+.destination-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+.destination-card strong { font-size: 20px; font-weight: 500; }
+.destination-card > span:not(.destination-kicker):not(.destination-link) { color: var(--muted); font-size: 12px; }
+.destination-kicker { color: var(--subtle); font-size: 10px; letter-spacing: 0.08em; }
+.destination-link { margin-top: 8px; color: var(--accent); font-size: 12px; }
 
 .notice {
   display: grid;
@@ -216,11 +263,19 @@ tbody td { color: var(--muted); }
 .badge.pending i { background: #e7c96a; }
 .badge.filled i { background: var(--accent); }
 .badge.canceled i, .badge.cancelled i, .badge.failed i, .badge.declined i { background: var(--negative); }
+.orders-pagination { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 20px; }
+.orders-range { color: var(--subtle); font-size: 11px; }
+.orders-page-controls { display: flex; align-items: center; gap: 4px; }
+.page-button { display: inline-grid; min-width: 30px; height: 30px; place-items: center; padding: 0 8px; border: 1px solid var(--border); border-radius: 5px; background: transparent; color: var(--muted); font-size: 11px; }
+.page-button:hover:not(:disabled), .page-button.current { border-color: var(--accent); color: var(--accent); }
+.page-button.current { background: color-mix(in srgb, var(--accent) 10%, transparent); font-weight: 700; }
+.page-button:disabled { cursor: not-allowed; opacity: 0.35; }
 .empty-state { padding: 36px 20px; color: var(--muted); font-size: 13px; text-align: center; }
 
 @media (max-width: 900px) {
   .summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .analytics-grid { grid-template-columns: 1fr; }
+  .admin-destinations { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 560px) {
@@ -228,5 +283,18 @@ tbody td { color: var(--muted); }
   .welcome { align-items: flex-start; flex-direction: column; }
   .summary-grid { grid-template-columns: 1fr; }
   .lookup-form, .user-result { align-items: stretch; grid-template-columns: 1fr; flex-direction: column; }
-  .lookup-form input { min-width: 0; width: 100%; }
+  .lookup-account { grid-template-columns: 1fr; gap: 8px; }
+  .lookup-account-actions { justify-content: flex-start; }
+  .lookup-form input, .lookup-form select { min-width: 0; width: 100%; }
 }
+
+/* Account ID search: the account found, shown above its owner */
+.matched-account { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 16px; margin: 0 20px 4px; padding: 14px 16px; border: 1px solid var(--border); border-left: 3px solid var(--accent); border-radius: 6px; background: var(--surface-raised); }
+.matched-account span { color: var(--muted); font-size: 11px; }
+.matched-account strong { font-size: 16px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.matched-kicker { color: var(--accent) !important; font-weight: 700; letter-spacing: 0.06em; }
+.account-status { padding: 2px 8px; border: 1px solid var(--border); border-radius: 999px; }
+.account-status.active { color: var(--accent) !important; border-color: color-mix(in srgb, var(--accent) 45%, transparent); }
+.account-status.frozen { color: #dfbd71 !important; border-color: color-mix(in srgb, #dfbd71 45%, transparent); }
+.account-status.closed { color: var(--negative) !important; border-color: color-mix(in srgb, var(--negative) 45%, transparent); }
+.lookup-account.matched { margin: 0 -10px; padding-inline: 10px; border-radius: 4px; background: color-mix(in srgb, var(--accent) 7%, transparent); }

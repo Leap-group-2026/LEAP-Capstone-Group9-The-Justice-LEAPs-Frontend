@@ -10,6 +10,8 @@
   --subtle: #7c897f;
   --accent: #c1ff39;
   --negative: #f08e85;
+  --table-gain: #69d783;
+  --table-loss: #f07670;
   --sidebar-width: 214px;
   --header-height: 80px;
 
@@ -577,13 +579,17 @@ h1 {
 }
 
 .chart-label {
-  fill: #ffffff;
+  fill: var(--muted);
   font-family: "Inter", system-ui, sans-serif;
   font-size: 10px;
   font-weight: 400;
   letter-spacing: 0;
   opacity: .9;
   stroke: none;
+}
+
+.chart-amount {
+  font-size: 8.5px;
 }
 
 // TABLE STYLING
@@ -730,9 +736,11 @@ tfoot td {
     color: var(--accent);
   }
 
-  &.cancelled {
-    background: #202620;
-    color: #a2aca4;
+  &.cancelled,
+  &.rejected,
+  &.failed {
+    background: #3a2424;
+    color: #ff9b9b;
   }
 }
 
@@ -946,3 +954,11 @@ tfoot td {
     background: linear-gradient(120deg, #e7f1e4, #ffffff);
   }
 }
+
+:host-context(.light-theme) {
+  --table-gain: #287a3c;
+  --table-loss: #a83232;
+}
+
+.table-scroll td.positive { color: var(--table-gain) !important; }
+.table-scroll td.negative { color: var(--table-loss) !important; }

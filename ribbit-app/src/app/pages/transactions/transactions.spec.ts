@@ -67,7 +67,8 @@ describe('Transactions page: deposit and withdraw', () => {
 
   async function setup(url = '/transactions', selectedId = 42): Promise<void> {
     localStorage.clear();
-    localStorage.setItem('token', 'test-token');
+    sessionStorage.clear();
+    sessionStorage.setItem('token', 'test-token');
     localStorage.setItem('accountId', String(selectedId));
     localStorage.setItem('balance', '1000');
 
@@ -144,6 +145,7 @@ describe('Transactions page: deposit and withdraw', () => {
   // Reset even when verify() throws, so one failing test can't break the ones after it.
   afterEach(() => {
     localStorage.clear();
+    sessionStorage.clear();
     try {
       http.verify();
     } finally {

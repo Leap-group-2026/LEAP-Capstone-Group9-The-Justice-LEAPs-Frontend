@@ -5,8 +5,15 @@ import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { catchError, finalize, forkJoin, of } from 'rxjs';
 import { AuthService } from '../../shared/services/auth.service';
-import { AccountContextService, CreateAccountRequest } from '../../shared/services/account-context.service';
+import {
+  ACCOUNT_NAME_MAX_LENGTH,
+  AccountContextService,
+  CreateAccountRequest,
+  accountLabel,
+  accountNameProblem
+} from '../../shared/services/account-context.service';
 import { environment } from '../../environments/environment';
+import { readToken } from '../../shared/interceptors/auth.interceptor';
 
 type EditProfileStep = 'view' | 'edit' | 'success';
 type ChangePasswordStep = 'form' | 'success';
@@ -18,13 +25,6 @@ interface UserProfile {
   address: string;
 }
 
-interface PreferenceSettings {
-  emailNotifications: boolean;
-  orderConfirmations: boolean;
-  tradeAlerts: boolean;
-  accountNotifications: boolean;
-}
-
 interface AccountInfo {
   accountId: number;
   balance: number;
@@ -32,6 +32,15 @@ interface AccountInfo {
   tradeType: string;
   createdAt: string;
   accountActive: boolean;
+  accountName?: string | null;
+}
+
+
+function apiErrorMessage(error: { error?: unknown }, fallback: string): string {
+  const body = error?.error as { fieldMessage?: string; message?: string } | string | undefined;
+  if (typeof body === 'string' && body.trim()) return body;
+  if (body && typeof body === 'object') return body.fieldMessage || body.message || fallback;
+  return fallback;
 }
 
 @Component({
@@ -46,9 +55,7 @@ export class Account implements OnInit {
   private readonly router = inject(Router);
   private readonly authService = inject(AuthService);
   private readonly accountContext = inject(AccountContextService);
-  readonly accessToken = typeof localStorage === 'undefined'
-    ? null
-    : localStorage.getItem('token');
+  readonly accessToken = readToken();
 
   // Icons
   readonly icons: Record<string, string> = {
@@ -76,7 +83,17 @@ export class Account implements OnInit {
   readonly isAddingAccount = signal(false);
   readonly addAccountError = signal('');
   readonly addedAccountId = signal<number | null>(null);
+  readonly addedAccountLabel = signal('');
 
+
+  readonly accountNameMaxLength = ACCOUNT_NAME_MAX_LENGTH;
+  readonly accountLabel = accountLabel;
+  readonly renamingAccountId = signal<number | null>(null);
+  readonly savingRename = signal(false);
+  readonly renameError = signal('');
+  renameDraft = '';
+
+  newAccountName = '';
   newAccountBalance = '0';
   newAccountPortfolioSize = 'BALANCED';
   newAccountTradeType = 'Passive';
@@ -87,13 +104,6 @@ export class Account implements OnInit {
   readonly isSavingProfile = signal(false);
   readonly changePasswordStep = signal<ChangePasswordStep>('form');
   readonly showChangePasswordModal = signal(false);
-  readonly preferences = signal<PreferenceSettings>({
-    emailNotifications: true,
-    orderConfirmations: true,
-    tradeAlerts: true,
-    accountNotifications: false
-  });
-
   // Form state
   editFirstName = '';
   editLastName = '';
@@ -111,9 +121,7 @@ export class Account implements OnInit {
   }
 
   private loadAccounts(): void {
-    const token = typeof localStorage === 'undefined'
-      ? null
-      : localStorage.getItem('token');
+    const token = readToken();
     const userId = this.resolveUserId(token);
 
     if (!token || userId === null) {
@@ -126,7 +134,9 @@ export class Account implements OnInit {
       { headers: new HttpHeaders({ Authorization: `Bearer ${token}` }) }
     ).subscribe({
       next: (accounts) => {
-        const activeAccounts = accounts.filter(account => account.accountActive);
+        const activeAccounts = accounts
+          .filter(account => account.accountActive)
+          .sort((left, right) => left.accountId - right.accountId);
         this.accounts.set(activeAccounts);
         this.loadPositionCounts(activeAccounts);
       },
@@ -140,7 +150,7 @@ export class Account implements OnInit {
       return;
     }
 
-    const token = typeof localStorage === 'undefined' ? null : localStorage.getItem('token');
+    const token = readToken();
     if (!token) return;
 
     const positionRequests = accounts.map(account => this.http.get<unknown[]>(
@@ -221,12 +231,55 @@ export class Account implements OnInit {
     return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value);
   }
 
+  startRename(account: AccountInfo): void {
+    this.renamingAccountId.set(account.accountId);
+    this.renameDraft = account.accountName ?? '';
+    this.renameError.set('');
+  }
+
+  cancelRename(): void {
+    if (this.savingRename()) return;
+    this.renamingAccountId.set(null);
+    this.renameError.set('');
+  }
+
+
+  saveRename(account: AccountInfo): void {
+    if (this.savingRename()) return;
+    const problem = accountNameProblem(this.renameDraft);
+    if (problem) {
+      this.renameError.set(problem);
+      return;
+    }
+
+    const name = this.renameDraft.trim() || null;
+    this.savingRename.set(true);
+    this.renameError.set('');
+    this.accountContext.renameAccount(account.accountId, name)
+      .pipe(finalize(() => this.savingRename.set(false)))
+      .subscribe({
+        next: renamed => {
+          this.accounts.update(accounts => accounts.map(item =>
+            item.accountId === account.accountId ? { ...item, accountName: renamed.accountName } : item
+          ));
+          this.renamingAccountId.set(null);
+        },
+        error: error => this.renameError.set(
+          error?.status === 404
+            ? 'This account can no longer be renamed. Reload the page and try again.'
+            : apiErrorMessage(error, 'Unable to rename this account. Please try again.')
+        )
+      });
+  }
+
   openAddAccount(): void {
+    this.newAccountName = '';
     this.newAccountBalance = '0';
     this.newAccountPortfolioSize = 'BALANCED';
     this.newAccountTradeType = 'Passive';
     this.addAccountError.set('');
     this.addedAccountId.set(null);
+    this.addedAccountLabel.set('');
     this.showAddAccountModal.set(true);
   }
 
@@ -245,11 +298,19 @@ export class Account implements OnInit {
       this.addAccountError.set('Choose a trading style.');
       return;
     }
+    const nameProblem = accountNameProblem(this.newAccountName);
+    if (nameProblem) {
+      this.addAccountError.set(nameProblem);
+      return;
+    }
+    const accountName = this.newAccountName.trim();
 
     const request: CreateAccountRequest = {
       balance,
       portfolioSize: this.newAccountPortfolioSize,
-      tradeType
+      tradeType,
+      // Optional: left out entirely when the user didn't name the account
+      ...(accountName ? { accountName } : {})
     };
     this.isAddingAccount.set(true);
     this.addAccountError.set('');
@@ -260,10 +321,10 @@ export class Account implements OnInit {
           this.accountContext.accounts.update((accounts) => [...accounts, account]);
           this.accounts.update((accounts) => [...accounts, account]);
           this.addedAccountId.set(account.accountId);
+          this.addedAccountLabel.set(accountLabel(account));
         },
         error: (error) => {
-          const message = typeof error.error === 'string' ? error.error : error.error?.message;
-          this.addAccountError.set(message || 'Unable to add the account. Please try again.');
+          this.addAccountError.set(apiErrorMessage(error, 'Unable to add the account. Please try again.'));
         }
       });
   }
@@ -332,7 +393,7 @@ export class Account implements OnInit {
     const name = `${this.editFirstName.trim()} ${this.editLastName.trim()}`;
     const email = this.editEmail.trim().toLowerCase();
     const address = this.editAddress.trim();
-    const token = typeof localStorage === 'undefined' ? null : localStorage.getItem('token');
+    const token = readToken();
 
     if (!token) {
       this.editFormError = 'Your session has expired. Please log in again.';
@@ -479,17 +540,13 @@ export class Account implements OnInit {
     this.closeChangePasswordModal();
   }
 
-  // Preferences toggle methods
-  togglePreference(key: keyof PreferenceSettings): void {
-    const current = this.preferences();
-    this.preferences.set({
-      ...current,
-      [key]: !current[key]
-    });
-  }
-
   // Navigation
   navigate(destination: string): void {
+    if (destination === 'logout') {
+      this.authService.logout();
+      this.router.navigate(['/login']);
+      return;
+    }
     this.router.navigate([`/${destination}`]);
   }
 }

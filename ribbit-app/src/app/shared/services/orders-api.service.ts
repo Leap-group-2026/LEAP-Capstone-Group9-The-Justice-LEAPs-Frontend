@@ -2,6 +2,19 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
+import { OrderSide } from './transactions.models';
+
+export interface CreateOrderRequest {
+  side: OrderSide;
+  accountId: number;
+  instrumentId: number;
+  quantity: number;
+}
+
+export interface CreateOrderResponse {
+  order_id: number;
+  created_at: string;
+}
 
 export interface OrderHistoryApiResponse {
   orderId: number;
@@ -11,6 +24,7 @@ export interface OrderHistoryApiResponse {
   pricePerUnit: number;
   status: string;
   totalPrice: number;
+  createdAt: string | null;
   executedAt: string | null;
 }
 
@@ -25,6 +39,15 @@ export class OrdersApiService {
   getOrderHistory(accountId: number): Observable<OrderHistoryApiResponse[]> {
     return this.http.get<OrderHistoryApiResponse[]>(
       `${this.apiBaseUrl}/orders/account/${accountId}`,
+      { headers: this.createAuthHeaders() }
+    );
+  }
+
+  // Orders are PENDING when accepted and fill asynchronously; poll getOrderHistory for the outcome.
+  placeOrder(body: CreateOrderRequest): Observable<CreateOrderResponse> {
+    return this.http.post<CreateOrderResponse>(
+      `${this.apiBaseUrl}/orders`,
+      body,
       { headers: this.createAuthHeaders() }
     );
   }

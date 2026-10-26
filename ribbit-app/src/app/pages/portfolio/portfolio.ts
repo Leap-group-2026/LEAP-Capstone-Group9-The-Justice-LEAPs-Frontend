@@ -7,9 +7,9 @@ import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { forkJoin, map, of, catchError } from 'rxjs';
 import { environment } from '../../environments/environment';
+import { readToken } from '../../shared/interceptors/auth.interceptor';
 import { AuthService } from '../../shared/services/auth.service';
 import { InstrumentApiResponse, InstrumentsApiService } from '../../shared/services/instruments-api.service';
-import { PortfolioValueService } from '../../shared/services/portfolio-value.service';
 import { AccountContextService } from '../../shared/services/account-context.service';
 
 export type PortfolioState = 'ready' | 'loading' | 'error';
@@ -23,7 +23,8 @@ export type PortfolioDestination =
   | 'account'
   | 'logout';
 
-type HoldingFilter = 'all' | 'stocks' | 'crypto' | 'forex';
+type HoldingFilter = 'all' | 'stocks' | 'crypto';
+const MAX_ALLOCATION_POSITIONS = 5;
 
 export interface Holding {
   symbol: string;
@@ -65,19 +66,18 @@ interface AccountPosition {
   styleUrls: ['./portfolio.scss']
 })
 export class Portfolio implements OnInit {
+  readonly appVersion = environment.version;
   private readonly http = inject(HttpClient);
   private readonly platformId = inject(PLATFORM_ID);
   private readonly router = inject(Router);
   private readonly authService = inject(AuthService);
   private readonly instrumentsApi = inject(InstrumentsApiService);
-  private readonly portfolioValueService = inject(PortfolioValueService);
   private readonly accountContext = inject(AccountContextService);
   private readonly destroyRef = inject(DestroyRef);
 
   state: PortfolioState = 'ready';
   availableCash = this.readStoredBalance();
-  private readonly apiPortfolioValue = signal(0);
-  portfolioValueLoading = true;
+  positionsLoading = signal(true);
 
   ngOnInit(): void {
     if (isPlatformBrowser(this.platformId)) {
@@ -87,14 +87,13 @@ export class Portfolio implements OnInit {
           if (account.accountId !== this.readAccountId()) return;
           this.availableCash = account.balance;
           this.loadPositions();
-          this.loadPortfolioValue();
         });
       this.loadPositions();
-      this.loadPortfolioValue();
     }
   }
 
   holdings: Holding[] = [];
+  foreignCurrencyHoldings: Holding[] = [];
 
   readonly user = this.authService.getUserProfile();
 
@@ -141,16 +140,13 @@ export class Portfolio implements OnInit {
   }
 
   get portfolioValue(): number {
-    return this.apiPortfolioValue() + this.availableCash;
+    return this.holdingsValue + this.availableCash;
   }
 
   get totalInvested(): number {
     return this.round(
       this.holdings.reduce(
-        (total, holding) =>
-          total + (this.isForex(holding)
-            ? 0
-            : holding.quantity * holding.averagePurchasePrice),
+        (total, holding) => total + holding.quantity * holding.averagePurchasePrice,
         0
       )
     );
@@ -159,7 +155,7 @@ export class Portfolio implements OnInit {
   get totalGain(): number {
     return this.round(
       this.holdings.reduce(
-        (total, holding) => total + (this.isForex(holding) ? 0 : this.gain(holding)),
+        (total, holding) => total + this.gain(holding),
         0
       )
     );
@@ -182,8 +178,7 @@ export class Portfolio implements OnInit {
       const matchesFilter =
         this.filter === 'all' ||
         (this.filter === 'stocks' && holding.type === 'Stock') ||
-        (this.filter === 'crypto' && holding.type === 'Crypto') ||
-        (this.filter === 'forex' && holding.type === 'Forex');
+        (this.filter === 'crypto' && holding.type === 'Crypto');
 
       return matchesSearch && matchesFilter;
     });
@@ -251,6 +246,16 @@ export class Portfolio implements OnInit {
     return `conic-gradient(${stops.join(', ')})`;
   }
 
+  get displayedAllocation(): AllocationItem[] {
+    const items = this.allocation;
+    const cash = items.find(item => item.label === 'Cash');
+    const positions = items
+      .filter(item => item.label !== 'Cash')
+      .slice(0, MAX_ALLOCATION_POSITIONS);
+
+    return cash ? [...positions, cash] : positions;
+  }
+
   get allocationDescription(): string {
     if (!this.allocation.length) return 'No portfolio allocation yet.';
 
@@ -308,36 +313,15 @@ export class Portfolio implements OnInit {
   retry(): void {
     this.state = 'ready';
     this.loadPositions();
-    this.loadPortfolioValue();
-  }
-
-  private loadPortfolioValue(): void {
-    const accountId = this.readAccountId();
-
-    if (accountId === null) { 
-      this.portfolioValueLoading = false;
-      return;
-    }
-    this.portfolioValueLoading = true;
-    this.portfolioValueService.getPortfolioValue(accountId).subscribe({
-      next: value => {
-        this.apiPortfolioValue.set(value);
-        this.portfolioValueLoading = false;
-      },
-      error: error => {
-        console.error('Unable to load portfolio value', error);
-        this.portfolioValueLoading = false;
-        this.state = 'ready';
-      }
-    });
   }
 
   private loadPositions(): void {
-    const accessToken = localStorage.getItem('token');
+    const accessToken = readToken();
     const storedAccountId = Number(localStorage.getItem('accountId'));
 
     if (!accessToken || !Number.isInteger(storedAccountId) || storedAccountId <= 0) {
       console.warn('Missing token or account ID; skipped positions lookup.');
+      this.positionsLoading.set(false);
       return;
     }
 
@@ -352,12 +336,19 @@ export class Portfolio implements OnInit {
       )
       .subscribe({
         next: positions => {
+          if (positions.length === 0) {
+            this.holdings = [];
+            this.foreignCurrencyHoldings = [];
+            this.positionsLoading.set(false);
+            return;
+          }
+
           forkJoin(
             positions.map(position => this.getCurrentPrice(position).pipe(
               map(currentPrice => ({ position, currentPrice }))
             ))
           ).subscribe(holdings => {
-            this.holdings = holdings.map(({ position, currentPrice }): Holding => ({
+            const mappedHoldings = holdings.map(({ position, currentPrice }): Holding => ({
               symbol: position.ticker,
               name: position.asset_name,
               type: this.getHoldingType(position),
@@ -365,21 +356,27 @@ export class Portfolio implements OnInit {
               averagePurchasePrice: position.average_price,
               currentPrice,
               totalPrice: position.total_price
-            }))
+            }));
+            this.holdings = mappedHoldings
+              .filter(holding => !this.isForex(holding))
               .sort((first, second) =>
                 this.marketValue(second) - this.marketValue(first)
               );
-            console.log('Positions loaded:', this.holdings.length);
+            this.foreignCurrencyHoldings = mappedHoldings
+              .filter(holding => this.isForex(holding))
+              .sort((first, second) => first.symbol.localeCompare(second.symbol));
+            this.positionsLoading.set(false);
           });
         },
         error: error => {
           console.error('Positions lookup failed:', error);
+          this.positionsLoading.set(false);
         }
       });
   }
 
   private getCurrentPrice(position: AccountPosition) {
-    const instrumentRequest = position.ticker.includes('/')
+    const instrumentRequest = this.usesPairPrice(position)
       ? this.instrumentsApi.getForexPrice(position.ticker)
       : this.instrumentsApi.getByTicker(position.ticker);
     const fallbackPrice = position.quantity > 0
@@ -416,7 +413,7 @@ export class Portfolio implements OnInit {
   private getHoldingType(position: AccountPosition): Holding['type'] {
     const assetType = position.asset_type.toUpperCase();
 
-    if (assetType.includes('FOREX') || position.ticker.includes('/')) {
+    if (assetType.includes('FOREX')) {
       return 'Forex';
     }
 
@@ -425,6 +422,11 @@ export class Portfolio implements OnInit {
     }
 
     return 'Stock';
+  }
+
+  private usesPairPrice(position: AccountPosition): boolean {
+    const assetType = position.asset_type.toUpperCase();
+    return assetType.includes('FOREX');
   }
 
   private readAccountId(): number | null {

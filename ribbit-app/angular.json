@@ -53,10 +53,16 @@
                 {
                   "type": "anyComponentStyle",
                   "maximumWarning": "12kB",
-                  "maximumError": "16kB"
+                  "maximumError": "24kB"
                 }
               ],
               "outputHashing": "all"
+            },
+            "s3": {
+              "outputMode": "static",
+              "server": false,
+              "ssr": false,
+              "outputPath": "dist/ribbit-app-s3"
             },
             "development": {
               "optimization": false,

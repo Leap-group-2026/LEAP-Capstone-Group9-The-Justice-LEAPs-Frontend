@@ -2,6 +2,7 @@ import { HttpBackend, HttpClient } from '@angular/common/http';
 import { Injectable, inject, signal } from '@angular/core';
 import { environment } from '../../environments/environment';
 import { clearToken, readToken } from '../interceptors/auth.interceptor';
+import { AccountContextService } from './account-context.service';
 
 export interface StoredUser {
   name: string;
@@ -19,6 +20,10 @@ const SESSION_DATA_KEYS = [
   'tradeType', 'portfolioSize', 'createdAt', 'accountActive', 'adminRole'
 ];
 
+// Roles an admin-login token can carry. A token with any other role (e.g. 'client') is never
+// treated as an admin, whatever is stored in localStorage.
+const ADMIN_FAMILY_ROLES = ['admin', 'super admin', 'superadmin', 'analyst', 'reporter', 'reporter/analyst'];
+
 export interface AuthState {
   isLoggedIn: boolean;
   user: { email: string; name: string } | null;
@@ -30,6 +35,7 @@ export interface AuthState {
 export class AuthService {
   // Bypasses the interceptor: logout must not trigger a refresh or a redirect of its own
   private readonly http = new HttpClient(inject(HttpBackend));
+  private readonly accountContext = inject(AccountContextService);
 
   private authState = signal<AuthState>({
     isLoggedIn: this.hasStoredSession(),
@@ -41,6 +47,8 @@ export class AuthService {
   readonly isLoggedIn = this.authState.asReadonly();
 
   login(email: string, name = ''): void {
+    // The account list belongs to the authenticated user, so discard any prior user's context.
+    this.accountContext.clear();
     this.authState.set({
       isLoggedIn: true,
       user: { email, name }
@@ -76,6 +84,7 @@ export class AuthService {
 
   clearSession(): void {
     clearToken();
+    this.accountContext.clear();
     if (typeof localStorage !== 'undefined') {
       for (const key of SESSION_DATA_KEYS) {
         localStorage.removeItem(key);
@@ -98,7 +107,7 @@ export class AuthService {
       return false;
     }
 
-    const token = window.localStorage.getItem('token')
+    const token = window.sessionStorage.getItem('token')
       ?.trim()
       .replace(/^Bearer\s+/i, '')
       .replace(/^"|"$/g, '');
@@ -124,7 +133,7 @@ export class AuthService {
   }
 
   private hasStoredSession(): boolean {
-    return typeof localStorage !== 'undefined' && Boolean(localStorage.getItem('token'));
+    return typeof sessionStorage !== 'undefined' && Boolean(sessionStorage.getItem('token'));
   }
 
   private readStoredAuthUser(): AuthState['user'] {
@@ -185,19 +194,23 @@ export class AuthService {
       return false;
     }
 
-    const token = window.localStorage.getItem('token');
-    const storedRole = window.localStorage.getItem('adminRole');
-    if (!token && !storedRole) {
+    // No token, no role: a leftover adminRole alone grants nothing.
+    const token = window.sessionStorage.getItem('token');
+    if (!token) {
       return false;
     }
 
     try {
-      const payload = token
-        ? JSON.parse(this.decodeTokenPayload(token)) as { role?: string; roles?: string[] }
-        : {};
-      const roles = [storedRole, payload.role, ...(payload.roles ?? [])]
+      const payload = JSON.parse(this.decodeTokenPayload(token)) as { role?: string; roles?: string[] };
+      const tokenRoles = [payload.role, ...(payload.roles ?? [])]
         .filter((role): role is string => !!role)
         .map(role => this.normalizeRole(role));
+
+      // The stored role only narrows an admin token down to admin or reporter (the token itself
+      // says 'admin' for both); it can never turn a client token into an admin.
+      const storedRole = window.localStorage.getItem('adminRole');
+      const isAdminToken = tokenRoles.some(role => ADMIN_FAMILY_ROLES.includes(role));
+      const roles = storedRole && isAdminToken ? [this.normalizeRole(storedRole)] : tokenRoles;
 
       return roles.some(role => expectedRoles.includes(role));
     } catch {

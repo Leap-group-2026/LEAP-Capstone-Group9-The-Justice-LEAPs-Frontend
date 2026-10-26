@@ -57,6 +57,13 @@ describe('dollarsToCents', () => {
 });
 
 describe('toTransaction', () => {
+  it.each(['EUR', null, undefined])('preserves currency %s without defaulting to USD', currency => {
+    expect(toTransaction(txDto({ currency }))?.currency).toBe(currency ?? null);
+    expect(toTransaction(txDto({
+      transaction_type: 'CURRENCY EXCHANGE', side: 'EXCHANGE', currency
+    }))?.currency).toBe(currency ?? null);
+  });
+
   it('maps IN deposits to positive amounts', () => {
     expect(toTransaction(txDto())).toEqual({
       id: 'TX-1',
@@ -65,6 +72,7 @@ describe('toTransaction', () => {
       type: 'Deposit',
       description: 'Deposit',
       amount: 5000,
+      currency: null,
       status: 'Completed'
     });
   });
@@ -89,6 +97,7 @@ describe('toTransaction', () => {
       type: 'Currency Exchange',
       description: 'Currency Exchange',
       amount: 100,
+      currency: null,
       status: 'Completed'
     });
   });
@@ -168,7 +177,10 @@ describe('TransactionsService deposit/withdraw', () => {
     http = TestBed.inject(HttpTestingController);
   });
 
-  afterEach(() => http.verify());
+  afterEach(() => {
+    sessionStorage.clear();
+    http.verify();
+  });
 
   const depositResponse: FundsTransferResponse = {
     transaction: {
@@ -200,6 +212,7 @@ describe('TransactionsService deposit/withdraw', () => {
       type: 'Deposit',
       description: 'Deposit',
       amount: 250,
+      currency: null,
       status: 'Completed'
     });
   });
@@ -249,7 +262,7 @@ describe('TransactionsService deposit/withdraw', () => {
   });
 
   it('gets transactions for the stored account with the bearer token', () => {
-    localStorage.setItem('token', 'test-token');
+    sessionStorage.setItem('token', 'test-token');
     let result: TransactionDto[] | undefined;
     service.getTransactions(42).subscribe(transactions => (result = transactions));
 

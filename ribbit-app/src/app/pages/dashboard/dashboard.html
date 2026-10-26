@@ -32,7 +32,11 @@
       <article class="summary-card portfolio-card">
         <h2>Total Portfolio Value</h2>
         <strong>
-          @if (portfolioValueLoading) {
+          @if (positionsLoading()) {
+            Loading...
+          } @else if (holdings.length === 0) {
+            {{ availableCash | currency:'USD':'symbol':'1.2-2' }}
+          } @else if (portfolioValueLoading) {
             Loading...
           } @else {
             {{ portfolioValue | currency:'USD':'symbol':'1.2-2' }}
@@ -126,7 +130,7 @@
 
         @for (tick of chartTicks; track tick.y) {
           <line class="chart-grid" x1="72" x2="900" [attr.y1]="tick.y" [attr.y2]="tick.y"/>
-          <text class="chart-label" x="64" [attr.y]="tick.y + 4" text-anchor="end">
+          <text class="chart-label chart-amount" x="64" [attr.y]="tick.y + 4" text-anchor="end">
             {{ tick.value | currency:'USD':'symbol':'1.0-0' }}
           </text>
         }
@@ -260,6 +264,8 @@
                     [class.pending]="order.status === 'Pending'"
                     [class.filled]="order.status === 'Filled'"
                     [class.cancelled]="order.status === 'Cancelled'"
+                    [class.rejected]="order.status === 'Rejected'"
+                    [class.failed]="order.status === 'Failed'"
                   >
                     <i aria-hidden="true"></i>{{ order.status }}
                   </span>
@@ -276,7 +282,7 @@
     </section>
 
     <footer class="page-footer">
-      <p>ILLUSTRATIVE MARKET DATA · ALL VALUES IN USD · INVESTING INVOLVES RISK</p>
+      <p>ALL VALUES IN USD · INVESTING INVOLVES RISK · VERSION {{ appVersion }}</p>
       <span>Demo account</span>
     </footer>
 

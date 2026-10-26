@@ -1,15 +1,19 @@
 import { CommonModule } from '@angular/common';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { environment } from '../../environments/environment';
-import { Component, inject, OnInit, signal } from '@angular/core';
+import { readToken } from '../../shared/interceptors/auth.interceptor';
+import { Component, DestroyRef, inject, OnInit, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router } from '@angular/router';
 import { catchError, forkJoin, map, of } from 'rxjs';
 import { AuthService } from '../../shared/services/auth.service';
 import { InstrumentApiResponse, InstrumentsApiService } from '../../shared/services/instruments-api.service';
 import { PortfolioValueService } from '../../shared/services/portfolio-value.service';
 import { PortfolioSnapshot, PortfolioSnapshotsApiService } from '../../shared/services/portfolio-snapshots-api.service';
+import { AccountContextService } from '../../shared/services/account-context.service';
+import { OrderHistoryApiResponse, OrdersApiService } from '../../shared/services/orders-api.service';
 
-type Period = '1D' | '1W' | '1M' | '3M' | '1Y' | 'ALL';
+type Period = '3D' | '1W' | '1M' | '3M' | '1Y' | 'ALL';
 type Destination =
   | 'dashboard'
   | 'portfolio'
@@ -44,7 +48,7 @@ interface Order {
   side: 'Buy' | 'Sell';
   quantity: number;
   price: number;
-  status: 'Pending' | 'Filled' | 'Cancelled';
+  status: 'Pending' | 'Filled' | 'Cancelled' | 'Rejected' | 'Failed';
   date: string;
   time: string;
 }
@@ -62,33 +66,59 @@ interface PerformancePoint {
   styleUrls: ['./dashboard.scss']
 })
 export class Dashboard implements OnInit {
+  readonly appVersion = environment.version;
   private readonly http = inject(HttpClient);
   private readonly router = inject(Router);
   private readonly authService = inject(AuthService);
   private readonly instrumentsApi = inject(InstrumentsApiService);
   private readonly portfolioValueService = inject(PortfolioValueService);
   private readonly portfolioSnapshotsApi = inject(PortfolioSnapshotsApiService);
+  private readonly accountContext = inject(AccountContextService);
+  private readonly ordersApi = inject(OrdersApiService);
+  private readonly destroyRef = inject(DestroyRef);
 
   selectedPeriod: Period = '1M';
 
   readonly user = this.createUser();
 
   readonly snapshotLabel = 'Oct 7, 2026, 2:32 PM ET';
-  readonly availableCash = this.readStoredBalance();
+  availableCash = this.readStoredBalance();
   private readonly apiPortfolioValue = signal(0);
   portfolioValueLoading = true;
+  positionsLoading = signal(true);
   performanceLoading = true;
   performanceError = false;
   private snapshots: PerformancePoint[] = [];
 
   ngOnInit(): void {
+    this.accountContext.accountUpdated
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(account => {
+        if (account.accountId !== this.readAccountId()) return;
+        this.availableCash = account.balance;
+        this.loadAccountData();
+      });
+
+    this.loadAccountData();
+  }
+
+  private loadAccountData(): void {
     const accountId = this.readAccountId();
 
     if (accountId === null) {
       this.portfolioValueLoading = false;
+      this.positionsLoading.set(false);
+      this.performanceLoading = false;
       return;
     }
+
+    this.portfolioValueLoading = true;
+    this.positionsLoading.set(true);
+    this.performanceLoading = true;
+    this.performanceError = false;
+    this.snapshots = [];
     this.loadPositions();
+    this.loadOrders(accountId);
 
     this.portfolioValueService.getPortfolioValue(accountId).subscribe({
       next: value => {
@@ -117,11 +147,12 @@ export class Dashboard implements OnInit {
     });
   }
   private loadPositions(): void {
-    const accessToken = localStorage.getItem('token');
+    const accessToken = readToken();
     const accountId = this.readAccountId();
 
     if (!accessToken || accountId === null) {
       console.warn('Missing token or account ID; skipped positions lookup.');
+      this.positionsLoading.set(false);
       return;
     }
 
@@ -136,6 +167,11 @@ export class Dashboard implements OnInit {
       )
       .subscribe({
         next: positions => {
+          if (positions.length === 0) {
+            this.holdings = [];
+            this.positionsLoading.set(false);
+            return;
+          }
           forkJoin(
             positions.map(position => this.getCurrentPrice(position).pipe(
               map(currentPrice => ({ position, currentPrice }))
@@ -152,17 +188,89 @@ export class Dashboard implements OnInit {
               .sort((first, second) =>
                 this.marketValue(second) - this.marketValue(first)
               )
-              .slice(0, 5)
+              .slice(0, 5);
+
+            this.positionsLoading.set(false);
           });
         },
         error: error => {
           console.error('Positions lookup failed:', error);
+          this.positionsLoading.set(false);
         }
       });
   }
 
+  private loadOrders(accountId: number): void {
+    this.ordersApi.getOrderHistory(accountId).subscribe({
+      next: apiOrders => {
+        this.orders = apiOrders
+          .map(order => this.mapApiOrder(order))
+          .sort((first, second) => Date.parse(second.date) - Date.parse(first.date))
+          .slice(0, 4);
+      },
+      error: error => {
+        console.error('Unable to load dashboard orders', error);
+        this.orders = [];
+      }
+    });
+  }
+
+  private mapApiOrder(order: OrderHistoryApiResponse): Order {
+    const timestamp = this.parseBackendDate(order.executedAt) ?? this.parseBackendDate(order.createdAt);
+
+    return {
+      id: `ORD-${order.orderId}`,
+      instrument: (order.ticker || '').toUpperCase(),
+      type: 'Market',
+      side: (order.side || '').toUpperCase() === 'SELL' ? 'Sell' : 'Buy',
+      quantity: Number(order.quantity) || 0,
+      price: Number(order.pricePerUnit) || 0,
+      status: this.mapOrderStatus(order.status),
+      date: timestamp ? this.toLocalIsoDate(timestamp) : '',
+      time: timestamp
+        ? new Intl.DateTimeFormat('en-US', {
+            hour: 'numeric',
+            minute: '2-digit',
+            hour12: true,
+            timeZoneName: 'short'
+          }).format(timestamp)
+        : 'N/A'
+    };
+  }
+
+  private parseBackendDate(value: string | null | undefined): Date | null {
+    if (!value) return null;
+
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  }
+
+  private toLocalIsoDate(date: Date): string {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
+  private mapOrderStatus(status: string): Order['status'] {
+    switch ((status || '').toUpperCase()) {
+      case 'FILLED':
+        return 'Filled';
+      case 'CANCELED':
+      case 'CANCELLED':
+        return 'Cancelled';
+      case 'FAILED':
+        return 'Failed';
+      case 'DECLINED':
+      case 'REJECTED':
+        return 'Rejected';
+      default:
+        return 'Pending';
+    }
+  }
+
   private getCurrentPrice(position: AccountPosition) {
-    const instrumentRequest = position.ticker.includes('/')
+    const instrumentRequest = this.usesPairPrice(position)
       ? this.instrumentsApi.getForexPrice(position.ticker)
       : this.instrumentsApi.getByTicker(position.ticker);
     const fallbackPrice = position.quantity > 0
@@ -192,107 +300,24 @@ export class Dashboard implements OnInit {
     return Number.isFinite(balance) ? balance : 0;
   }
 
-  // TODO: Replace this hardcoded list with an initially empty Holding[].
-  // Populate it from the positions API after transforming and sorting the response.
    holdings: Holding[] = []
-    /*{
-      symbol: 'AAPL',
-      name: 'Apple Inc.',
-      quantity: 80,
-      currentPrice: 228.42,
-      averageCost: 210
-    },
-    {
-      symbol: 'NVDA',
-      name: 'NVIDIA Corporation',
-      quantity: 120,
-      currentPrice: 142.87,
-      averageCost: 120
-    },
-    {
-      symbol: 'MSFT',
-      name: 'Microsoft Corporation',
-      quantity: 40,
-      currentPrice: 425.60,
-      averageCost: 400
-    },
-    {
-      symbol: 'SPY',
-      name: 'SPDR S&P 500 ETF Trust',
-      quantity: 60,
-      currentPrice: 589.21,
-      averageCost: 550
-    },
-    {
-      symbol: 'TSLA',
-      name: 'Tesla, Inc.',
-      quantity: 30,
-      currentPrice: 248.50,
-      averageCost: 260
-    }
-  ];*/
   // TODO: Add loadPositions() near the other private helper methods.
   // Read the token and account ID, call /positions/account/{accountId},
   // transform each response into Holding, calculate market value, sort highest
   // to lowest, and keep only the first five before assigning this.holdings.
   
 
-  readonly orders: Order[] = [
-    {
-      id: 'RBT-1048',
-      instrument: 'TSLA',
-      type: 'Limit',
-      side: 'Buy',
-      quantity: 10,
-      price: 240,
-      status: 'Pending',
-      date: '2026-10-07',
-      time: '2:18 PM ET'
-    },
-    {
-      id: 'RBT-1047',
-      instrument: 'AAPL',
-      type: 'Market',
-      side: 'Buy',
-      quantity: 10,
-      price: 226.80,
-      status: 'Filled',
-      date: '2026-10-07',
-      time: '10:42 AM ET'
-    },
-    {
-      id: 'RBT-1046',
-      instrument: 'MSFT',
-      type: 'Limit',
-      side: 'Sell',
-      quantity: 5,
-      price: 430,
-      status: 'Cancelled',
-      date: '2026-10-06',
-      time: '3:05 PM ET'
-    },
-    {
-      id: 'RBT-1045',
-      instrument: 'NVDA',
-      type: 'Market',
-      side: 'Buy',
-      quantity: 20,
-      price: 140.50,
-      status: 'Filled',
-      date: '2026-10-06',
-      time: '11:16 AM ET'
-    }
-  ];
+  orders: Order[] = [];
 
   readonly icons: Record<string, string> = {
     external: 'M7 17 17 7 M7 7h10v10',
     plus: 'M12 5v14 M5 12h14'
   };
 
-  readonly periods: Period[] = ['1D', '1W', '1M', '3M', '1Y', 'ALL'];
+  readonly periods: Period[] = ['3D', '1W', '1M', '3M', '1Y', 'ALL'];
 
   readonly periodDescriptions: Record<Period, string> = {
-    '1D': 'today',
+    '3D': 'past 3 days',
     '1W': 'past week',
     '1M': 'past month',
     '3M': 'past 3 months',
@@ -356,7 +381,7 @@ export class Dashboard implements OnInit {
     if (this.selectedPeriod === 'ALL') return this.snapshots;
 
     const latestDate = Date.parse(this.snapshots[this.snapshots.length - 1].date);
-    const days = { '1D': 1, '1W': 7, '1M': 30, '3M': 90, '1Y': 365 }[this.selectedPeriod];
+    const days = { '3D': 3, '1W': 7, '1M': 30, '3M': 90, '1Y': 365 }[this.selectedPeriod];
     const startDate = latestDate - days * 86400000;
     const filtered = this.snapshots.filter(snapshot => Date.parse(snapshot.date) >= startDate);
 
@@ -493,7 +518,7 @@ export class Dashboard implements OnInit {
     const latestDate = this.latestSnapshotDate;
     if (this.selectedPeriod === 'ALL') return Date.parse(this.snapshots[0]?.date) || latestDate;
 
-    const days = { '1D': 1, '1W': 7, '1M': 30, '3M': 90, '1Y': 365 }[this.selectedPeriod];
+    const days = { '3D': 3, '1W': 7, '1M': 30, '3M': 90, '1Y': 365 }[this.selectedPeriod];
     return latestDate - days * 86400000;
   }
 
@@ -524,7 +549,7 @@ export class Dashboard implements OnInit {
   private getHoldingType(position: AccountPosition): Holding['type'] {
     const assetType = position.asset_type.toUpperCase();
 
-    if (assetType.includes('FOREX') || position.ticker.includes('/')) {
+    if (assetType.includes('FOREX')) {
       return 'Forex';
     }
 
@@ -533,6 +558,11 @@ export class Dashboard implements OnInit {
     }
 
     return 'Stock';
+  }
+
+  private usesPairPrice(position: AccountPosition): boolean {
+    const assetType = position.asset_type.toUpperCase();
+    return assetType.includes('FOREX');
   }
 
   private readAccountId(): number | null {

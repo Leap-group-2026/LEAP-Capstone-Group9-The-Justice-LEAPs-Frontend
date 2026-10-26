@@ -1,0 +1,61 @@
+<section class="page-intro">
+  <div>
+    <p class="eyebrow">USER DIRECTORY</p>
+    <h1>Users</h1>
+    <p>Every registered user. Open one to see their accounts, orders and transactions.</p>
+  </div>
+  <button class="refresh-button" type="button" (click)="loadUsers()" [disabled]="loading()">
+    {{ loading() ? 'Loading...' : 'Refresh' }}
+  </button>
+</section>
+
+@if (error()) {
+  <div class="notice error-notice" role="alert">{{ error() }}</div>
+}
+
+<section class="panel user-list" aria-labelledby="users-heading">
+  <div class="panel-heading">
+    <div>
+      <p class="eyebrow">ALL USERS</p>
+      <h2 id="users-heading">Registered users</h2>
+    </div>
+    <strong>{{ users().length }}</strong>
+  </div>
+
+  <div class="filter-row">
+    <label for="user-filter">Filter</label>
+    <input id="user-filter" type="search" placeholder="Name, email or user ID" [value]="filter()" (input)="setFilter($any($event.target).value)">
+    @if (filter()) {
+      <span class="filter-result">{{ filteredUsers().length }} of {{ users().length }}</span>
+    }
+  </div>
+
+  @if (loading() && !users().length) {
+    <p class="muted">Loading users...</p>
+  } @else if (!users().length && !error()) {
+    <p class="empty-state">No users registered yet.</p>
+  } @else if (!filteredUsers().length) {
+    <p class="empty-state">No users match "{{ filter() }}".</p>
+  } @else {
+    <div class="account-list">
+      @for (user of paginatedUsers(); track user.userId) {
+        <article class="account-row">
+          <div>
+            <strong>{{ user.name }} <span class="user-id">#{{ user.userId }}</span></strong>
+            <span>{{ user.email }} · born {{ formatDate(user.dateOfBirth) }}</span>
+            <span>{{ user.address }}</span>
+          </div>
+          <a class="open-link" routerLink="/admin" [queryParams]="{ userId: user.userId }">View details →</a>
+        </article>
+      }
+    </div>
+
+    @if (totalPages() > 1) {
+      <nav class="pagination" aria-label="Users pagination">
+        <button type="button" class="page-button" (click)="goToPage(currentPage() - 1)" [disabled]="currentPage() === 1" aria-label="Previous page">Previous</button>
+        <span>Page {{ currentPage() }} of {{ totalPages() }}</span>
+        <button type="button" class="page-button" (click)="goToPage(currentPage() + 1)" [disabled]="currentPage() === totalPages()" aria-label="Next page">Next</button>
+      </nav>
+    }
+  }
+</section>

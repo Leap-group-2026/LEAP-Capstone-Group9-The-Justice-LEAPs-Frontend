@@ -1,0 +1,109 @@
+<section class="admin-page" aria-labelledby="orders-heading">
+  <section class="welcome">
+    <div>
+      <a class="back-link" routerLink="/admin">← Admin workspace</a>
+      <h1 id="orders-heading">All orders</h1>
+      <p>Review orders across every user and account.</p>
+    </div>
+    <button class="button secondary" type="button" (click)="loadOrders()" [disabled]="isLoading()">
+      {{ isLoading() ? 'Loading...' : 'Refresh' }}
+    </button>
+  </section>
+
+  @if (errorMessage()) {
+    <section class="notice" role="alert"><strong>{{ errorMessage() }}</strong></section>
+  }
+
+  <section class="filter-bar panel" aria-label="Order filters">
+    <label for="order-account-filter">Account ID</label>
+    <select id="order-account-filter" [value]="accountIdFilter()" (change)="setAccountFilter($event)">
+      <option value="">All accounts</option>
+      @for (accountId of accountOptions; track accountId) {
+        <option [value]="accountId" [selected]="isSelectedAccount(accountId)">Account #{{ accountId }}</option>
+      }
+    </select>
+    @if (accountIdFilter()) {
+      <span class="filter-result">{{ filteredOrders.length }} matching orders</span>
+    }
+  </section>
+
+  <section class="chart-grid" aria-label="Order analytics">
+    <article class="panel chart-panel" aria-labelledby="order-side-heading">
+      <div class="panel-heading">
+        <div class="section-title">
+          <h2 id="order-side-heading">Order side</h2>
+          <span>{{ filteredOrders.length }} TOTAL</span>
+        </div>
+      </div>
+      <div class="pie-content">
+        <div class="pie-chart" [style.background]="pieStyle(sideBreakdown)" role="img" aria-label="Order side distribution"></div>
+        <div class="chart-legend">
+          @for (item of sideBreakdown; track item.label) {
+            <div class="legend-item">
+              <span class="legend-label"><i [style.background]="item.color"></i>{{ item.label }}</span>
+              <strong>{{ item.count }} <small>{{ percentage(item.count, filteredOrders.length) }}%</small></strong>
+            </div>
+          }
+        </div>
+      </div>
+    </article>
+
+    <article class="panel chart-panel" aria-labelledby="order-status-heading">
+      <div class="panel-heading">
+        <div class="section-title">
+          <h2 id="order-status-heading">Order status</h2>
+          <span>{{ filteredOrders.length }} TOTAL</span>
+        </div>
+      </div>
+      <div class="pie-content">
+        <div class="pie-chart" [style.background]="pieStyle(statusBreakdown)" role="img" aria-label="Order status distribution"></div>
+        <div class="chart-legend">
+          @for (item of statusBreakdown; track item.label) {
+            <div class="legend-item">
+              <span class="legend-label"><i [style.background]="item.color"></i>{{ item.label }}</span>
+              <strong>{{ item.count }} <small>{{ percentage(item.count, filteredOrders.length) }}%</small></strong>
+            </div>
+          }
+          @if (!statusBreakdown.length) {
+            <span class="chart-empty">No status data available.</span>
+          }
+        </div>
+      </div>
+    </article>
+  </section>
+
+  <section class="panel" aria-labelledby="orders-table-heading">
+    <div class="panel-heading">
+      <div class="section-title">
+        <h2 id="orders-table-heading">Order history</h2>
+        <span>{{ filteredOrders.length }} TOTAL</span>
+      </div>
+    </div>
+    @if (pagedOrders.length) {
+      <div class="table-scroll" tabindex="0" role="region" aria-label="Admin orders table">
+        <table>
+          <thead><tr><th>Order ID</th><th>Account</th><th>Instrument</th><th>Side</th><th class="numeric">Quantity</th><th class="numeric">Total</th><th>Status</th><th>Created</th></tr></thead>
+          <tbody>
+            @for (order of pagedOrders; track order.order_id) {
+              <tr>
+                <th scope="row" class="order-id">#{{ order.order_id }}</th>
+                <td>{{ order.account_id }}</td><td>{{ order.instrument_id }}</td>
+                <td><span class="side" [class.sell]="order.side === 'SELL'">{{ order.side }}</span></td>
+                <td class="numeric">{{ order.quantity }}</td><td class="numeric">{{ formatCurrency(order.total_price) }}</td>
+                <td><span class="badge" [class]="statusClass(order.status)"><i></i>{{ order.status }}</span></td>
+                <td>{{ formatDate(order.created_at) }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+      <div class="pagination" aria-label="Orders pagination">
+        <button class="button secondary" type="button" (click)="setPage(page() - 1)" [disabled]="page() === 1">Previous</button>
+        <span>Page {{ page() }} of {{ pageCount }}</span>
+        <button class="button secondary" type="button" (click)="setPage(page() + 1)" [disabled]="page() === pageCount">Next</button>
+      </div>
+    } @else if (!isLoading()) {
+      <div class="empty-state"><p>No orders match this account filter.</p></div>
+    }
+  </section>
+</section>

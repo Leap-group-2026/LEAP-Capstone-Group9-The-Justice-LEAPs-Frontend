@@ -5,8 +5,10 @@
     "ng": "ng",
     "start": "ng serve",
     "build": "ng build",
+    "build:s3": "ng build --configuration production,s3",
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
+    "test:ci": "ng test --watch=false",
     "serve:ssr:ribbit-app": "node dist/ribbit-app/server/server.mjs"
   },
   "private": true,

@@ -13,13 +13,14 @@ describe('SessionActivityService', () => {
     vi.setSystemTime(new Date('2026-10-19T10:00:00Z'));
     TestBed.configureTestingModule({ providers: [provideHttpClient(), provideHttpClientTesting()] });
     controller = TestBed.inject(HttpTestingController);
-    localStorage.setItem('token', 'some-token');
+    sessionStorage.setItem('token', 'some-token');
     TestBed.inject(SessionActivityService).start();
   });
 
   afterEach(() => {
     vi.useRealTimers();
     localStorage.clear();
+    sessionStorage.clear();
     TestBed.resetTestingModule();
   });
 
@@ -58,7 +59,7 @@ describe('SessionActivityService', () => {
   });
 
   it('sends nothing when logged out', () => {
-    localStorage.removeItem('token');
+    sessionStorage.removeItem('token');
     vi.advanceTimersByTime(10 * 60_000);
     input();
     controller.expectNone(keepAlive);

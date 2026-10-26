@@ -1,14 +1,27 @@
 import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { Observable } from 'rxjs';
+import { map, Observable } from 'rxjs';
 
 import { environment } from '../../environments/environment';
+import { readToken } from '../interceptors/auth.interceptor';
 
 @Injectable({
   providedIn: 'root'
 })
 export class InstrumentsApiService {
   private readonly http = inject(HttpClient);
+
+  // GET /instruments is paginated; pageSize is the number of rows per page.
+  getAll(pageNum = 1, pageSize = 100): Observable<InstrumentListItemApiResponse[]> {
+    const params = new HttpParams()
+      .set('pageNum', pageNum)
+      .set('pageSize', pageSize);
+
+    return this.http.get<InstrumentListItemApiResponse[]>(
+      `${environment.springUrl}/instruments`,
+      { headers: this.createAuthHeaders(), params }
+    );
+  }
 
   getByTicker(ticker: string): Observable<InstrumentApiResponse> {
     return this.http.get<InstrumentApiResponse>(
@@ -43,6 +56,33 @@ export class InstrumentsApiService {
     );
   }
 
+  getCryptoBarNumbers(
+    symbol: string,
+    timeframe: string,
+    start: string,
+    end: string
+  ): Observable<number[]> {
+    const params = new HttpParams()
+      .set('symbols', symbol)
+      .set('timeframe', timeframe)
+      .set('start', start)
+      .set('end', end);
+
+    return this.http.get<number[]>(
+      `${environment.springUrl}/instruments/crypto-bars`,
+      { headers: this.createAuthHeaders(), params }
+    );
+  }
+
+  getNews(): Observable<MarketNews[]> {
+    return this.http.get<MarketNews[] | { news?: MarketNews[] }>(
+      `${environment.springUrl}/instruments/news`,
+      { headers: this.createAuthHeaders() }
+    ).pipe(
+      map(response => Array.isArray(response) ? response : response.news ?? [])
+    );
+  }
+
   private createAuthHeaders(): HttpHeaders {
     const token = this.resolveAuthToken();
 
@@ -56,16 +96,7 @@ export class InstrumentsApiService {
   }
 
   private resolveAuthToken(): string | null {
-    if (typeof window === 'undefined') {
-      return null;
-    }
-
-    const storedToken = window.localStorage.getItem('token')
-      ?? window.localStorage.getItem('authToken')
-      ?? window.localStorage.getItem('jwtToken')
-      ?? window.localStorage.getItem('jwt');
-
-    return storedToken?.trim().replace(/^Bearer\s+/i, '').replace(/^"|"$/g, '') || null;
+    return readToken();
   }
 }
 
@@ -77,4 +108,16 @@ export interface InstrumentApiResponse {
   currency: string;
   price: number;
   quote_time: string;
+}
+
+export interface MarketNews {
+  author: string;
+  headline: string;
+  url: string;
+}
+
+// Rows from GET /instruments: price and quote_time are null until a quote exists.
+export interface InstrumentListItemApiResponse extends Omit<InstrumentApiResponse, 'price' | 'quote_time'> {
+  price: number | null;
+  quote_time: string | null;
 }

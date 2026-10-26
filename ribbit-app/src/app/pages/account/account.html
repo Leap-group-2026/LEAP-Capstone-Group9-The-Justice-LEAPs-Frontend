@@ -162,11 +162,47 @@
       @for (account of accounts(); track account.accountId) {
         <div class="account-record">
           <div class="account-record-heading">
-            <h3>Account #{{ account.accountId }}</h3>
-            <strong [class.status-active]="account.accountActive" [class.status-closed]="!account.accountActive">
-              {{ account.accountActive ? 'Active' : 'Closed' }}
-            </strong>
+            <div class="account-title">
+              <h3>{{ account.accountName || 'Account #' + account.accountId }}</h3>
+              @if (account.accountName) {
+                <span class="account-number">Account #{{ account.accountId }}</span>
+              }
+            </div>
+            <div class="account-heading-actions">
+              @if (account.accountActive && renamingAccountId() !== account.accountId) {
+                <button type="button" class="text-action" (click)="startRename(account)">
+                  {{ account.accountName ? 'Rename' : 'Add a name' }}
+                </button>
+              }
+              <strong [class.status-active]="account.accountActive" [class.status-closed]="!account.accountActive">
+                {{ account.accountActive ? 'Active' : 'Closed' }}
+              </strong>
+            </div>
           </div>
+          @if (renamingAccountId() === account.accountId) {
+            <form class="rename-form" (ngSubmit)="saveRename(account)">
+              <label [for]="'rename-' + account.accountId">Account name</label>
+              <div class="rename-row">
+                <input
+                  [id]="'rename-' + account.accountId"
+                  class="form-input"
+                  name="accountName"
+                  [(ngModel)]="renameDraft"
+                  [attr.maxlength]="accountNameMaxLength"
+                  placeholder="e.g. Savings"
+                  autocomplete="off"
+                />
+                <button type="submit" class="button primary" [disabled]="savingRename()">
+                  {{ savingRename() ? 'Saving...' : 'Save' }}
+                </button>
+                <button type="button" class="button secondary" (click)="cancelRename()" [disabled]="savingRename()">Cancel</button>
+              </div>
+              <small class="rename-hint">Up to {{ accountNameMaxLength }} characters. Leave empty to remove the name.</small>
+              @if (renameError()) {
+                <div class="form-error" role="alert">{{ renameError() }}</div>
+              }
+            </form>
+          }
           <div class="info-grid">
             <div class="info-item">
               <span class="info-label">Balance</span>
@@ -255,88 +291,6 @@
         <h3>Login Security</h3>
         <p class="security-description">Your account is protected with encryption and multi-layer security.</p>
         <p class="security-detail status-secure">● Secure</p>
-      </div>
-    </div>
-  </div>
-</section>
-
-<section class="panel preferences-panel" aria-labelledby="preferences-title">
-  <div class="panel-heading">
-    <h2 id="preferences-title">Notification Preferences</h2>
-  </div>
-
-  <div class="preferences-content">
-    <div class="preference-item">
-      <div class="preference-info">
-        <h3>Email Notifications</h3>
-        <p>Receive general account updates and notifications.</p>
-      </div>
-      <div class="toggle-switch" [class.active]="preferences().emailNotifications">
-        <input
-          type="checkbox"
-          id="email-notifications"
-          [checked]="preferences().emailNotifications"
-          (change)="togglePreference('emailNotifications')"
-          class="toggle-input"
-        />
-        <label for="email-notifications" class="toggle-label"></label>
-      </div>
-    </div>
-
-    <hr class="preference-divider" />
-
-    <div class="preference-item">
-      <div class="preference-info">
-        <h3>Order Confirmations</h3>
-        <p>Receive notifications when your orders are placed, filled, or cancelled.</p>
-      </div>
-      <div class="toggle-switch" [class.active]="preferences().orderConfirmations">
-        <input
-          type="checkbox"
-          id="order-confirmations"
-          [checked]="preferences().orderConfirmations"
-          (change)="togglePreference('orderConfirmations')"
-          class="toggle-input"
-        />
-        <label for="order-confirmations" class="toggle-label"></label>
-      </div>
-    </div>
-
-    <hr class="preference-divider" />
-
-    <div class="preference-item">
-      <div class="preference-info">
-        <h3>Trade Alerts</h3>
-        <p>Receive alerts for significant price movements in your portfolio.</p>
-      </div>
-      <div class="toggle-switch" [class.active]="preferences().tradeAlerts">
-        <input
-          type="checkbox"
-          id="trade-alerts"
-          [checked]="preferences().tradeAlerts"
-          (change)="togglePreference('tradeAlerts')"
-          class="toggle-input"
-        />
-        <label for="trade-alerts" class="toggle-label"></label>
-      </div>
-    </div>
-
-    <hr class="preference-divider" />
-
-    <div class="preference-item">
-      <div class="preference-info">
-        <h3>Account Notifications</h3>
-        <p>Receive security alerts and important account notifications.</p>
-      </div>
-      <div class="toggle-switch" [class.active]="preferences().accountNotifications">
-        <input
-          type="checkbox"
-          id="account-notifications"
-          [checked]="preferences().accountNotifications"
-          (change)="togglePreference('accountNotifications')"
-          class="toggle-input"
-        />
-        <label for="account-notifications" class="toggle-label"></label>
       </div>
     </div>
   </div>
@@ -463,7 +417,7 @@
             </svg>
           </div>
           <h3>Account added</h3>
-          <p>Account #{{ accountId }} is now available!</p>
+          <p>{{ addedAccountLabel() || 'Account #' + accountId }} is now available!</p>
           <button type="button" class="button primary" (click)="closeAddAccount()">Done</button>
         </div>
       } @else {
@@ -471,6 +425,10 @@
           <div class="form-error" role="alert">{{ addAccountError() }}</div>
         }
         <form (ngSubmit)="addAccount()" class="password-form">
+          <div class="form-field">
+            <label for="add-account-name">Account name (optional)</label>
+            <input id="add-account-name" type="text" [(ngModel)]="newAccountName" name="accountName" class="form-input" [attr.maxlength]="accountNameMaxLength" placeholder="e.g. Savings" autocomplete="off" />
+          </div>
           <div class="form-field">
             <label for="add-account-balance">Opening balance *</label>
             <input id="add-account-balance" type="number" min="0" step="0.01" [(ngModel)]="newAccountBalance" name="balance" class="form-input" required />

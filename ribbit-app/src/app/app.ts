@@ -28,7 +28,9 @@ export class App {
   }
 
   protected getCurrentPageTitle(): string {
-    const path = this.router.url.split('/')[1] || 'dashboard';
+    const segments = this.router.url.split('/');
+    const path = segments[1] || 'dashboard';
+    const adminSection = segments[2];
     const titleMap: Record<string, string> = {
       dashboard: 'Dashboard',
       portfolio: 'Portfolio',
@@ -36,9 +38,14 @@ export class App {
       orders: 'Orders',
       transactions: 'Transactions',
       account: 'Account',
+      news: 'Ribbit News',
       admin: 'Admin',
-      reporter: 'Reporter'
+      reporter: 'Trending data',
+      'trading-trends': 'Trading trends'
     };
+    if (path === 'admin' && adminSection === 'orders') return 'Admin Orders';
+    if (path === 'admin' && adminSection === 'transactions') return 'Admin Transactions';
+    if (path === 'admin' && adminSection === 'add-admin') return 'Admin / Add admin';
     return titleMap[path] || 'Dashboard';
   }
 }

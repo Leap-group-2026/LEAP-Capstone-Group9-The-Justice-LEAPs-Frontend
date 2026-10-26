@@ -1,0 +1,116 @@
+<section class="page-intro" aria-labelledby="news-heading">
+  <div>
+    <div class="eyebrow">RIBBIT NEWS</div>
+    <h1 id="news-heading">News for your portfolio.</h1>
+    <p>Personalized market news based on your current portfolio holdings.</p>
+  </div>
+
+</section>
+
+<section class="news-toolbar" aria-labelledby="filters-heading">
+  <div class="toolbar-heading">
+    <h2 id="filters-heading">Filter stories</h2>
+    <span class="holding-count">{{ symbols().length }} holdings tracked</span>
+  </div>
+
+  <div class="filter-controls">
+    <div class="instrument-filter filter-field">
+      <label for="instrument-filter">Instrument</label>
+      <select id="instrument-filter" [value]="selectedSymbol()" (change)="selectSymbol($event)">
+        <option value="all">All holdings</option>
+        @for (symbol of symbols(); track symbol) {
+          <option [value]="symbol">{{ symbol }}</option>
+        }
+      </select>
+    </div>
+
+    <div class="sentiment-filter filter-field">
+      <span class="filter-label">Sentiment</span>
+      <div class="segments" role="group" aria-label="Filter news by sentiment">
+        @for (sentiment of ['all', 'negative', 'neutral', 'positive']; track sentiment) {
+          <button
+            type="button"
+            [class.active]="selectedSentiment() === sentiment"
+            [class.negative-segment]="sentiment === 'negative'"
+            [class.neutral-segment]="sentiment === 'neutral'"
+            [class.positive-segment]="sentiment === 'positive'"
+            [attr.aria-pressed]="selectedSentiment() === sentiment"
+            (click)="selectSentiment($any(sentiment))"
+          >{{ sentimentLabel($any(sentiment)) }}</button>
+        }
+      </div>
+    </div>
+  </div>
+</section>
+
+@if (loading()) {
+  <section class="story-grid" aria-label="Loading news" aria-busy="true">
+    @for (card of [1, 2, 3, 4]; track card) {
+      <article class="story-card skeleton-card">
+        <div class="skeleton-copy"><div class="skeleton"></div><div class="skeleton"></div><div class="skeleton short"></div></div>
+      </article>
+    }
+  </section>
+} @else if (error()) {
+  <section class="state-panel" role="alert">
+    <div class="state-mark">!</div>
+    <h2>News is unavailable</h2>
+    <p>{{ error() }}</p>
+    <button class="button primary" type="button" (click)="loadNews()">Try again</button>
+  </section>
+} @else {
+  @if (filteredArticles().length === 0) {
+    <section class="state-panel">
+      <div class="state-mark">—</div>
+      <h2>No matching personalized stories</h2>
+      <p>There are no {{ selectedSentiment() === 'all' ? '' : selectedSentiment() + ' ' }}stories for this selection right now.</p>
+    </section>
+  } @else {
+    <section class="feed-section" aria-labelledby="personalized-news-heading">
+      <h2 id="personalized-news-heading" class="feed-heading">Your personalized news</h2>
+      <div class="story-grid">
+        @for (article of filteredArticles(); track article.uuid) {
+          <a class="story-card" [href]="article.url" target="_blank" rel="noopener noreferrer">
+            <div class="story-content">
+              <div class="story-meta">
+                <span class="sentiment-dot" [class]="article.sentiment"></span>
+                <span>{{ sentimentLabel(article.sentiment) }}</span>
+                <span class="meta-divider">·</span>
+                <span>{{ article.source || 'Market source' }}</span>
+              </div>
+              <h2>{{ article.title }}</h2>
+              @if (article.description) {
+                <p>{{ article.description }}</p>
+              }
+              <div class="story-footer">
+                <span>{{ formatDate(article.publishedAt) }}</span>
+                <span class="story-symbols">
+                  @for (symbol of article.symbols; track symbol) { <b>{{ symbol }}</b> }
+                </span>
+                <span class="story-link">Read story <span aria-hidden="true">↗</span></span>
+              </div>
+            </div>
+          </a>
+        }
+      </div>
+    </section>
+  }
+
+  @if (allArticles().length) {
+    <div class="news-divider" aria-hidden="true"><span>ALL MARKET NEWS</span></div>
+    <section class="feed-section" aria-labelledby="all-news-heading">
+      <h2 id="all-news-heading" class="feed-heading">All market news</h2>
+      <div class="story-grid">
+        @for (article of allArticles(); track article.uuid) {
+            <a class="story-card" [href]="article.url" target="_blank" rel="noopener noreferrer">
+              <div class="story-content">
+                <div class="story-meta"><span>Market</span><span class="meta-divider">·</span><span>{{ article.source }}</span></div>
+                <h2>{{ article.title }}</h2>
+                <div class="story-footer"><span>Date unavailable</span><span class="story-link">Read story <span aria-hidden="true">↗</span></span></div>
+              </div>
+            </a>
+        }
+      </div>
+    </section>
+  }
+}

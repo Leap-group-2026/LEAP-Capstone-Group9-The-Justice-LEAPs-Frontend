@@ -1,0 +1,40 @@
+@use '../admin/admin.scss';
+
+.back-link {
+  display: inline-block;
+  margin-bottom: 12px;
+  color: var(--accent);
+  font-size: 12px;
+  text-decoration: none;
+}
+
+.back-link:hover { text-decoration: underline; }
+
+.filter-bar { display: flex; align-items: center; gap: 12px; padding: 14px 20px; }
+.filter-bar label { color: var(--muted); font-size: 12px; }
+.filter-bar select { min-width: 170px; min-height: 36px; padding: 7px 32px 7px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface-raised); color: var(--text); font: inherit; font-size: 12px; }
+.filter-bar select:focus { border-color: var(--accent); outline: none; }
+.filter-result { color: var(--subtle); font-size: 11px; }
+
+.chart-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.chart-panel { margin-bottom: 0; }
+.pie-content { display: flex; align-items: center; gap: 28px; padding: 24px; }
+.pie-chart { flex: 0 0 148px; width: 148px; height: 148px; border-radius: 50%; position: relative; }
+.pie-chart::after { content: ''; position: absolute; inset: 31%; border-radius: 50%; background: var(--surface); }
+.chart-legend { display: grid; flex: 1; gap: 12px; min-width: 0; }
+.legend-item { display: flex; align-items: center; justify-content: space-between; gap: 12px; color: var(--muted); font-size: 12px; }
+.legend-label { display: inline-flex; align-items: center; gap: 8px; }
+.legend-label i { width: 8px; height: 8px; border-radius: 50%; }
+.legend-item strong { color: var(--text); font-weight: 500; }
+.legend-item small { margin-left: 4px; color: var(--subtle); font-size: 10px; font-weight: 400; }
+.chart-empty { color: var(--subtle); font-size: 12px; }
+
+@media (max-width: 760px) {
+  .chart-grid { grid-template-columns: 1fr; }
+}

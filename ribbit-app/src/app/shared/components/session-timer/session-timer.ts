@@ -28,7 +28,7 @@ const TICK_MS = 1000;
             type="button"
             class="refresh"
             [class.spinning]="refreshing()"
-            [disabled]="refreshing()"
+            [disabled]="refreshing() || remainingMs() === 0"
             (click)="refresh()"
             aria-label="Refresh session"
             title="Refresh session"
@@ -129,6 +129,7 @@ export class SessionTimer {
   private readonly now = signal(Date.now());
   // Re-read every tick, so a refresh by the interceptor or another tab shows up at once.
   private readonly token = signal<string | null>(null);
+  private sessionEnded = false;
 
   readonly refreshing = signal(false);
   readonly status = signal<string | null>(null);
@@ -168,7 +169,7 @@ export class SessionTimer {
   }
 
   refresh(): void {
-    if (this.refreshing()) {
+    if (this.refreshing() || this.remainingMs() === 0) {
       return;
     }
     this.refreshing.set(true);
@@ -197,7 +198,28 @@ export class SessionTimer {
 
   private tick(): void {
     this.now.set(Date.now());
-    this.token.set(readToken());
-    this.canRefresh.set(readRefreshToken() !== null);
+    const refreshToken = readRefreshToken();
+    const refreshExpiresAt = refreshToken ? tokenExpiresAt(refreshToken) : null;
+    if (refreshExpiresAt !== null && refreshExpiresAt <= this.now()) {
+      this.endSession();
+      return;
+    }
+    const accessToken = readToken();
+    const accessExpiresAt = accessToken ? tokenExpiresAt(accessToken) : null;
+    if (accessToken && (accessExpiresAt === null || accessExpiresAt <= this.now())) {
+      this.endSession();
+      return;
+    }
+    this.token.set(accessToken);
+    this.canRefresh.set(refreshToken !== null);
+  }
+
+  private endSession(): void {
+    if (this.sessionEnded) return;
+    this.sessionEnded = true;
+    this.authService.clearSession();
+    this.token.set(null);
+    this.canRefresh.set(false);
+    void this.router.navigate(['/login']);
   }
 }

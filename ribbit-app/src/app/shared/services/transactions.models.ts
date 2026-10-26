@@ -15,6 +15,7 @@ export interface AccountDto {
   tradeType: string;
   createdAt: string;
   accountActive: boolean;
+  accountFrozen?: boolean;
 }
 
 // GET /accounts/{accountId}
@@ -48,6 +49,7 @@ export interface TransactionDto {
   side: 'IN' | 'OUT' | 'EXCHANGE';
   account_id: number;
   happened_at: string;
+  currency?: string | null;
 }
 
 // GET /orders/account/{accountId}
@@ -119,6 +121,7 @@ export interface Transaction {
   type: TransactionType;
   description: string;
   amount: number;
+  currency?: string | null;
   status: TransactionStatus;
   instrument?: string;
   quantity?: number;
