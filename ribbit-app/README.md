@@ -38,6 +38,39 @@ npm run build
 
 Output will be in the `dist/ribbit-app` directory.
 
+## S3 and CloudFront deployment
+
+Run `npm run build:s3` from this directory. This produces a browser-only
+production build in `dist/ribbit-app-s3/browser`, including a root `index.html`.
+The existing production/Docker SSR build is unchanged. No HTML renaming is needed.
+
+1. In the S3 upload screen, remove the pending upload whose folder is `browser/`.
+2. Open `dist/ribbit-app-s3/browser` locally, select all files inside it, and
+	upload those contents to the bucket root, not the enclosing `browser` folder.
+	Upload any generated asset subfolders too, preserving their relative paths.
+3. Use the bucket's S3 REST origin in CloudFront, with Origin Access Control
+	(OAC). Keep S3 Block Public Access enabled and apply the bucket policy
+	CloudFront provides to allow that distribution to read objects.
+	S3 static website hosting is not required for this setup.
+4. Leave the CloudFront origin path empty when files are at the bucket root.
+	Set the distribution's default root object to `index.html` and its viewer
+	protocol policy to redirect HTTP to HTTPS.
+5. For a distribution serving only this frontend, add custom error responses
+	for both HTTP 403 and 404: response page `/index.html`, response code 200,
+	and error caching minimum TTL 0. This lets Angular handle routes such as
+	`/login` and `/dashboard`, including browser refreshes. Do not apply this
+	fallback to a shared API distribution without isolating API error handling.
+6. After replacing an existing deployment, invalidate `/*` in CloudFront.
+7. Test the CloudFront HTTPS URL, then open `/login` directly and refresh it.
+
+Before expecting sign-in or data requests to work, set `authUrl` and `springUrl`
+in `src/app/environments/environment.ts` to browser-reachable HTTPS API endpoints
+and rebuild. Private `10.x.x.x` addresses require access to that private network;
+HTTP API calls are blocked from an HTTPS frontend as mixed content. Configure
+backend CORS to allow the CloudFront/custom-domain frontend origin. Docker build
+arguments and the Docker environment-generation script are not automatically
+used by `npm run build:s3`. Frontend configuration must never contain secrets.
+
 ## Docker deployment configuration
 
 Copy the tracked .env.example template to .env in this directory on another
