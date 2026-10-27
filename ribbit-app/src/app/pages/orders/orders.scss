@@ -229,6 +229,32 @@ small { display: block; font-size: 10px; color: var(--subtle); line-height: 1.6;
   overflow-x: auto;
 }
 
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 24px;
+  border-top: 1px solid var(--border);
+}
+
+.pagination-summary,
+.pagination-page {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.pagination-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+
+  .button:disabled {
+    cursor: not-allowed;
+    opacity: 0.45;
+  }
+}
+
 table {
   width: 100%;
   min-width: 1200px;
@@ -609,6 +635,17 @@ th.numeric, td.numeric {
   table {
     min-width: 800px;
     font-size: 11px;
+  }
+
+  .pagination {
+    align-items: flex-start;
+    flex-direction: column;
+    padding: 16px;
+  }
+
+  .pagination-controls {
+    width: 100%;
+    justify-content: space-between;
   }
 
   th, td {
