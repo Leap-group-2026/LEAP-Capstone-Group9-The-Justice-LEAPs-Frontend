@@ -194,6 +194,15 @@ export class Orders implements OnInit {
   // State management
   readonly orders = signal<Order[]>([]);
   readonly filteredOrders = computed(() => this.applyFilters());
+  readonly pageSize = 5;
+  readonly currentPage = signal(1);
+  readonly pageCount = computed(() =>
+    Math.max(1, Math.ceil(this.filteredOrders().length / this.pageSize))
+  );
+  readonly paginatedOrders = computed(() => {
+    const start = (this.currentPage() - 1) * this.pageSize;
+    return this.filteredOrders().slice(start, start + this.pageSize);
+  });
   readonly expandedOrderId = signal<string | null>(null);
   readonly showOrderDetailsModal = signal(false);
   readonly selectedOrder = signal<Order | null>(null);
@@ -254,7 +263,12 @@ export class Orders implements OnInit {
         .pipe(finalize(() => this.isLoading.set(false)))
         .subscribe({
           next: apiOrders => {
-            this.orders.set(apiOrders.map(order => this.mapApiOrderToView(order)));
+            const newestFirst = [...apiOrders].sort((first, second) =>
+              this.getOrderTimestamp(second) - this.getOrderTimestamp(first) ||
+              second.orderId - first.orderId
+            );
+            this.orders.set(newestFirst.map(order => this.mapApiOrderToView(order)));
+            this.currentPage.set(1);
           },
           error: error => {
             this.orders.set([]);
@@ -271,6 +285,10 @@ export class Orders implements OnInit {
 
   navigate(destination: string): void {
     this.router.navigate([`/${destination}`]);
+  }
+
+  goToPage(page: number): void {
+    this.currentPage.set(Math.min(Math.max(page, 1), this.pageCount()));
   }
 
   applyFilters(): Order[] {
@@ -501,6 +519,14 @@ export class Orders implements OnInit {
 
     const parsed = new Date(value);
     return Number.isNaN(parsed.getTime()) ? null : parsed;
+  }
+
+  private getOrderTimestamp(order: OrderHistoryApiResponse): number {
+    return (
+      this.parseBackendDate(order.createdAt)?.getTime() ??
+      this.parseBackendDate(order.executedAt)?.getTime() ??
+      0
+    );
   }
 
   // Backend timestamps are naive local date-times, so use local calendar parts rather than toISOString (UTC).

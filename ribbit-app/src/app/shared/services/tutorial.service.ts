@@ -44,7 +44,6 @@ export class TutorialService {
   start(): void {
     this.stepIndex.set(0);
     this.isOpen.set(true);
-    if (!this.theme.isLight()) this.theme.toggle();
     void this.router.navigate(['/dashboard']);
   }
 
@@ -65,6 +64,7 @@ export class TutorialService {
 
   close(): void {
     this.isOpen.set(false);
+    void this.router.navigate(['/dashboard']);
   }
 
   private navigateToCurrentStep(): void {

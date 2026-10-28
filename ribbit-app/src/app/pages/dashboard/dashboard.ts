@@ -169,6 +169,7 @@ export class Dashboard implements OnInit {
         next: positions => {
           if (positions.length === 0) {
             this.holdings = [];
+            this.allHoldings = [];
             this.positionsLoading.set(false);
             return;
           }
@@ -177,7 +178,7 @@ export class Dashboard implements OnInit {
               map(currentPrice => ({ position, currentPrice }))
             ))
           ).subscribe(holdings => {
-            this.holdings = holdings.map(({ position, currentPrice }) => ({
+            this.allHoldings = holdings.map(({ position, currentPrice }) => ({
               symbol: position.ticker,
               name: position.asset_name,
               type: this.getHoldingType(position),
@@ -187,8 +188,8 @@ export class Dashboard implements OnInit {
             }))
               .sort((first, second) =>
                 this.marketValue(second) - this.marketValue(first)
-              )
-              .slice(0, 5);
+              );
+            this.holdings = this.allHoldings.slice(0, 5);
 
             this.positionsLoading.set(false);
           });
@@ -300,7 +301,8 @@ export class Dashboard implements OnInit {
     return Number.isFinite(balance) ? balance : 0;
   }
 
-   holdings: Holding[] = []
+  holdings: Holding[] = [];
+  private allHoldings: Holding[] = [];
   // TODO: Add loadPositions() near the other private helper methods.
   // Read the token and account ID, call /positions/account/{accountId},
   // transform each response into Holding, calculate market value, sort highest
@@ -327,7 +329,9 @@ export class Dashboard implements OnInit {
 
   get holdingsValue(): number {
     return this.round(
-      this.holdings.reduce((sum, item) => sum + this.marketValue(item), 0)
+      this.holdings
+        .filter(item => !this.isForex(item))
+        .reduce((sum, item) => sum + this.marketValue(item), 0)
     );
   }
 
@@ -341,7 +345,7 @@ export class Dashboard implements OnInit {
 
   get totalCostBasis(): number {
     return this.round(
-      this.holdings.reduce(
+      this.allHoldings.reduce(
         (sum, item) => sum + (this.isForex(item) ? 0 : item.quantity * item.averageCost),
         0
       )
@@ -350,7 +354,7 @@ export class Dashboard implements OnInit {
 
   get totalGain(): number {
     return this.round(
-      this.holdings.reduce(
+      this.allHoldings.reduce(
         (sum, item) => sum + (this.isForex(item) ? 0 : this.gain(item)),
         0
       )

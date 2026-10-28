@@ -72,7 +72,7 @@
           </tr>
         </thead>
         <tbody>
-          @for (order of filteredOrders(); track order.id) {
+          @for (order of paginatedOrders(); track order.id) {
             <tr>
               <th scope="row" class="order-id">{{ order.id }}</th>
               <td>
@@ -192,6 +192,33 @@
         </tbody>
       </table>
     </div>
+    <nav class="pagination" aria-label="Orders pages">
+      <span class="pagination-summary">
+        Showing {{ (currentPage() - 1) * pageSize + 1 }}–{{ (currentPage() - 1) * pageSize + paginatedOrders().length }}
+        of {{ filteredOrders().length }} orders
+      </span>
+      <div class="pagination-controls">
+        <button
+          class="button secondary"
+          type="button"
+          (click)="goToPage(currentPage() - 1)"
+          [disabled]="currentPage() === 1"
+          aria-label="Previous page"
+        >
+          Previous
+        </button>
+        <span class="pagination-page">Page {{ currentPage() }} of {{ pageCount() }}</span>
+        <button
+          class="button secondary"
+          type="button"
+          (click)="goToPage(currentPage() + 1)"
+          [disabled]="currentPage() === pageCount()"
+          aria-label="Next page"
+        >
+          Next
+        </button>
+      </div>
+    </nav>
   } @else {
     <div class="empty-state">
       <p>No orders match your filters.</p>

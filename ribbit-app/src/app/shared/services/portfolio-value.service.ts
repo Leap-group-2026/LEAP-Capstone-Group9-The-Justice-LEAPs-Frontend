@@ -30,7 +30,7 @@ export class PortfolioValueService {
         { headers: this.createAuthHeaders() }
       )
       .pipe(
-        map(positions => positions.filter(position => position.ticker)),
+        map(positions => positions.filter(position => position.ticker && !this.isForex(position))),
         switchMap(positions => {
           if (!positions.length) {
             return [0];
@@ -38,14 +38,17 @@ export class PortfolioValueService {
 
           const priceRequests = positions.map(position =>
             this.getInstrument(position).pipe(
-              map(instrument => this.isForex(position)
-                ? position.total_price
-                : instrument.price * position.quantity)
+              map(instrument => {
+                const positionValue = this.isForex(position)
+                  ? position.total_price
+                  : instrument.price * position.quantity;
+                return Math.round(positionValue * 100) / 100;
+              })
             )
           );
 
           return forkJoin(priceRequests).pipe(
-            map(values => values.reduce((total, value) => total + value, 0))
+            map(values => Math.round(values.reduce((total, value) => total + value, 0) * 100) / 100)
           );
         })
       );
